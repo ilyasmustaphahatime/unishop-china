@@ -2,13 +2,14 @@
 
 ## Verified working
 
-- The repository is on `feature/authentication`; `main` exists and both branches currently point to commit `aba5943`.
+- The repository is on `feature/authentication`; `main` exists and the latest committed foundation audit is `68310c8`.
 - FastAPI responds with HTTP 200 at `/`, `/health`, `/api/v1/health`, `/api/v1/health/database`, and `/docs`.
 - The database health endpoint returns `{"database":"mysql","status":"healthy","connected":true}`.
 - Settings load `backend/.env` relative to the backend directory without exposing its values.
 - SQLAlchemy uses `mysql+pymysql`, `pool_pre_ping=True`, a reusable `SessionLocal`, `Base`, and a rollback/close-safe `get_db()` dependency.
 - SQLAlchemy and the database-check script both complete `SELECT 1` successfully against `unishop_china` as the dedicated application user.
 - Alembic loads the same database URL builder and `Base.metadata` as FastAPI and connects without a configuration or access-denied error.
+- Phase 1 authentication models, constraints, relationships, and migration `a75289cfd4a9` are applied and validated.
 - Vite serves the frontend on port 5173, returns HTTP 200, renders the React login page and form, and injects `VITE_API_BASE_URL` into the transformed API client.
 - The TypeScript/Vite production build and ESLint check complete successfully.
 
@@ -23,9 +24,9 @@
 
 ## Existing placeholders
 
-- Backend domain models, model exports, repositories, services, most schemas, and most `/api/v1` domain route modules are placeholders.
-- Backend test modules contain placeholders and no collected tests.
-- Authentication backend endpoints, authentication database models, JWT behavior, registration, and login are not implemented.
+- Marketplace domain models, repositories, services, most schemas, and most `/api/v1` domain route modules are placeholders.
+- Authentication backend endpoints, JWT behavior, registration, and login are not implemented; the five authentication database models are implemented.
+- Authentication database tests are implemented; other backend test modules remain placeholders.
 - Most frontend domain feature API/hook/type files, pages, and UI components are placeholders or simple headings.
 - The frontend login screen and client request/store helpers are partially implemented from earlier work, but cannot authenticate because the backend authentication API does not exist.
 - Most engineering documentation pages, database seeds, diagrams, and Postman collections remain placeholders.
@@ -35,16 +36,16 @@
 - Database name: `unishop_china`
 - Connection status: connected; `SELECT 1` succeeds
 - Server observed: MySQL 9.4.0
-- Alembic status: connects successfully with no current revision
-- Existing table names: none
-- Current migration revision: none
-- Existing migrations: none in `backend/alembic/versions/`
+- Alembic status: connected and at head
+- Existing table names: `alembic_version`, `users`, `user_roles`, `refresh_tokens`, `phone_verification_codes`, `password_reset_codes`
+- Current migration revision: `a75289cfd4a9`
+- Existing migrations: one authentication-only migration
 
 ## Git status
 
 - Current branch: `feature/authentication`
-- Latest commit: `aba5943 chore: initialize UniShop China project`
-- Working tree: not clean because this audit has uncommitted fixes and this status document
+- Latest commit: `68310c8 chore: repair and document project foundation`
+- Working tree: not clean because Phase 1 implementation is not committed yet
 - Ignore status: `backend/.env`, `frontend/.env`, `backend/.venv/`, and `frontend/node_modules/` are ignored
 - Tracked environment files: placeholder-only `backend/.env.example` and `frontend/.env.example`
 - Git identity: name is configured; the configured email appears malformed (missing `@`) and was not changed
@@ -53,9 +54,9 @@
 
 - Backend database check: passed; MySQL returned `1`
 - FastAPI health checks: all five audited routes returned HTTP 200
-- Alembic `current`, `heads`, and `history`: all exited successfully; each is empty because there are no migrations
+- Alembic `current`, `heads`, `history`, and schema-drift check: passed at revision `a75289cfd4a9`
 - Backend Ruff check: passed
-- Backend tests: pytest runs, but collects no tests; this is not a passing test suite
+- Backend tests: 22 authentication database tests passed; other feature test files remain placeholders
 - Frontend build: passed (`tsc -b && vite build`)
 - Frontend lint: passed
 - Frontend tests: Vitest runs, but finds no test files and exits non-zero; this is not a passing test suite
@@ -63,10 +64,10 @@
 
 ## Known issues
 
-- No backend or frontend tests are implemented.
+- Frontend tests and non-authentication backend tests are not implemented.
 - The local server is MySQL 9.4.0, while the project documentation and Docker service target MySQL 8.x/8.4; compatibility is currently adequate for the connection checks but the development baseline is inconsistent.
 - `frontend/src/stores/authStore.ts` is implemented while `frontend/src/features/auth/store.ts` is a placeholder with overlapping responsibility.
-- The frontend login flow is client-only and cannot succeed until the backend models, migration, and authentication API are implemented in later tasks.
+- The frontend login flow is client-only and cannot succeed until authentication APIs are implemented in later tasks.
 - Most generated project modules are placeholders and must not be mistaken for completed features.
 - The Git email `ilyasihtm52gmail.com` appears malformed and should be corrected by the user if unintended.
 
@@ -79,4 +80,4 @@
 
 ## Exact next step
 
-Implement the five authentication database models and create the first Alembic migration. Do not implement authentication APIs or JWT behavior in that same task.
+Implement `POST /api/v1/auth/register` only. Keep login, JWT issuance, OTP sending, password reset, and other endpoints out of that task.
