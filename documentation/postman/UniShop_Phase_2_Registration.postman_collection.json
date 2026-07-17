@@ -1,0 +1,167 @@
+{
+  "info": {
+    "name": "UniShop China — Phase 2 Registration",
+    "description": "Registration-only requests for POST /api/v1/auth/register. Configure VERIFICATION_CODE_HASH_SECRET locally before phone registration.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "uniqueEmail", "value": "phase2.postman@example.com" },
+    { "key": "uniquePhone", "value": "+8613800000000" }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response is JSON', function () {",
+          "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});",
+          "const body = pm.response.json();",
+          "const serialized = JSON.stringify(body);",
+          "['password', 'password_hash', 'code', 'otp', 'code_hash', 'token', 'jwt', 'access_token', 'refresh_token'].forEach(function (field) {",
+          "  pm.test('Response does not expose ' + field, function () {",
+          "    pm.expect(serialized).not.to.include('\\\"' + field + '\\\"');",
+          "  });",
+          "});"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Register with email",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{uniqueEmail}}\",\n  \"password\": \"StrongPassword123\"\n}"
+        }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+          "const body = pm.response.json();",
+          "pm.test('BUYER role assigned', () => pm.expect(body.roles).to.eql(['BUYER']));",
+          "pm.test('Account is ACTIVE', () => pm.expect(body.account_status).to.eql('ACTIVE'));"
+        ] }
+      }]
+    },
+    {
+      "name": "Register with phone",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone_number\": \"{{uniquePhone}}\",\n  \"password\": \"StrongPassword123\"\n}"
+        }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+          "const body = pm.response.json();",
+          "pm.test('Phone verification required', () => pm.expect(body.phone_verification_required).to.be.true);",
+          "pm.test('BUYER role assigned', () => pm.expect(body.roles).to.eql(['BUYER']));",
+          "pm.test('Account is ACTIVE', () => pm.expect(body.account_status).to.eql('ACTIVE'));"
+        ] }
+      }]
+    },
+    {
+      "name": "Register with email and phone",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"phase2.both.{{$timestamp}}@example.com\",\n  \"phone_number\": \"+8613900000000\",\n  \"password\": \"StrongPassword123\"\n}"
+        }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+          "const body = pm.response.json();",
+          "pm.test('BUYER and ACTIVE', function () { pm.expect(body.roles).to.eql(['BUYER']); pm.expect(body.account_status).to.eql('ACTIVE'); });"
+        ] }
+      }]
+    },
+    {
+      "name": "Duplicate email",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{uniqueEmail}}\",\n  \"password\": \"StrongPassword123\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 409', () => pm.response.to.have.status(409));"] } }]
+    },
+    {
+      "name": "Duplicate phone",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"{{uniquePhone}}\",\n  \"password\": \"StrongPassword123\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 409', () => pm.response.to.have.status(409));"] } }]
+    },
+    {
+      "name": "Invalid email",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"invalid-email\",\n  \"password\": \"StrongPassword123\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 422', () => pm.response.to.have.status(422));"] } }]
+    },
+    {
+      "name": "Invalid phone",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"12345\",\n  \"password\": \"StrongPassword123\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 422', () => pm.response.to.have.status(422));"] } }]
+    },
+    {
+      "name": "Weak password",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"weak@example.com\",\n  \"password\": \"weak\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 422', () => pm.response.to.have.status(422));"] } }]
+    },
+    {
+      "name": "Missing identifier",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "body": { "mode": "raw", "raw": "{\n  \"password\": \"StrongPassword123\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 422', () => pm.response.to.have.status(422));"] } }]
+    },
+    {
+      "name": "Forbidden role field",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"attacker@example.com\",\n  \"password\": \"StrongPassword123\",\n  \"role\": \"ADMIN\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 422', () => pm.response.to.have.status(422));"] } }]
+    }
+  ]
+}

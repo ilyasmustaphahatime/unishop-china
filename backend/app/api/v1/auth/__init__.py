@@ -1,1 +1,1 @@
-﻿
+"""Authentication API package."""

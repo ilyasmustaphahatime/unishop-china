@@ -2,6 +2,7 @@
 
 ## Verified working
 
+- Phase 2 user registration is complete and validated for email-only, phone-only, and combined requests.
 - The repository is on `feature/authentication`; `main` exists and the latest committed foundation audit is `68310c8`.
 - FastAPI responds with HTTP 200 at `/`, `/health`, `/api/v1/health`, `/api/v1/health/database`, and `/docs`.
 - The database health endpoint returns `{"database":"mysql","status":"healthy","connected":true}`.
@@ -25,8 +26,8 @@
 ## Existing placeholders
 
 - Marketplace domain models, repositories, services, most schemas, and most `/api/v1` domain route modules are placeholders.
-- Authentication backend endpoints, JWT behavior, registration, and login are not implemented; the five authentication database models are implemented.
-- Authentication database tests are implemented; other backend test modules remain placeholders.
+- User registration is implemented at `POST /api/v1/auth/register`; login, JWT behavior, phone-code delivery/verification, and password recovery are not implemented.
+- Authentication database and registration tests are implemented; other backend test modules remain placeholders.
 - Most frontend domain feature API/hook/type files, pages, and UI components are placeholders or simple headings.
 - The frontend login screen and client request/store helpers are partially implemented from earlier work, but cannot authenticate because the backend authentication API does not exist.
 - Most engineering documentation pages, database seeds, diagrams, and Postman collections remain placeholders.
@@ -44,8 +45,8 @@
 ## Git status
 
 - Current branch: `feature/authentication`
-- Latest commit: `68310c8 chore: repair and document project foundation`
-- Working tree: not clean because Phase 1 implementation is not committed yet
+- Latest commit: `ecf3daf feat: add authentication database models and migration`
+- Working tree: contains the uncommitted Phase 2 implementation
 - Ignore status: `backend/.env`, `frontend/.env`, `backend/.venv/`, and `frontend/node_modules/` are ignored
 - Tracked environment files: placeholder-only `backend/.env.example` and `frontend/.env.example`
 - Git identity: name is configured; the configured email appears malformed (missing `@`) and was not changed
@@ -56,7 +57,8 @@
 - FastAPI health checks: all five audited routes returned HTTP 200
 - Alembic `current`, `heads`, `history`, and schema-drift check: passed at revision `a75289cfd4a9`
 - Backend Ruff check: passed
-- Backend tests: 22 authentication database tests passed; other feature test files remain placeholders
+- Backend tests: 83 passed: 22 Phase 1 tests and 61 focused Phase 2 tests; other feature test files remain placeholders
+- Registration smoke tests passed for email-only, phone-only, and combined requests using a temporary process-only phone-code secret; exact smoke records were removed and the temporary server was stopped.
 - Frontend build: passed (`tsc -b && vite build`)
 - Frontend lint: passed
 - Frontend tests: Vitest runs, but finds no test files and exits non-zero; this is not a passing test suite
@@ -65,6 +67,7 @@
 ## Known issues
 
 - Frontend tests and non-authentication backend tests are not implemented.
+- Phone and combined live registration require `VERIFICATION_CODE_HASH_SECRET` in the ignored local `backend/.env`; automated phone registration tests pass with an injected test-only secret, but the local development value is currently missing.
 - The local server is MySQL 9.4.0, while the project documentation and Docker service target MySQL 8.x/8.4; compatibility is currently adequate for the connection checks but the development baseline is inconsistent.
 - `frontend/src/stores/authStore.ts` is implemented while `frontend/src/features/auth/store.ts` is a placeholder with overlapping responsibility.
 - The frontend login flow is client-only and cannot succeed until authentication APIs are implemented in later tasks.
@@ -80,4 +83,4 @@
 
 ## Exact next step
 
-Implement `POST /api/v1/auth/register` only. Keep login, JWT issuance, OTP sending, password reset, and other endpoints out of that task.
+Set a strong independent `VERIFICATION_CODE_HASH_SECRET` in the ignored local `backend/.env`, restart FastAPI, and complete live phone-only and email-and-phone smoke requests. Then Phase 3 can implement phone verification-code sending, resending, and verification without adding login or JWT behavior.

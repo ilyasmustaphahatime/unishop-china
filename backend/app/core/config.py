@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     jwt_secret_key: str = "replace_with_secure_secret"
     jwt_algorithm: str = "HS256"
+    verification_code_hash_secret: SecretStr | None = None
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
@@ -61,7 +62,9 @@ def build_database_url(settings: Settings) -> URL:
         if url.drivername != "mysql+pymysql":
             raise DatabaseConfigurationError("DATABASE_URL must use the mysql+pymysql driver.")
         if url.username != "unishop_app":
-            raise DatabaseConfigurationError("DATABASE_URL must use the dedicated unishop_app user.")
+            raise DatabaseConfigurationError(
+                "DATABASE_URL must use the dedicated unishop_app user."
+            )
         if url.database != "unishop_china":
             raise DatabaseConfigurationError("DATABASE_URL must target the unishop_china database.")
         return url.update_query_dict({"charset": "utf8mb4"})

@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Response, status
 
+from app.api.v1.auth.routes import router as auth_router
 from app.core.database import check_database_connection
 
 router = APIRouter()
+router.include_router(auth_router, prefix="/auth")
 
 
 @router.get("/health", tags=["health"])
