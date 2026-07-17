@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     mysql_host: str = "127.0.0.1"
     mysql_port: int = 3306
-    mysql_database: str = "uni_shop_china"
+    mysql_database: str = "unishop_china"
     mysql_user: str = "unishop_app"
     mysql_password: SecretStr | None = None
     database_url: str | None = None

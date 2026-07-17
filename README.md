@@ -28,6 +28,6 @@ npm install
 npm run dev
 ```
 
-Install MySQL 8 locally, create `uni_shop_china` with `utf8mb4`, and configure `backend/.env`; or start everything with `docker compose up --build`. Create migrations with `alembic revision --autogenerate -m "description"` and apply them with `alembic upgrade head`.
+Install MySQL 8 locally, create `unishop_china` with `utf8mb4`, and configure `backend/.env`; or start everything with `docker compose up --build`. Create migrations with `alembic revision --autogenerate -m "description"` and apply them with `alembic upgrade head`.
 
 Most domain models, schemas, repositories, services, routes, tests, and documentation pages are intentional placeholders. Authentication and marketplace business logic are not implemented yet.

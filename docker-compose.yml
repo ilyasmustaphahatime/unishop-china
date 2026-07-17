@@ -2,7 +2,7 @@ services:
   mysql:
     image: mysql:8.4
     environment:
-      MYSQL_DATABASE: uni_shop_china
+      MYSQL_DATABASE: unishop_china
       MYSQL_USER: unishop_app
       MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD:-replace_with_local_password}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me_locally}
@@ -13,7 +13,7 @@ services:
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: mysql+pymysql://unishop_app:${MYSQL_APP_PASSWORD:-replace_with_local_password}@mysql:3306/uni_shop_china?charset=utf8mb4
+      DATABASE_URL: mysql+pymysql://unishop_app:${MYSQL_APP_PASSWORD:-replace_with_local_password}@mysql:3306/unishop_china?charset=utf8mb4
       FRONTEND_URL: http://localhost:5173
     ports: ["8000:8000"]
     depends_on: {mysql: {condition: service_healthy}}

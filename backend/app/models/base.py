@@ -1,8 +1,7 @@
 ﻿from datetime import datetime, timezone
 from uuid import uuid4
-from sqlalchemy import CHAR, DateTime, String
+from sqlalchemy import CHAR, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
-from app.core.database import Base
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
