@@ -1,0 +1,1 @@
+﻿-- Managed through Alembic; add reviewed indexes here when needed.

@@ -1,0 +1,1 @@
+﻿"""Safe administrative script placeholder."""

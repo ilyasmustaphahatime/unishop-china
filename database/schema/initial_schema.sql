@@ -1,0 +1,3 @@
+CREATE DATABASE IF NOT EXISTS uni_shop_china
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;

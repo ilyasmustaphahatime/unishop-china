@@ -1,0 +1,86 @@
+﻿{
+    "item":  [
+                 {
+                     "name":  "Authentication",
+                     "item":  [
+
+                              ]
+                 },
+                 {
+                     "name":  "Profiles",
+                     "item":  [
+
+                              ]
+                 },
+                 {
+                     "name":  "Seller Verification",
+                     "item":  [
+
+                              ]
+                 },
+                 {
+                     "name":  "Products",
+                     "item":  [
+
+                              ]
+                 },
+                 {
+                     "name":  "Marketplace",
+                     "item":  [
+
+                              ]
+                 },
+                 {
+                     "name":  "Favorites",
+                     "item":  [
+
+                              ]
+                 },
+                 {
+                     "name":  "Chat",
+                     "item":  [
+
+                              ]
+                 },
+                 {
+                     "name":  "WeChat Sharing",
+                     "item":  [
+
+                              ]
+                 },
+                 {
+                     "name":  "Deals",
+                     "item":  [
+
+                              ]
+                 },
+                 {
+                     "name":  "Reviews",
+                     "item":  [
+
+                              ]
+                 },
+                 {
+                     "name":  "Reports",
+                     "item":  [
+
+                              ]
+                 },
+                 {
+                     "name":  "Notifications",
+                     "item":  [
+
+                              ]
+                 },
+                 {
+                     "name":  "Admin",
+                     "item":  [
+
+                              ]
+                 }
+             ],
+    "info":  {
+                 "name":  "UniShop China",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+             }
+}
