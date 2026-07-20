@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import ArgumentError
@@ -31,6 +31,17 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "replace_with_secure_secret"
     jwt_algorithm: str = "HS256"
     verification_code_hash_secret: SecretStr | None = None
+
+    sms_enabled: bool = False
+    sms_provider: str = "tencent"
+    tencent_secret_id: SecretStr | None = None
+    tencent_secret_key: SecretStr | None = None
+    tencent_sms_sdk_app_id: str | None = None
+    tencent_sms_signature: str | None = None
+    tencent_sms_template_id: str | None = None
+    tencent_sms_region: str = "ap-guangzhou"
+    tencent_sms_endpoint: str = "sms.tencentcloudapi.com"
+    sms_request_timeout_seconds: int = Field(default=10, ge=1, le=30)
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,

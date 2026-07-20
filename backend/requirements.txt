@@ -10,3 +10,4 @@ PyJWT>=2.9
 pwdlib[argon2]>=0.2
 python-multipart>=0.0.9
 cloudinary>=1.41
+tencentcloud-sdk-python>=3.0

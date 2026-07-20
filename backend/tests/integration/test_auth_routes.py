@@ -12,6 +12,7 @@ from app.common.enums import UserRoleType
 from app.core.database import get_db
 from app.core.security import verify_password, verify_verification_code
 from app.main import app
+from app.integrations.sms_client import FakeSmsSender
 from app.models import PhoneVerificationCode, User, UserRole
 from app.repositories.phone_verification_code_repository import (
     PhoneVerificationCodeRepository,
@@ -43,6 +44,7 @@ def build_registration_service(
     role_repository: UserRoleRepository | None = None,
     phone_code_repository: PhoneVerificationCodeRepository | None = None,
     secret: str | None = TEST_CODE_SECRET,
+    sms_sender: FakeSmsSender | None = None,
 ) -> RegistrationService:
     return RegistrationService(
         user_repository=user_repository,
@@ -50,6 +52,7 @@ def build_registration_service(
         phone_code_repository=phone_code_repository,
         verification_code_hash_secret=secret,
         verification_code_generator=lambda: TEST_CODE,
+        sms_sender=sms_sender or FakeSmsSender(),
     )
 
 

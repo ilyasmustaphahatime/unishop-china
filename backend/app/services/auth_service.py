@@ -15,6 +15,7 @@ from app.core.security import (
     resolve_verification_code_secret,
 )
 from app.models.base import utc_now
+from app.integrations.sms_client import DisabledSmsSender, SmsSender
 from app.repositories.phone_verification_code_repository import (
     PhoneVerificationCodeRepository,
 )
@@ -45,14 +46,18 @@ class RegistrationService:
         phone_code_repository: PhoneVerificationCodeRepository | None = None,
         verification_code_hash_secret: SecretStr | str | None = None,
         verification_code_generator: VerificationCodeGenerator = generate_verification_code,
+        sms_sender: SmsSender | None = None,
     ) -> None:
         self.user_repository = user_repository or UserRepository()
         self.role_repository = role_repository or UserRoleRepository()
         self.phone_code_repository = phone_code_repository or PhoneVerificationCodeRepository()
         self.verification_code_hash_secret = verification_code_hash_secret
         self.verification_code_generator = verification_code_generator
+        self.sms_sender = sms_sender or DisabledSmsSender()
 
     def register(self, session: Session, request: RegisterRequest) -> RegistrationResult:
+        raw_code: str | None = None
+        code_id: str | None = None
         try:
             with session.begin():
                 self._check_duplicates(session, request)
@@ -73,13 +78,14 @@ class RegistrationService:
                     secret = resolve_verification_code_secret(self.verification_code_hash_secret)
                     raw_code = self.verification_code_generator()
                     code_hash = hash_verification_code(raw_code, secret)
-                    self.phone_code_repository.create_code(
+                    record = self.phone_code_repository.create_code(
                         session,
                         user_id=user.id,
                         phone_number=request.phone_number,
                         code_hash=code_hash,
                         expires_at=utc_now() + timedelta(minutes=10),
                     )
+                    code_id = record.id
 
                 result = RegistrationResult(
                     id=user.id,
@@ -98,7 +104,26 @@ class RegistrationService:
             session.rollback()
             raise self._safe_integrity_conflict(exc) from exc
 
+        if request.phone_number is not None and raw_code is not None:
+            try:
+                delivery = self.sms_sender.send_verification_code(request.phone_number, raw_code)
+                if not delivery.delivered:
+                    self._expire_unsent_code(session, code_id)
+            except Exception:
+                self._expire_unsent_code(session, code_id)
+
         return result
+
+    def _expire_unsent_code(self, session: Session, code_id: str | None) -> None:
+        if code_id is None:
+            return
+        try:
+            with session.begin():
+                record = self.phone_code_repository.get_by_id(session, code_id)
+                if record is not None:
+                    self.phone_code_repository.expire_code(record, utc_now() - timedelta(seconds=1))
+        except Exception:
+            session.rollback()
 
     def _check_duplicates(self, session: Session, request: RegisterRequest) -> None:
         if request.email is not None and self.user_repository.get_by_email(

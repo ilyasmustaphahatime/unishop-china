@@ -1,7 +1,15 @@
 from datetime import datetime
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
+from typing import Annotated
 
 from app.common.enums import AccountStatus, UserRoleType
 from app.common.validators import normalize_chinese_phone_number, validate_password_policy
@@ -59,3 +67,47 @@ class RegisterResponse(BaseModel):
     roles: list[UserRoleType]
     phone_verification_required: bool
     created_at: datetime
+
+
+class ResendPhoneVerificationCodeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    phone_number: str
+
+    @field_validator("phone_number", mode="before")
+    @classmethod
+    def normalize_phone(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        return normalize_chinese_phone_number(value)
+
+
+class ResendPhoneVerificationCodeResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str
+    expires_in_seconds: int = 600
+
+
+AsciiCode = Annotated[str, StringConstraints(pattern=r"^[0-9]{6}$", strict=True)]
+
+
+class VerifyPhoneCodeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    phone_number: str
+    code: AsciiCode
+
+    @field_validator("phone_number", mode="before")
+    @classmethod
+    def normalize_phone(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        return normalize_chinese_phone_number(value)
+
+
+class VerifyPhoneCodeResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str
+    phone_verified: bool

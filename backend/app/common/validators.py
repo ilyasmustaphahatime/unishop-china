@@ -27,6 +27,13 @@ def normalize_chinese_phone_number(value: str) -> str:
     return normalized
 
 
+def mask_phone_number(phone_number: str) -> str:
+    """Mask a normalized phone number for safe operational messages."""
+    if len(phone_number) < 8:
+        return "***"
+    return f"{phone_number[:3]}******{phone_number[-4:]}"
+
+
 def validate_password_policy(password: str) -> str:
     if len(password) < 8:
         raise ValueError("Password must contain at least 8 characters.")

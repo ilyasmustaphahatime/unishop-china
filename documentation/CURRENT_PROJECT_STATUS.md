@@ -1,5 +1,14 @@
 # UniShop China Current Project Status
 
+## Phase 3A status
+
+- Phase 3 code: implemented
+- Automated tests: passed
+- Tencent integration: prepared
+- Real SMS delivery: pending
+- Ready for Phase 4: no
+- Overall: `IMPLEMENTED_WITH_REAL_SMS_PENDING`
+
 ## Verified working
 
 - Phase 2 user registration is complete and validated for email-only, phone-only, and combined requests.
@@ -26,7 +35,7 @@
 ## Existing placeholders
 
 - Marketplace domain models, repositories, services, most schemas, and most `/api/v1` domain route modules are placeholders.
-- User registration is implemented at `POST /api/v1/auth/register`; login, JWT behavior, phone-code delivery/verification, and password recovery are not implemented.
+- User registration and phone verification are implemented; login, JWT behavior, and password recovery are not implemented.
 - Authentication database and registration tests are implemented; other backend test modules remain placeholders.
 - Most frontend domain feature API/hook/type files, pages, and UI components are placeholders or simple headings.
 - The frontend login screen and client request/store helpers are partially implemented from earlier work, but cannot authenticate because the backend authentication API does not exist.
@@ -45,8 +54,8 @@
 ## Git status
 
 - Current branch: `feature/authentication`
-- Latest commit: `ecf3daf feat: add authentication database models and migration`
-- Working tree: contains the uncommitted Phase 2 implementation
+- Latest commit: `888d28d feat: implement user registration API`
+- Working tree: contains the uncommitted Phase 3A implementation
 - Ignore status: `backend/.env`, `frontend/.env`, `backend/.venv/`, and `frontend/node_modules/` are ignored
 - Tracked environment files: placeholder-only `backend/.env.example` and `frontend/.env.example`
 - Git identity: name is configured; the configured email appears malformed (missing `@`) and was not changed
@@ -57,7 +66,7 @@
 - FastAPI health checks: all five audited routes returned HTTP 200
 - Alembic `current`, `heads`, `history`, and schema-drift check: passed at revision `a75289cfd4a9`
 - Backend Ruff check: passed
-- Backend tests: 83 passed: 22 Phase 1 tests and 61 focused Phase 2 tests; other feature test files remain placeholders
+- Backend tests: 117 passed (22 Phase 1, 61 focused Phase 2, and 34 focused Phase 3A); one third-party TestClient deprecation warning remains.
 - Registration smoke tests passed for email-only, phone-only, and combined requests using a temporary process-only phone-code secret; exact smoke records were removed and the temporary server was stopped.
 - Frontend build: passed (`tsc -b && vite build`)
 - Frontend lint: passed
@@ -67,11 +76,12 @@
 ## Known issues
 
 - Frontend tests and non-authentication backend tests are not implemented.
-- Phone and combined live registration require `VERIFICATION_CODE_HASH_SECRET` in the ignored local `backend/.env`; automated phone registration tests pass with an injected test-only secret, but the local development value is currently missing.
+- Real Tencent SMS remains blocked by pending Signature and Template approval and unavailable production credentials. No real SMS was sent in Phase 3A.
 - The local server is MySQL 9.4.0, while the project documentation and Docker service target MySQL 8.x/8.4; compatibility is currently adequate for the connection checks but the development baseline is inconsistent.
 - `frontend/src/stores/authStore.ts` is implemented while `frontend/src/features/auth/store.ts` is a placeholder with overlapping responsibility.
 - The frontend login flow is client-only and cannot succeed until authentication APIs are implemented in later tasks.
 - Most generated project modules are placeholders and must not be mistaken for completed features.
+- The full-repository Ruff format check reports 151 pre-existing placeholder/script/test files that would be reformatted; all Phase 3A Python files pass the scoped format check and the full Ruff lint check passes.
 - The Git email `ilyasihtm52gmail.com` appears malformed and should be corrected by the user if unintended.
 
 ## Security notes
@@ -83,4 +93,4 @@
 
 ## Exact next step
 
-Set a strong independent `VERIFICATION_CODE_HASH_SECRET` in the ignored local `backend/.env`, restart FastAPI, and complete live phone-only and email-and-phone smoke requests. Then Phase 3 can implement phone verification-code sending, resending, and verification without adding login or JWT behavior.
+Wait for Tencent Signature and Template approval, add credentials only to ignored `backend/.env`, then explicitly authorize one real delivery-and-verification test. Do not begin Phase 4 yet.
