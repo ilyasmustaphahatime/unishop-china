@@ -9,6 +9,11 @@ from app.integrations.sms_client import (
     TencentSmsSender,
     UnavailableSmsSender,
 )
+from app.integrations.development_fake_sms import (
+    DevelopmentFakeSmsSender,
+    DevelopmentFakeSmsStore,
+    development_fake_sms_store,
+)
 from app.services.auth_service import RegistrationService
 from app.services.phone_verification_service import PhoneVerificationService
 
@@ -17,10 +22,19 @@ def _secret_present(value: object) -> bool:
     return value is not None and bool(value.get_secret_value().strip())
 
 
-def build_sms_sender(config: Settings) -> SmsSender:
+def build_sms_sender(
+    config: Settings,
+    *,
+    fake_store: DevelopmentFakeSmsStore | None = None,
+) -> SmsSender:
     if not config.sms_enabled:
         return DisabledSmsSender()
-    if config.sms_provider.strip().lower() != "tencent":
+    provider = config.sms_provider.strip().lower()
+    if provider == "fake":
+        if config.app_env.strip().lower() != "development":
+            return UnavailableSmsSender()
+        return DevelopmentFakeSmsSender(fake_store or development_fake_sms_store)
+    if provider != "tencent":
         return UnavailableSmsSender()
 
     try:

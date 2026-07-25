@@ -112,7 +112,11 @@ class PhoneVerificationService:
             code_id = record.id
 
         try:
-            result = self.sms_sender.send_verification_code(phone_number, raw_code)
+            result = self.sms_sender.send_verification_code(
+                phone_number,
+                raw_code,
+                delivery_type="resend",
+            )
             if not result.delivered:
                 raise RuntimeError("SMS provider did not confirm delivery.")
         except Exception as exc:
@@ -128,6 +132,7 @@ class PhoneVerificationService:
         self, session: Session, phone_number: str, submitted_code: str
     ) -> VerificationResult:
         outcome: PhoneVerificationError | None = None
+        verified = False
         now = _as_utc(self.now_provider())
         with session.begin():
             user = self.user_repository.get_by_phone(session, phone_number, for_update=True)
@@ -154,12 +159,18 @@ class PhoneVerificationService:
                     if verify_verification_code(submitted_code, code.code_hash, secret):
                         self.user_repository.mark_phone_verified(user)
                         self.phone_code_repository.mark_verified(code, now)
+                        verified = True
                     else:
                         attempts = self.phone_code_repository.increment_attempts(session, code.id)
                         outcome = self._attempts_error() if attempts >= 5 else self._invalid_error()
 
         if outcome is not None:
             raise outcome
+        if verified:
+            try:
+                self.sms_sender.consume_verification_code(phone_number, submitted_code)
+            except Exception:
+                pass
         return VerificationResult()
 
     def _expire_unsent_code(self, session: Session, code_id: str | None) -> None:

@@ -1,0 +1,140 @@
+{
+  "info": {
+    "_postman_id": "5b83f9ba-c220-48a9-9c4f-f5917baf52b1",
+    "name": "UniShop Phase 3B - Local Fake SMS",
+    "description": "Development-only localhost workflow. Configure collection variables with dedicated test data. Never use a real phone number.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000/api/v1" },
+    { "key": "test_phone", "value": "" },
+    { "key": "test_password", "value": "" },
+    { "key": "latest_code", "value": "" },
+    { "key": "old_code", "value": "" },
+    { "key": "new_code", "value": "" },
+    { "key": "wrong_code", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Register phone",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone_number\": \"{{test_phone}}\",\n  \"password\": \"{{test_password}}\"\n}"
+        },
+        "url": "{{base_url}}/auth/register"
+      }
+    },
+    {
+      "name": "Poll fake SMS inbox",
+      "event": [{
+        "listen": "test",
+        "script": {
+          "exec": [
+            "if (pm.response.code === 200) {",
+            "  const body = pm.response.json();",
+            "  pm.collectionVariables.set('latest_code', body.code);",
+            "  pm.collectionVariables.set('old_code', body.code);",
+            "}"
+          ]
+        }
+      }],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/dev/fake-sms/latest?phone_number={{test_phone}}",
+          "host": ["{{base_url}}"],
+          "path": ["dev", "fake-sms", "latest"],
+          "query": [{ "key": "phone_number", "value": "{{test_phone}}" }]
+        }
+      }
+    },
+    {
+      "name": "Verify phone",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone_number\": \"{{test_phone}}\",\n  \"code\": \"{{latest_code}}\"\n}"
+        },
+        "url": "{{base_url}}/auth/phone/verify"
+      }
+    },
+    {
+      "name": "Resend code",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone_number\": \"{{test_phone}}\"\n}"
+        },
+        "url": "{{base_url}}/auth/phone/resend-code"
+      }
+    },
+    {
+      "name": "Poll new code",
+      "event": [{
+        "listen": "test",
+        "script": {
+          "exec": [
+            "if (pm.response.code === 200) {",
+            "  const body = pm.response.json();",
+            "  pm.collectionVariables.set('new_code', body.code);",
+            "}"
+          ]
+        }
+      }],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/dev/fake-sms/latest?phone_number={{test_phone}}",
+          "host": ["{{base_url}}"],
+          "path": ["dev", "fake-sms", "latest"],
+          "query": [{ "key": "phone_number", "value": "{{test_phone}}" }]
+        }
+      }
+    },
+    {
+      "name": "Verify wrong code",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone_number\": \"{{test_phone}}\",\n  \"code\": \"{{wrong_code}}\"\n}"
+        },
+        "url": "{{base_url}}/auth/phone/verify"
+      }
+    },
+    {
+      "name": "Verify old code",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone_number\": \"{{test_phone}}\",\n  \"code\": \"{{old_code}}\"\n}"
+        },
+        "url": "{{base_url}}/auth/phone/verify"
+      }
+    },
+    {
+      "name": "Verify new code",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone_number\": \"{{test_phone}}\",\n  \"code\": \"{{new_code}}\"\n}"
+        },
+        "url": "{{base_url}}/auth/phone/verify"
+      }
+    }
+  ]
+}

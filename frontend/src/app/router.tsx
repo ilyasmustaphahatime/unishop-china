@@ -10,7 +10,11 @@ const pages = import.meta.glob('../pages/**/*.tsx');
 
 function page(path: string) {
   const Page = lazy(pages[`../pages/${path}.tsx`] as () => Promise<{ default: ComponentType }>);
-  return <Suspense fallback={<p className="p-6 text-slate-600">Loading…</p>}><Page /></Suspense>;
+  return (
+    <Suspense fallback={<p className="p-6 text-slate-600">Loading…</p>}>
+      <Page />
+    </Suspense>
+  );
 }
 
 function mapRoutes(routes: Array<[string, string]>): RouteObject[] {
@@ -18,50 +22,105 @@ function mapRoutes(routes: Array<[string, string]>): RouteObject[] {
 }
 
 const publicRoutes = mapRoutes([
-  ['/', 'public/HomePage'], ['/marketplace', 'public/MarketplacePage'], ['/products/:productId', 'public/ProductDetailsPage'],
-  ['/sellers/:sellerId', 'public/SellerPublicProfilePage'], ['/safety', 'public/SafetyPage'], ['/terms', 'public/TermsPage'], ['/privacy', 'public/PrivacyPage'],
+  ['/', 'public/HomePage'],
+  ['/marketplace', 'public/MarketplacePage'],
+  ['/products/:productId', 'public/ProductDetailsPage'],
+  ['/sellers/:sellerId', 'public/SellerPublicProfilePage'],
+  ['/safety', 'public/SafetyPage'],
+  ['/terms', 'public/TermsPage'],
+  ['/privacy', 'public/PrivacyPage'],
 ]);
 const guestRoutes = mapRoutes([
-  ['/login', 'auth/LoginPage'], ['/sign-up', 'auth/SignUpPage'], ['/verify-phone', 'auth/PhoneVerificationPage'],
-  ['/forgot-password', 'auth/ForgotPasswordPage'], ['/reset-password', 'auth/ResetPasswordPage'],
+  ['/login', 'auth/LoginPage'],
+  ['/sign-up', 'auth/SignUpPage'],
+  ['/verify-phone', 'auth/PhoneVerificationPage'],
+  ['/forgot-password', 'auth/ForgotPasswordPage'],
+  ['/reset-password', 'auth/ResetPasswordPage'],
 ]);
 const buyerRoutes = mapRoutes([
-  ['/buyer/dashboard', 'buyer/BuyerDashboardPage'], ['/buyer/profile', 'buyer/BuyerProfilePage'], ['/buyer/favorites', 'buyer/FavoritesPage'],
-  ['/buyer/deals', 'buyer/BuyerDealsPage'], ['/buyer/reviews', 'buyer/BuyerReviewsPage'], ['/buyer/recently-viewed', 'buyer/RecentlyViewedPage'],
+  ['/buyer/dashboard', 'buyer/BuyerDashboardPage'],
+  ['/buyer/profile', 'buyer/BuyerProfilePage'],
+  ['/buyer/favorites', 'buyer/FavoritesPage'],
+  ['/buyer/deals', 'buyer/BuyerDealsPage'],
+  ['/buyer/reviews', 'buyer/BuyerReviewsPage'],
+  ['/buyer/recently-viewed', 'buyer/RecentlyViewedPage'],
 ]);
 const sellerRoutes = mapRoutes([
-  ['/seller/dashboard', 'seller/SellerDashboardPage'], ['/seller/verification', 'seller/SellerVerificationPage'], ['/seller/products', 'seller/SellerProductsPage'],
-  ['/seller/products/new', 'seller/AddProductPage'], ['/seller/products/:productId/edit', 'seller/EditProductPage'], ['/seller/deals', 'seller/SellerDealsPage'],
-  ['/seller/reviews', 'seller/SellerReviewsPage'], ['/seller/profile', 'seller/SellerProfilePage'],
+  ['/seller/dashboard', 'seller/SellerDashboardPage'],
+  ['/seller/verification', 'seller/SellerVerificationPage'],
+  ['/seller/products', 'seller/SellerProductsPage'],
+  ['/seller/products/new', 'seller/AddProductPage'],
+  ['/seller/products/:productId/edit', 'seller/EditProductPage'],
+  ['/seller/deals', 'seller/SellerDealsPage'],
+  ['/seller/reviews', 'seller/SellerReviewsPage'],
+  ['/seller/profile', 'seller/SellerProfilePage'],
 ]);
 const sharedRoutes = mapRoutes([
-  ['/messages', 'shared/MessagesPage'], ['/notifications', 'shared/NotificationsPage'], ['/settings', 'shared/SettingsPage'], ['/reports', 'shared/ReportsPage'],
+  ['/messages', 'shared/MessagesPage'],
+  ['/notifications', 'shared/NotificationsPage'],
+  ['/settings', 'shared/SettingsPage'],
+  ['/reports', 'shared/ReportsPage'],
 ]);
 const adminRoutes = mapRoutes([
-  ['/admin', 'admin/AdminDashboardPage'], ['/admin/users', 'admin/AdminUsersPage'], ['/admin/seller-verifications', 'admin/AdminSellerVerificationsPage'],
-  ['/admin/products', 'admin/AdminProductsPage'], ['/admin/product-proofs', 'admin/AdminProductProofsPage'], ['/admin/reports', 'admin/AdminReportsPage'],
-  ['/admin/reviews', 'admin/AdminReviewsPage'], ['/admin/categories', 'admin/AdminCategoriesPage'], ['/admin/cities', 'admin/AdminCitiesPage'],
+  ['/admin', 'admin/AdminDashboardPage'],
+  ['/admin/users', 'admin/AdminUsersPage'],
+  ['/admin/seller-verifications', 'admin/AdminSellerVerificationsPage'],
+  ['/admin/products', 'admin/AdminProductsPage'],
+  ['/admin/product-proofs', 'admin/AdminProductProofsPage'],
+  ['/admin/reports', 'admin/AdminReportsPage'],
+  ['/admin/reviews', 'admin/AdminReviewsPage'],
+  ['/admin/categories', 'admin/AdminCategoriesPage'],
+  ['/admin/cities', 'admin/AdminCitiesPage'],
 ]);
 
-export const router = createBrowserRouter([
-  {
-    element: <MainLayout />,
-    children: [
-      ...publicRoutes,
-      {
-        element: <ProtectedRoute />,
-        children: [
-          ...sharedRoutes,
-          { element: <RoleRoute allow={['BUYER', 'ADMIN']} />, children: buyerRoutes },
-          { element: <RoleRoute allow={['SELLER', 'ADMIN']} />, children: sellerRoutes },
-          { element: <RoleRoute allow={['ADMIN']} />, children: adminRoutes },
-        ],
-      },
-      { path: '*', element: page('public/NotFoundPage') },
-    ],
-  },
-  {
-    element: <GuestRoute />,
-    children: [{ element: <AuthLayout />, children: guestRoutes }],
-  },
-]);
+type RouterFlags = {
+  isDevelopment: boolean;
+  fakeSmsPageEnabled: boolean;
+};
+
+export function buildRouteObjects({
+  isDevelopment,
+  fakeSmsPageEnabled,
+}: RouterFlags): RouteObject[] {
+  const developmentRoutes =
+    isDevelopment && fakeSmsPageEnabled
+      ? [{ path: '/dev/phone-verification', element: page('dev/LocalPhoneVerificationPage') }]
+      : [];
+
+  return [
+    {
+      element: <MainLayout />,
+      children: [
+        ...publicRoutes,
+        ...developmentRoutes,
+        {
+          element: <ProtectedRoute />,
+          children: [
+            ...sharedRoutes,
+            {
+              element: <RoleRoute allow={['BUYER', 'ADMIN']} />,
+              children: buyerRoutes,
+            },
+            {
+              element: <RoleRoute allow={['SELLER', 'ADMIN']} />,
+              children: sellerRoutes,
+            },
+            { element: <RoleRoute allow={['ADMIN']} />, children: adminRoutes },
+          ],
+        },
+        { path: '*', element: page('public/NotFoundPage') },
+      ],
+    },
+    {
+      element: <GuestRoute />,
+      children: [{ element: <AuthLayout />, children: guestRoutes }],
+    },
+  ];
+}
+
+export const router = createBrowserRouter(
+  buildRouteObjects({
+    isDevelopment: import.meta.env.DEV,
+    fakeSmsPageEnabled: import.meta.env.VITE_ENABLE_FAKE_SMS_DEV_PAGE === 'true',
+  }),
+);

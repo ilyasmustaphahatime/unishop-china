@@ -14,6 +14,15 @@ class DatabaseConfigurationError(RuntimeError):
     """Raised when local database settings are missing or unsafe."""
 
 
+class UnsafeRuntimeConfigurationError(RuntimeError):
+    """Raised when development-only capabilities are configured outside development."""
+
+    def __init__(self, unsafe_variables: list[str]) -> None:
+        names = ", ".join(sorted(unsafe_variables))
+        super().__init__(f"Unsafe runtime configuration variables: {names}")
+        self.unsafe_variables = tuple(sorted(unsafe_variables))
+
+
 class Settings(BaseSettings):
     app_name: str = "UniShop China"
     app_env: str = "development"
@@ -42,12 +51,33 @@ class Settings(BaseSettings):
     tencent_sms_region: str = "ap-guangzhou"
     tencent_sms_endpoint: str = "sms.tencentcloudapi.com"
     sms_request_timeout_seconds: int = Field(default=10, ge=1, le=30)
+    enable_fake_sms_dev_inbox: bool = False
+    fake_sms_delivery_delay_seconds: float = Field(default=3, ge=0, le=20)
+    fake_sms_inbox_ttl_seconds: int = Field(default=600, ge=60, le=3600)
+    fake_sms_inbox_max_messages: int = Field(default=100, ge=1, le=1000)
+    fake_sms_localhost_only: bool = True
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+
+def validate_runtime_security(config: Settings) -> None:
+    environment = config.app_env.strip().lower()
+    provider = config.sms_provider.strip().lower()
+    unsafe: list[str] = []
+
+    if environment != "development" and provider == "fake":
+        unsafe.extend(["APP_ENV", "SMS_PROVIDER"])
+    if environment != "development" and config.enable_fake_sms_dev_inbox:
+        unsafe.extend(["APP_ENV", "ENABLE_FAKE_SMS_DEV_INBOX"])
+    if config.enable_fake_sms_dev_inbox and not config.fake_sms_localhost_only:
+        unsafe.append("FAKE_SMS_LOCALHOST_ONLY")
+
+    if unsafe:
+        raise UnsafeRuntimeConfigurationError(list(set(unsafe)))
 
 
 def _is_placeholder_password(password: str) -> bool:

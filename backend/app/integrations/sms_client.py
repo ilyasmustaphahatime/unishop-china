@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 from collections.abc import Callable
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from pydantic import SecretStr
 
@@ -39,7 +39,15 @@ class SmsSender(Protocol):
     enabled: bool
     available: bool
 
-    def send_verification_code(self, phone_number: str, code: str) -> SmsDeliveryResult: ...
+    def send_verification_code(
+        self,
+        phone_number: str,
+        code: str,
+        *,
+        delivery_type: Literal["registration", "resend"] = "registration",
+    ) -> SmsDeliveryResult: ...
+
+    def consume_verification_code(self, phone_number: str, code: str) -> None: ...
 
 
 class FakeSmsSender:
@@ -52,27 +60,54 @@ class FakeSmsSender:
         self.fail = fail
         self.deliveries: list[tuple[str, str]] = []
 
-    def send_verification_code(self, phone_number: str, code: str) -> SmsDeliveryResult:
+    def send_verification_code(
+        self,
+        phone_number: str,
+        code: str,
+        *,
+        delivery_type: Literal["registration", "resend"] = "registration",
+    ) -> SmsDeliveryResult:
         if self.fail:
             raise SmsProviderError(SmsErrorCategory.UNAVAILABLE)
         self.deliveries.append((phone_number, code))
         return SmsDeliveryResult(delivered=True, provider="fake", request_id="fake-request")
+
+    def consume_verification_code(self, phone_number: str, code: str) -> None:
+        return None
 
 
 class DisabledSmsSender:
     enabled = False
     available = False
 
-    def send_verification_code(self, phone_number: str, code: str) -> SmsDeliveryResult:
+    def send_verification_code(
+        self,
+        phone_number: str,
+        code: str,
+        *,
+        delivery_type: Literal["registration", "resend"] = "registration",
+    ) -> SmsDeliveryResult:
         return SmsDeliveryResult(delivered=False, provider="disabled")
+
+    def consume_verification_code(self, phone_number: str, code: str) -> None:
+        return None
 
 
 class UnavailableSmsSender:
     enabled = True
     available = False
 
-    def send_verification_code(self, phone_number: str, code: str) -> SmsDeliveryResult:
+    def send_verification_code(
+        self,
+        phone_number: str,
+        code: str,
+        *,
+        delivery_type: Literal["registration", "resend"] = "registration",
+    ) -> SmsDeliveryResult:
         raise SmsProviderError(SmsErrorCategory.CONFIGURATION)
+
+    def consume_verification_code(self, phone_number: str, code: str) -> None:
+        return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,7 +137,13 @@ class TencentSmsSender:
         self.config = config
         self.client_factory = client_factory
 
-    def send_verification_code(self, phone_number: str, code: str) -> SmsDeliveryResult:
+    def send_verification_code(
+        self,
+        phone_number: str,
+        code: str,
+        *,
+        delivery_type: Literal["registration", "resend"] = "registration",
+    ) -> SmsDeliveryResult:
         try:
             from tencentcloud.common import credential
             from tencentcloud.common.exception.tencent_cloud_sdk_exception import (
@@ -152,3 +193,6 @@ class TencentSmsSender:
             provider="tencent",
             request_id=getattr(response, "RequestId", None),
         )
+
+    def consume_verification_code(self, phone_number: str, code: str) -> None:
+        return None

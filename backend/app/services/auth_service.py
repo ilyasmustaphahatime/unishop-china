@@ -106,7 +106,11 @@ class RegistrationService:
 
         if request.phone_number is not None and raw_code is not None:
             try:
-                delivery = self.sms_sender.send_verification_code(request.phone_number, raw_code)
+                delivery = self.sms_sender.send_verification_code(
+                    request.phone_number,
+                    raw_code,
+                    delivery_type="registration",
+                )
                 if not delivery.delivered:
                     self._expire_unsent_code(session, code_id)
             except Exception:

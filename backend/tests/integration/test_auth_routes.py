@@ -1,5 +1,6 @@
 from collections.abc import Generator
 from datetime import datetime, timezone
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -95,18 +96,29 @@ def assert_safe_registration_response(payload: dict[str, object]) -> None:
     assert FORBIDDEN_RESPONSE_FIELDS.isdisjoint(payload)
 
 
+def unique_email(label: str) -> str:
+    return f"{label}.{uuid4().hex}@example.com"
+
+
+def unique_phone() -> str:
+    return f"138{uuid4().int % 100_000_000:08d}"
+
+
 def test_email_only_registration_creates_safe_buyer_account(
     client: TestClient,
     db_session: Session,
 ) -> None:
+    email = unique_email("email-user")
+    baseline_users = int(db_session.scalar(select(func.count()).select_from(User)) or 0)
+    db_session.commit()
     response = client.post(
         "/api/v1/auth/register",
-        json={"email": "  EMAIL.USER@EXAMPLE.COM ", "password": STRONG_PASSWORD},
+        json={"email": f"  {email.upper()} ", "password": STRONG_PASSWORD},
     )
 
     assert response.status_code == 201
     payload = response.json()
-    assert payload["email"] == "email.user@example.com"
+    assert payload["email"] == email
     assert payload["phone_number"] is None
     assert payload["roles"] == ["BUYER"]
     assert payload["phone_verification_required"] is False
@@ -115,9 +127,9 @@ def test_email_only_registration_creates_safe_buyer_account(
     assert payload["account_status"] == "ACTIVE"
     assert_safe_registration_response(payload)
 
-    user = get_user_by_email(db_session, "email.user@example.com")
+    user = get_user_by_email(db_session, email)
     assert user is not None
-    assert db_session.scalar(select(func.count()).select_from(User)) == 1
+    assert db_session.scalar(select(func.count()).select_from(User)) == baseline_users + 1
     assert user.password_hash != STRONG_PASSWORD
     assert verify_password(STRONG_PASSWORD, user.password_hash) is True
     assert verify_password("WrongPassword123", user.password_hash) is False
@@ -133,27 +145,29 @@ def test_phone_only_registration_creates_hashed_verification_code(
     client: TestClient,
     db_session: Session,
 ) -> None:
+    phone = unique_phone()
     before_request = datetime.now(timezone.utc)
     response = client.post(
         "/api/v1/auth/register",
-        json={"phone_number": "+86 138 0000 0000", "password": STRONG_PASSWORD},
+        json={"phone_number": phone, "password": STRONG_PASSWORD},
     )
 
     assert response.status_code == 201
     payload = response.json()
     assert payload["email"] is None
-    assert payload["phone_number"] == "+8613800000000"
+    normalized_phone = f"+86{phone}"
+    assert payload["phone_number"] == normalized_phone
     assert payload["phone_verification_required"] is True
     assert payload["roles"] == ["BUYER"]
     assert_safe_registration_response(payload)
 
-    user = db_session.scalar(select(User).where(User.phone_number == "+8613800000000"))
+    user = db_session.scalar(select(User).where(User.phone_number == normalized_phone))
     assert user is not None
     verification = db_session.scalar(
         select(PhoneVerificationCode).where(PhoneVerificationCode.user_id == user.id)
     )
     assert verification is not None
-    assert verification.phone_number == "+8613800000000"
+    assert verification.phone_number == normalized_phone
     assert verification.code_hash != TEST_CODE
     assert verify_verification_code(TEST_CODE, verification.code_hash, TEST_CODE_SECRET) is True
     assert verification.attempts == 0
@@ -167,18 +181,19 @@ def test_email_and_phone_registration_creates_one_buyer_and_one_code(
     client: TestClient,
     db_session: Session,
 ) -> None:
+    email = unique_email("both")
     response = client.post(
         "/api/v1/auth/register",
         json={
-            "email": "both@example.com",
-            "phone_number": "13900000000",
+            "email": email,
+            "phone_number": unique_phone(),
             "password": STRONG_PASSWORD,
         },
     )
 
     assert response.status_code == 201
     assert_safe_registration_response(response.json())
-    user = get_user_by_email(db_session, "both@example.com")
+    user = get_user_by_email(db_session, email)
     assert user is not None
     roles = db_session.scalars(select(UserRole.role).where(UserRole.user_id == user.id)).all()
     assert roles == [UserRoleType.BUYER]
@@ -188,13 +203,14 @@ def test_email_and_phone_registration_creates_one_buyer_and_one_code(
 
 
 def test_normalized_duplicate_email_returns_safe_conflict(client: TestClient) -> None:
+    email = unique_email("case-user")
     first = client.post(
         "/api/v1/auth/register",
-        json={"email": "Case.User@Example.com", "password": STRONG_PASSWORD},
+        json={"email": email.upper(), "password": STRONG_PASSWORD},
     )
     second = client.post(
         "/api/v1/auth/register",
-        json={"email": "  case.user@example.com ", "password": STRONG_PASSWORD},
+        json={"email": f"  {email} ", "password": STRONG_PASSWORD},
     )
 
     assert first.status_code == 201
@@ -208,13 +224,14 @@ def test_normalized_duplicate_email_returns_safe_conflict(client: TestClient) ->
 
 
 def test_normalized_duplicate_phone_returns_safe_conflict(client: TestClient) -> None:
+    phone = unique_phone()
     first = client.post(
         "/api/v1/auth/register",
-        json={"phone_number": "13700000000", "password": STRONG_PASSWORD},
+        json={"phone_number": phone, "password": STRONG_PASSWORD},
     )
     second = client.post(
         "/api/v1/auth/register",
-        json={"phone_number": "0086 13700000000", "password": STRONG_PASSWORD},
+        json={"phone_number": f"0086 {phone}", "password": STRONG_PASSWORD},
     )
 
     assert first.status_code == 201
@@ -332,35 +349,45 @@ class ConstraintIntegrityRaceUserRepository(UserRepository):
 
 
 def test_role_failure_rolls_back_user_and_code(db_session: Session) -> None:
+    email = unique_email("role-failure")
+    baseline_codes = int(
+        db_session.scalar(select(func.count()).select_from(PhoneVerificationCode)) or 0
+    )
+    db_session.commit()
     service = build_registration_service(role_repository=FailingRoleRepository())
     request = RegisterRequest(
-        email="role.failure@example.com",
-        phone_number="13600000000",
+        email=email,
+        phone_number=unique_phone(),
         password=STRONG_PASSWORD,
     )
 
     with pytest.raises(RuntimeError):
         service.register(db_session, request)
 
-    assert get_user_by_email(db_session, "role.failure@example.com") is None
-    assert db_session.scalar(select(func.count()).select_from(PhoneVerificationCode)) == 0
+    assert get_user_by_email(db_session, email) is None
+    assert (
+        db_session.scalar(select(func.count()).select_from(PhoneVerificationCode)) == baseline_codes
+    )
 
 
 def test_phone_code_failure_rolls_back_user_and_buyer_role(db_session: Session) -> None:
+    email = unique_email("code-failure")
+    baseline_roles = int(db_session.scalar(select(func.count()).select_from(UserRole)) or 0)
+    db_session.commit()
     service = build_registration_service(
         phone_code_repository=FailingPhoneCodeRepository(),
     )
     request = RegisterRequest(
-        email="code.failure@example.com",
-        phone_number="13500000000",
+        email=email,
+        phone_number=unique_phone(),
         password=STRONG_PASSWORD,
     )
 
     with pytest.raises(RuntimeError):
         service.register(db_session, request)
 
-    assert get_user_by_email(db_session, "code.failure@example.com") is None
-    assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
+    assert get_user_by_email(db_session, email) is None
+    assert db_session.scalar(select(func.count()).select_from(UserRole)) == baseline_roles
 
 
 def test_integrity_error_race_becomes_safe_409(
@@ -420,13 +447,14 @@ def test_unexpected_role_failure_returns_safe_500_and_rolls_back(
     client: TestClient,
     db_session: Session,
 ) -> None:
+    email = unique_email("safe-failure")
     app.dependency_overrides[get_registration_service] = lambda: build_registration_service(
         role_repository=FailingRoleRepository()
     )
 
     response = client.post(
         "/api/v1/auth/register",
-        json={"email": "safe.failure@example.com", "password": STRONG_PASSWORD},
+        json={"email": email, "password": STRONG_PASSWORD},
     )
 
     assert response.status_code == 500
@@ -437,23 +465,66 @@ def test_unexpected_role_failure_returns_safe_500_and_rolls_back(
         }
     }
     assert "simulated" not in response.text
-    assert get_user_by_email(db_session, "safe.failure@example.com") is None
+    assert get_user_by_email(db_session, email) is None
 
 
 def test_missing_phone_code_secret_returns_safe_500(
     client: TestClient,
     db_session: Session,
 ) -> None:
+    phone = unique_phone()
+    baseline_users = int(db_session.scalar(select(func.count()).select_from(User)) or 0)
+    db_session.commit()
     app.dependency_overrides[get_registration_service] = lambda: build_registration_service(
         secret=None
     )
 
     response = client.post(
         "/api/v1/auth/register",
-        json={"phone_number": "13400000000", "password": STRONG_PASSWORD},
+        json={"phone_number": phone, "password": STRONG_PASSWORD},
     )
 
     assert response.status_code == 500
     assert response.json()["detail"]["code"] == "REGISTRATION_UNAVAILABLE"
     assert "VERIFICATION_CODE_HASH_SECRET" not in response.text
-    assert db_session.scalar(select(func.count()).select_from(User)) == 0
+    assert db_session.scalar(select(func.count()).select_from(User)) == baseline_users
+
+
+def test_unrelated_development_user_and_role_survive_registration_rollback(
+    db_session: Session,
+) -> None:
+    baseline_users = int(db_session.scalar(select(func.count()).select_from(User)) or 0)
+    baseline_roles = int(db_session.scalar(select(func.count()).select_from(UserRole)) or 0)
+    db_session.commit()
+    unrelated_email = unique_email("unrelated")
+
+    with db_session.begin():
+        unrelated = UserRepository().create(
+            db_session,
+            email=unrelated_email,
+            phone_number=None,
+            password_hash="test-only-non-raw-password-digest",
+        )
+        unrelated_role = UserRoleRepository().create_role(
+            db_session,
+            user_id=unrelated.id,
+            role=UserRoleType.BUYER,
+        )
+
+    service = build_registration_service(role_repository=FailingRoleRepository())
+    failing_email = unique_email("rollback-target")
+    with pytest.raises(RuntimeError):
+        service.register(
+            db_session,
+            RegisterRequest(
+                email=failing_email,
+                phone_number=unique_phone(),
+                password=STRONG_PASSWORD,
+            ),
+        )
+
+    assert db_session.get(User, unrelated.id) is not None
+    assert db_session.get(UserRole, unrelated_role.id) is not None
+    assert get_user_by_email(db_session, failing_email) is None
+    assert db_session.scalar(select(func.count()).select_from(User)) == baseline_users + 1
+    assert db_session.scalar(select(func.count()).select_from(UserRole)) == baseline_roles + 1
