@@ -1,11 +1,12 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import Callable
 
 from pydantic import SecretStr
 from sqlalchemy.orm import Session
 
+from app.common.datetime_utils import as_utc
 from app.core.exceptions import PhoneVerificationError
 from app.core.security import (
     VerificationCodeGenerator,
@@ -38,12 +39,6 @@ class VerificationResult:
     phone_verified: bool = True
 
 
-def _as_utc(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
-
-
 class PhoneVerificationService:
     def __init__(
         self,
@@ -70,7 +65,7 @@ class PhoneVerificationService:
 
         raw_code: str | None = None
         code_id: str | None = None
-        now = _as_utc(self.now_provider())
+        now = as_utc(self.now_provider())
         with session.begin():
             user = self.user_repository.get_by_phone(session, phone_number, for_update=True)
             if user is None or user.phone_verified:
@@ -78,7 +73,7 @@ class PhoneVerificationService:
 
             latest = self.phone_code_repository.get_latest_for_phone(session, phone_number)
             if latest is not None:
-                age = (now - _as_utc(latest.created_at)).total_seconds()
+                age = (now - as_utc(latest.created_at)).total_seconds()
                 if age < 60:
                     retry_after = max(1, 60 - int(age))
                     raise PhoneVerificationError(
@@ -133,7 +128,7 @@ class PhoneVerificationService:
     ) -> VerificationResult:
         outcome: PhoneVerificationError | None = None
         verified = False
-        now = _as_utc(self.now_provider())
+        now = as_utc(self.now_provider())
         with session.begin():
             user = self.user_repository.get_by_phone(session, phone_number, for_update=True)
             if user is None:
@@ -146,7 +141,7 @@ class PhoneVerificationService:
                 )
                 if code is None or code.verified_at is not None:
                     outcome = self._invalid_error()
-                elif now >= _as_utc(code.expires_at):
+                elif now >= as_utc(code.expires_at):
                     outcome = PhoneVerificationError(
                         "VERIFICATION_CODE_EXPIRED",
                         "The verification code has expired.",
@@ -181,7 +176,7 @@ class PhoneVerificationService:
                 record = self.phone_code_repository.get_by_id(session, code_id)
                 if record is not None:
                     self.phone_code_repository.expire_code(
-                        record, _as_utc(self.now_provider()) - timedelta(seconds=1)
+                        record, as_utc(self.now_provider()) - timedelta(seconds=1)
                     )
         except Exception:
             session.rollback()

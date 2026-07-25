@@ -1,4 +1,4 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router';
 import { useAuthStore } from '../stores/authStore';
 export default function ProtectedRoute() {
   const location = useLocation();

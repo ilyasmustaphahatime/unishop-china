@@ -16,7 +16,7 @@
     "react": "latest",
     "react-dom": "latest",
     "react-hook-form": "latest",
-    "react-router-dom": "latest",
+    "react-router": "8.3.0",
     "zod": "latest",
     "zustand": "latest"
   },
@@ -39,5 +39,8 @@
     "typescript-eslint": "latest",
     "vite": "latest",
     "vitest": "latest"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.8"
   }
 }

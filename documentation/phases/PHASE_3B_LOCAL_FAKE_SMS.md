@@ -117,7 +117,7 @@ A full localhost API smoke flow passed with dedicated generated test data:
 - MySQL contained only HMAC values.
 - Exact test-account cleanup restored counts to users 1, roles 1, codes 0, refresh tokens 0, reset codes 0, with zero orphans.
 
-The in-app browser integration was unavailable because the host did not supply its required sandbox metadata. React behavior is covered by 12 passing jsdom tests and a passing production build, but a live human-style browser entry remains to be performed before declaring Phase 3B fully complete.
+The committed Phase 3B baseline records the local browser workflow as manually verified, including manual OTP entry and `phone_verified=true`. The API flow, frontend behavior, production guards, and cleanup remain covered by automated tests.
 
 ## Known limitation
 

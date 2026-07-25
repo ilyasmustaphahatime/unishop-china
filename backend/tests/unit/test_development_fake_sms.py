@@ -12,6 +12,7 @@ from app.integrations.development_fake_sms import (
     DevelopmentFakeSmsSender,
     DevelopmentFakeSmsStore,
 )
+from app.main import create_app
 
 PHONE = "+8613800000000"
 
@@ -173,3 +174,19 @@ def test_explicit_development_fake_configuration_builds_memory_sender() -> None:
     )
     validate_runtime_security(config)
     assert isinstance(build_sms_sender(config, fake_store=store), DevelopmentFakeSmsSender)
+
+
+@pytest.mark.parametrize("environment", ["production", "staging"])
+def test_non_development_application_forces_debug_off(environment: str) -> None:
+    config = Settings(
+        _env_file=None,
+        app_env=environment,
+        app_debug=True,
+        sms_enabled=False,
+        sms_provider="tencent",
+        enable_fake_sms_dev_inbox=False,
+    )
+
+    application = create_app(config)
+
+    assert application.debug is False

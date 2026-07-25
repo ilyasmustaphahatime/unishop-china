@@ -3,21 +3,16 @@ from __future__ import annotations
 import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from threading import RLock
 from typing import Literal
 
+from app.common.datetime_utils import as_utc
 from app.core.config import settings
 from app.integrations.sms_client import SmsDeliveryResult
 from app.models.base import utc_now
 
 DeliveryType = Literal["registration", "resend"]
-
-
-def _as_utc(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +50,7 @@ class DevelopmentFakeSmsStore:
         code: str,
         delivery_type: DeliveryType,
     ) -> DevelopmentFakeSmsMessage:
-        now = _as_utc(self.now_provider())
+        now = as_utc(self.now_provider())
         message = DevelopmentFakeSmsMessage(
             message_id=secrets.token_urlsafe(24),
             phone_number=phone_number,
@@ -76,7 +71,7 @@ class DevelopmentFakeSmsStore:
         return message
 
     def latest_available(self, phone_number: str) -> DevelopmentFakeSmsMessage | None:
-        now = _as_utc(self.now_provider())
+        now = as_utc(self.now_provider())
         with self._lock:
             self._cleanup_locked(now)
             matches = [
@@ -87,7 +82,7 @@ class DevelopmentFakeSmsStore:
             return matches[-1] if matches else None
 
     def consume_message(self, message_id: str) -> bool:
-        now = _as_utc(self.now_provider())
+        now = as_utc(self.now_provider())
         with self._lock:
             self._cleanup_locked(now)
             before = len(self._messages)
@@ -97,7 +92,7 @@ class DevelopmentFakeSmsStore:
             return len(self._messages) != before
 
     def consume_code(self, phone_number: str, code: str) -> bool:
-        now = _as_utc(self.now_provider())
+        now = as_utc(self.now_provider())
         with self._lock:
             self._cleanup_locked(now)
             before = len(self._messages)
@@ -109,7 +104,7 @@ class DevelopmentFakeSmsStore:
             return len(self._messages) != before
 
     def message_count(self) -> int:
-        now = _as_utc(self.now_provider())
+        now = as_utc(self.now_provider())
         with self._lock:
             self._cleanup_locked(now)
             return len(self._messages)

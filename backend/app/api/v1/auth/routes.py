@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.v1.auth.dependencies import (
+    enforce_registration_rate_limit,
     get_phone_verification_service,
     get_registration_service,
 )
@@ -32,6 +33,7 @@ router = APIRouter(tags=["authentication"])
 )
 def register_user(
     request: RegisterRequest,
+    _: None = Depends(enforce_registration_rate_limit),
     session: Session = Depends(get_db),
     service: RegistrationService = Depends(get_registration_service),
 ) -> RegisterResponse:

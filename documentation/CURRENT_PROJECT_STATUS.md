@@ -3,70 +3,61 @@
 ## Authentication phases
 
 - Phase 1 authentication database models and migration: complete.
-- Phase 2 user registration API: complete.
-- Phase 2 test isolation repair: complete; legitimate development data is preserved.
-- Phase 3A OTP generation, HMAC storage, resend, limits, verification, fake test sender, and Tencent adapter: complete.
-- Phase 3B secure local fake SMS implementation: code and automated verification complete.
-- Phase 3B live browser manual entry: pending because the in-app browser host integration was unavailable.
-- Real Tencent SMS: pending.
-- Ready for Phase 4: no, until the live development-page manual entry is confirmed.
+- Phase 2 user registration API and test isolation: complete.
+- Phase 3A phone OTP generation, HMAC storage, resend limits, verification, and provider abstraction: complete.
+- Phase 3B secure local fake SMS workflow and manual verification: complete.
+- Real Tencent SMS: pending and disabled.
+- Phase 4 login, server-side sessions/tokens, logout, `/auth/me`, and protected-object authorization: not started.
+
+## Pre-Phase-4 cleanup status
+
+- Baseline commit: `320bd5c`.
+- Repository duplicate, architecture, configuration, secrets, generated-artifact, dependency, and security audits: performed.
+- Registration now has a thread-safe, connection-peer rate limit with a safe HTTP 429 response.
+- Production and staging force FastAPI debug mode off.
+- The duplicated UTC-normalization helper was consolidated.
+- Future authentication state no longer persists tokens or user data in browser storage.
+- Postman phone, password, and code inputs now use empty collection variables.
+- One transitive dependency advisory was fixed by pinning `brace-expansion` to a patched version.
+- React Router was migrated from the v7 compatibility package to patched `react-router` 8.3.0; existing declarative/data routing behavior and tests remain intact.
+- `npm audit` reports zero vulnerabilities, and `pip-audit` reports no known Python dependency vulnerabilities.
+- The ignored local backend `.env` now contains exactly one canonical development `APP_ENV` entry and one canonical local `FRONTEND_URL` entry; no secret-bearing value was changed.
+- Ready for Phase 4: yes. Phase 4 itself remains unimplemented.
 
 ## Verified foundation
 
-- FastAPI uses the existing SQLAlchemy/MySQL/PyMySQL configuration with `pool_pre_ping=True`.
-- MySQL connection check passes against `unishop_china`.
-- Alembic current and head are `a75289cfd4a9`; no schema drift exists.
-- The expected six tables remain: `alembic_version`, `users`, `user_roles`, `refresh_tokens`, `phone_verification_codes`, and `password_reset_codes`.
-- No Phase 3B migration or database table was added.
-- Vite reads `VITE_API_BASE_URL`; TypeScript, ESLint, tests, and production build pass.
+- MySQL connection succeeds against `unishop_china`.
+- SQLAlchemy uses parameterized expressions and no request-derived raw SQL.
+- Alembic current and head remain `a75289cfd4a9`; no schema drift exists.
+- Tables remain `alembic_version`, `users`, `user_roles`, `refresh_tokens`, `phone_verification_codes`, and `password_reset_codes`.
+- Strict Pydantic schemas reject unknown and privileged registration fields.
+- Passwords use Argon2id; OTP values use HMAC-SHA256 and constant-time comparison.
+- Registration assigns only the `BUYER` role.
+- Phone resend retains its cooldown/hourly limits and verification retains its five-attempt limit.
+- Normal authentication APIs return no OTP, password, hash, token, provider error, stack trace, or database detail.
+- Development fake SMS remains disabled by default, loopback-only, memory-only, and absent from production routing/OpenAPI.
 
-## Phase 3B security status
+## Tests and database state
 
-- The fake provider and inbox are disabled by default.
-- Unsafe fake configuration fails startup outside development.
-- The development router is absent from production routing and OpenAPI.
-- Inbox access uses the actual loopback peer and ignores forged forwarding headers.
-- Raw OTP values exist only in the development process-memory inbox and live component state.
-- MySQL continues to store HMAC values only.
-- Normal registration, resend, and verification APIs expose no OTP.
-- The fake sender performs no Tencent or other external-network call.
-- Passwords and OTP values are not persisted in browser storage or logged by the development page.
-- CORS is restricted to configured and expected local frontend origins.
-
-## Test status
-
-- Backend: 146 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
-- Frontend: 12 passed, 0 failed, 0 skipped.
-- Backend compile, import, dependency, Ruff, database, and Alembic checks pass.
-- Frontend type check, lint, tests, and production build pass.
-- Localhost API smoke flow passed registration, delayed delivery, wrong code, cooldown, resend, old-code rejection, new-code verification, HMAC-only storage, message consumption, and targeted cleanup.
-
-## Development database state
-
-- Users: 1 legitimate pre-existing record.
-- Roles: 1 legitimate pre-existing record.
-- Phone verification codes: 0.
-- Refresh tokens: 0.
-- Password reset codes: 0.
+- Backend: 152 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Frontend: 14 passed, 0 failed, 0 skipped.
+- Frontend type check, lint, and production build pass.
+- Development database baseline and final counts: users 4, roles 4, phone codes 3, refresh tokens 0, reset codes 0.
 - Orphan roles/codes: 0.
 
-The automated suite uses transaction/savepoint isolation and restores exact baseline counts after every database test. No broad deletion, truncation, schema reset, or modification of legitimate development data is used.
+Every database test uses an outer transaction/savepoint and verifies exact counts plus pre-existing user/role identifiers after rollback. No broad deletion, truncation, schema reset, or legitimate-data modification is used.
+
+## Authorization boundary
+
+The current backend exposes only public registration/phone-verification and health endpoints. There is no authenticated object API yet, so object-level authorization cannot truthfully be marked implemented. Frontend route guards are navigation aids only and are not treated as security controls. Phase 4 must add server-side authentication and deny-by-default object/function authorization before protected marketplace endpoints are activated.
 
 ## Known limitations
 
-- The final live browser interaction at `/dev/phone-verification` remains unconfirmed due to unavailable host browser metadata.
-- Real Tencent Signature/Template approval and production credentials are not available.
-- Login, JWT, refresh-token workflows, logout, password recovery, and marketplace features are not implemented.
-- The local server reports MySQL 9.4 while project deployment configuration targets MySQL 8.x/8.4.
+- Login/JWT/refresh/logout/authenticated-object APIs do not exist and were not added during cleanup.
+- The in-memory registration limiter is per process; production horizontal deployments require a shared limiter.
+- Real Tencent Signature/Template approval and credentials remain unavailable.
 - A third-party Starlette TestClient deprecation warning remains.
-
-## Git state
-
-- Branch: `feature/authentication`.
-- Baseline commit: `4b33850`.
-- Phase 2 isolation repair and Phase 3B changes remain unstaged and uncommitted.
-- No commit, push, branch switch, merge, rebase, reset, or destructive cleanup was performed.
 
 ## Exact next step
 
-Run the documented development configuration, open `/dev/phone-verification` in a local browser, manually type the displayed fake OTP, and confirm the success state. Keep Tencent disabled. After that manual gate passes, review and commit Phase 3B before starting Phase 4.
+Review and commit the completed cleanup with the suggested message `chore: complete pre-phase-4 security cleanup`, then begin the separately scoped Phase 4 implementation.

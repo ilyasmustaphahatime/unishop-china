@@ -6,7 +6,10 @@
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8000" },
     { "key": "testPhone", "value": "" },
-    { "key": "verificationCode", "value": "" }
+    { "key": "verificationCode", "value": "" },
+    { "key": "wrongCode", "value": "" },
+    { "key": "invalidCode", "value": "" },
+    { "key": "testPassword", "value": "" }
   ],
   "item": [
     {
@@ -14,7 +17,7 @@
       "request": {
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"{{testPhone}}\",\n  \"password\": \"ChangeThisPassword123\"\n}" },
+        "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"{{testPhone}}\",\n  \"password\": \"{{testPassword}}\"\n}" },
         "url": "{{baseUrl}}/api/v1/auth/register"
       },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('Created with safe JSON', () => { pm.response.to.have.status(201); pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'); const b=pm.response.json(); pm.expect(b).not.to.have.property('otp'); pm.expect(b).not.to.have.property('code_hash'); });"] } }]
@@ -31,7 +34,7 @@
     },
     {
       "name": "Verify wrong code",
-      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"{{testPhone}}\",\n  \"code\": \"000000\"\n}" }, "url": "{{baseUrl}}/api/v1/auth/phone/verify" },
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"{{testPhone}}\",\n  \"code\": \"{{wrongCode}}\"\n}" }, "url": "{{baseUrl}}/api/v1/auth/phone/verify" },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('Safe business error', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().detail.code).to.eql('INVALID_VERIFICATION_CODE'); });"] } }]
     },
     {
@@ -41,7 +44,7 @@
     },
     {
       "name": "Verify invalid format",
-      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"{{testPhone}}\",\n  \"code\": \"12345\"\n}" }, "url": "{{baseUrl}}/api/v1/auth/phone/verify" },
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"{{testPhone}}\",\n  \"code\": \"{{invalidCode}}\"\n}" }, "url": "{{baseUrl}}/api/v1/auth/phone/verify" },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('Schema rejects invalid format', () => pm.response.to.have.status(422));"] } }]
     },
     {
@@ -61,7 +64,7 @@
     },
     {
       "name": "Already-verified phone",
-      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"{{testPhone}}\",\n  \"code\": \"000000\"\n}" }, "url": "{{baseUrl}}/api/v1/auth/phone/verify" },
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"{{testPhone}}\",\n  \"code\": \"{{wrongCode}}\"\n}" }, "url": "{{baseUrl}}/api/v1/auth/phone/verify" },
       "event": [{ "listen": "test", "script": { "exec": ["pm.test('Already verified is idempotent', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().phone_verified).to.eql(true); });"] } }]
     }
   ]

@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import axios from 'axios';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useLoginMutation } from '../../features/auth/hooks';
 import { loginSchema, type LoginFormValues } from '../../features/auth/schemas';
 import type { UserRole } from '../../features/auth/types';

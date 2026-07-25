@@ -1,6 +1,7 @@
-from fastapi import Depends
+from fastapi import Depends, HTTPException, Request, status
 
 from app.core.config import Settings, settings
+from app.core.rate_limit import InMemoryRateLimiter
 from app.integrations.sms_client import (
     DisabledSmsSender,
     SmsConfigurationError,
@@ -16,6 +17,12 @@ from app.integrations.development_fake_sms import (
 )
 from app.services.auth_service import RegistrationService
 from app.services.phone_verification_service import PhoneVerificationService
+
+registration_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.registration_rate_limit_requests,
+    window_seconds=settings.registration_rate_limit_window_seconds,
+    max_keys=settings.registration_rate_limit_max_clients,
+)
 
 
 def _secret_present(value: object) -> bool:
@@ -69,6 +76,28 @@ def build_tencent_sms_config(config: Settings) -> TencentSmsConfig:
 
 def get_sms_sender() -> SmsSender:
     return build_sms_sender(settings)
+
+
+def get_registration_rate_limiter() -> InMemoryRateLimiter:
+    return registration_rate_limiter
+
+
+def enforce_registration_rate_limit(
+    request: Request,
+    limiter: InMemoryRateLimiter = Depends(get_registration_rate_limiter),
+) -> None:
+    client_host = request.client.host if request.client is not None else "unknown"
+    decision = limiter.consume(client_host)
+    if not decision.allowed:
+        retry_after = str(decision.retry_after_seconds or 1)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "REGISTRATION_RATE_LIMITED",
+                "message": "Too many registration attempts. Please try again later.",
+            },
+            headers={"Retry-After": retry_after},
+        )
 
 
 def get_registration_service(

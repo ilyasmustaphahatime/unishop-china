@@ -7,7 +7,11 @@
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8000" },
     { "key": "uniqueEmail", "value": "phase2.postman@example.com" },
-    { "key": "uniquePhone", "value": "+8613800000000" }
+    { "key": "uniquePhone", "value": "" },
+    { "key": "secondaryPhone", "value": "" },
+    { "key": "testPassword", "value": "" },
+    { "key": "weakPassword", "value": "" },
+    { "key": "invalidPhone", "value": "" }
   ],
   "event": [
     {
@@ -38,7 +42,7 @@
         "url": "{{baseUrl}}/api/v1/auth/register",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"{{uniqueEmail}}\",\n  \"password\": \"StrongPassword123\"\n}"
+          "raw": "{\n  \"email\": \"{{uniqueEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
         }
       },
       "event": [{
@@ -59,7 +63,7 @@
         "url": "{{baseUrl}}/api/v1/auth/register",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"phone_number\": \"{{uniquePhone}}\",\n  \"password\": \"StrongPassword123\"\n}"
+          "raw": "{\n  \"phone_number\": \"{{uniquePhone}}\",\n  \"password\": \"{{testPassword}}\"\n}"
         }
       },
       "event": [{
@@ -81,7 +85,7 @@
         "url": "{{baseUrl}}/api/v1/auth/register",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"phase2.both.{{$timestamp}}@example.com\",\n  \"phone_number\": \"+8613900000000\",\n  \"password\": \"StrongPassword123\"\n}"
+          "raw": "{\n  \"email\": \"phase2.both.{{$timestamp}}@example.com\",\n  \"phone_number\": \"{{secondaryPhone}}\",\n  \"password\": \"{{testPassword}}\"\n}"
         }
       },
       "event": [{
@@ -99,7 +103,7 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "url": "{{baseUrl}}/api/v1/auth/register",
-        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{uniqueEmail}}\",\n  \"password\": \"StrongPassword123\"\n}" }
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{uniqueEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}" }
       },
       "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 409', () => pm.response.to.have.status(409));"] } }]
     },
@@ -109,7 +113,7 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "url": "{{baseUrl}}/api/v1/auth/register",
-        "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"{{uniquePhone}}\",\n  \"password\": \"StrongPassword123\"\n}" }
+        "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"{{uniquePhone}}\",\n  \"password\": \"{{testPassword}}\"\n}" }
       },
       "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 409', () => pm.response.to.have.status(409));"] } }]
     },
@@ -119,7 +123,7 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "url": "{{baseUrl}}/api/v1/auth/register",
-        "body": { "mode": "raw", "raw": "{\n  \"email\": \"invalid-email\",\n  \"password\": \"StrongPassword123\"\n}" }
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"invalid-email\",\n  \"password\": \"{{testPassword}}\"\n}" }
       },
       "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 422', () => pm.response.to.have.status(422));"] } }]
     },
@@ -129,7 +133,7 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "url": "{{baseUrl}}/api/v1/auth/register",
-        "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"12345\",\n  \"password\": \"StrongPassword123\"\n}" }
+        "body": { "mode": "raw", "raw": "{\n  \"phone_number\": \"{{invalidPhone}}\",\n  \"password\": \"{{testPassword}}\"\n}" }
       },
       "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 422', () => pm.response.to.have.status(422));"] } }]
     },
@@ -139,7 +143,7 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "url": "{{baseUrl}}/api/v1/auth/register",
-        "body": { "mode": "raw", "raw": "{\n  \"email\": \"weak@example.com\",\n  \"password\": \"weak\"\n}" }
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"weak@example.com\",\n  \"password\": \"{{weakPassword}}\"\n}" }
       },
       "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 422', () => pm.response.to.have.status(422));"] } }]
     },
@@ -149,7 +153,7 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "url": "{{baseUrl}}/api/v1/auth/register",
-        "body": { "mode": "raw", "raw": "{\n  \"password\": \"StrongPassword123\"\n}" }
+        "body": { "mode": "raw", "raw": "{\n  \"password\": \"{{testPassword}}\"\n}" }
       },
       "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 422', () => pm.response.to.have.status(422));"] } }]
     },
@@ -159,7 +163,7 @@
         "method": "POST",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "url": "{{baseUrl}}/api/v1/auth/register",
-        "body": { "mode": "raw", "raw": "{\n  \"email\": \"attacker@example.com\",\n  \"password\": \"StrongPassword123\",\n  \"role\": \"ADMIN\"\n}" }
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"attacker@example.com\",\n  \"password\": \"{{testPassword}}\",\n  \"role\": \"ADMIN\"\n}" }
       },
       "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status is 422', () => pm.response.to.have.status(422));"] } }]
     }

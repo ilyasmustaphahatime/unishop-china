@@ -8,9 +8,13 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.v1.auth.dependencies import get_registration_service
+from app.api.v1.auth.dependencies import (
+    get_registration_rate_limiter,
+    get_registration_service,
+)
 from app.common.enums import UserRoleType
 from app.core.database import get_db
+from app.core.rate_limit import InMemoryRateLimiter
 from app.core.security import verify_password, verify_verification_code
 from app.main import app
 from app.integrations.sms_client import FakeSmsSender
@@ -72,6 +76,11 @@ def client(
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_registration_service] = lambda: registration_service
+    app.dependency_overrides[get_registration_rate_limiter] = lambda: InMemoryRateLimiter(
+        max_requests=1000,
+        window_seconds=60,
+        max_keys=100,
+    )
     try:
         with TestClient(app, raise_server_exceptions=False) as test_client:
             yield test_client
@@ -237,6 +246,40 @@ def test_normalized_duplicate_phone_returns_safe_conflict(client: TestClient) ->
     assert first.status_code == 201
     assert second.status_code == 409
     assert second.json()["detail"]["code"] == "PHONE_ALREADY_REGISTERED"
+
+
+def test_registration_rate_limit_uses_connection_peer_and_returns_safe_error(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    limiter = InMemoryRateLimiter(max_requests=1, window_seconds=60, max_keys=100)
+    app.dependency_overrides[get_registration_rate_limiter] = lambda: limiter
+    first_email = unique_email("rate-limit-first")
+    blocked_email = unique_email("rate-limit-blocked")
+
+    first = client.post(
+        "/api/v1/auth/register",
+        json={"email": first_email, "password": STRONG_PASSWORD},
+        headers={"X-Forwarded-For": "203.0.113.10"},
+    )
+    blocked = client.post(
+        "/api/v1/auth/register",
+        json={"email": blocked_email, "password": STRONG_PASSWORD},
+        headers={"X-Forwarded-For": "127.0.0.1"},
+    )
+
+    assert first.status_code == 201
+    assert blocked.status_code == 429
+    assert blocked.headers["retry-after"] == "60"
+    assert blocked.json() == {
+        "detail": {
+            "code": "REGISTRATION_RATE_LIMITED",
+            "message": "Too many registration attempts. Please try again later.",
+        }
+    }
+    assert blocked_email not in blocked.text
+    assert STRONG_PASSWORD not in blocked.text
+    assert get_user_by_email(db_session, blocked_email) is None
 
 
 @pytest.mark.parametrize(
