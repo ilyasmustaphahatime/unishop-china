@@ -23,3 +23,11 @@ class PhoneVerificationError(Exception):
         self.message = message
         self.status_code = status_code
         self.retry_after = retry_after
+
+
+class InvalidCredentialsError(Exception):
+    """Internal generic authentication failure safe for public mapping."""
+
+
+class TokenValidationError(Exception):
+    """Internal access-token validation failure safe for public mapping."""

@@ -22,6 +22,19 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
+def hash_rate_limit_identifier(identifier: str, secret: SecretStr | str) -> str:
+    """Return a non-reversible, secret-keyed identifier limiter key."""
+    key = secret.get_secret_value() if isinstance(secret, SecretStr) else secret
+    if not key:
+        raise ValueError("A rate-limit hashing secret is required.")
+    digest = hmac.new(
+        key.encode("utf-8"),
+        identifier.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"login:identifier:{digest}"
+
+
 def generate_verification_code(
     randbelow: Callable[[int], int] | None = None,
 ) -> str:

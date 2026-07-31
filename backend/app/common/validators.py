@@ -4,6 +4,14 @@ import phonenumbers
 from phonenumbers import PhoneNumberFormat
 
 
+def normalize_email_address(value: str) -> str:
+    """Apply the canonical registration/login email normalization."""
+    normalized = value.strip().lower()
+    if not normalized:
+        raise ValueError("An email address cannot be empty.")
+    return normalized
+
+
 def normalize_chinese_phone_number(value: str) -> str:
     """Validate a mainland Chinese mobile number and return E.164 format."""
     candidate = value.strip()

@@ -6,13 +6,21 @@ from pydantic import (
     ConfigDict,
     EmailStr,
     StringConstraints,
+    TypeAdapter,
+    ValidationError,
     field_validator,
     model_validator,
 )
-from typing import Annotated
+from typing import Annotated, Literal
 
 from app.common.enums import AccountStatus, UserRoleType
-from app.common.validators import normalize_chinese_phone_number, validate_password_policy
+from app.common.validators import (
+    normalize_chinese_phone_number,
+    normalize_email_address,
+    validate_password_policy,
+)
+
+EMAIL_ADAPTER = TypeAdapter(EmailStr)
 
 
 class RegisterRequest(BaseModel):
@@ -29,7 +37,7 @@ class RegisterRequest(BaseModel):
             return None
         if not isinstance(value, str):
             return value
-        normalized = value.strip().lower()
+        normalized = normalize_email_address(value) if value.strip() else ""
         return normalized or None
 
     @field_validator("phone_number", mode="before")
@@ -111,3 +119,56 @@ class VerifyPhoneCodeResponse(BaseModel):
 
     message: str
     phone_verified: bool
+
+
+LoginIdentifier = Annotated[str, StringConstraints(min_length=1, max_length=255, strict=True)]
+LoginPassword = Annotated[str, StringConstraints(min_length=1, max_length=128, strict=True)]
+
+
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    identifier: LoginIdentifier
+    password: LoginPassword
+
+    @field_validator("identifier", mode="before")
+    @classmethod
+    def normalize_identifier(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        candidate = value.strip()
+        if "@" in candidate:
+            try:
+                return str(EMAIL_ADAPTER.validate_python(normalize_email_address(candidate)))
+            except (ValidationError, ValueError) as exc:
+                raise ValueError("Enter a valid email address or mainland Chinese phone number.") from exc
+        try:
+            return normalize_chinese_phone_number(candidate)
+        except ValueError as exc:
+            raise ValueError("Enter a valid email address or mainland Chinese phone number.") from exc
+
+    @property
+    def identifier_kind(self) -> Literal["email", "phone"]:
+        return "email" if "@" in self.identifier else "phone"
+
+
+class SafeAuthenticatedUserResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", from_attributes=True)
+
+    id: str
+    email: EmailStr | None
+    phone_number: str | None
+    email_verified: bool
+    phone_verified: bool
+    account_status: AccountStatus
+    roles: list[UserRoleType]
+    created_at: datetime
+
+
+class LoginResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+    expires_in: int
+    user: SafeAuthenticatedUserResponse

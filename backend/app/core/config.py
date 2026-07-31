@@ -23,6 +23,15 @@ class UnsafeRuntimeConfigurationError(RuntimeError):
         self.unsafe_variables = tuple(sorted(unsafe_variables))
 
 
+class AuthenticationConfigurationError(RuntimeError):
+    """Raised when access-token configuration is missing or unsafe."""
+
+    def __init__(self, unsafe_variables: list[str]) -> None:
+        names = ", ".join(sorted(unsafe_variables))
+        super().__init__(f"Unsafe authentication configuration variables: {names}")
+        self.unsafe_variables = tuple(sorted(unsafe_variables))
+
+
 class Settings(BaseSettings):
     app_name: str = "UniShop China"
     app_env: str = "development"
@@ -37,8 +46,12 @@ class Settings(BaseSettings):
     database_url: str | None = None
 
     frontend_url: str = "http://localhost:5173"
-    jwt_secret_key: str = "replace_with_secure_secret"
+    jwt_secret_key: SecretStr | None = None
     jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = Field(default=15, ge=5, le=60)
+    jwt_issuer: str = "unishop-china-api"
+    jwt_audience: str = "unishop-china-web"
+    jwt_clock_skew_seconds: int = Field(default=30, ge=0, le=120)
     verification_code_hash_secret: SecretStr | None = None
 
     sms_enabled: bool = False
@@ -59,6 +72,11 @@ class Settings(BaseSettings):
     registration_rate_limit_requests: int = Field(default=20, ge=1, le=1000)
     registration_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
     registration_rate_limit_max_clients: int = Field(default=10000, ge=100, le=100000)
+    login_ip_rate_limit_requests: int = Field(default=5, ge=1, le=100)
+    login_ip_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    login_identifier_rate_limit_requests: int = Field(default=10, ge=1, le=100)
+    login_identifier_rate_limit_window_seconds: int = Field(default=900, ge=60, le=86400)
+    login_rate_limit_max_keys: int = Field(default=10000, ge=100, le=100000)
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
@@ -81,6 +99,30 @@ def validate_runtime_security(config: Settings) -> None:
 
     if unsafe:
         raise UnsafeRuntimeConfigurationError(list(set(unsafe)))
+
+    validate_authentication_configuration(config)
+
+
+def validate_authentication_configuration(config: Settings) -> None:
+    unsafe: list[str] = []
+    secret = (
+        config.jwt_secret_key.get_secret_value().strip()
+        if config.jwt_secret_key is not None
+        else ""
+    )
+    placeholder_markers = ("replace_with", "change_me", "local_secret", "your_secret")
+
+    if len(secret) < 32 or any(marker in secret.lower() for marker in placeholder_markers):
+        unsafe.append("JWT_SECRET_KEY")
+    if config.jwt_algorithm.strip().upper() != "HS256":
+        unsafe.append("JWT_ALGORITHM")
+    if not config.jwt_issuer.strip():
+        unsafe.append("JWT_ISSUER")
+    if not config.jwt_audience.strip():
+        unsafe.append("JWT_AUDIENCE")
+
+    if unsafe:
+        raise AuthenticationConfigurationError(unsafe)
 
 
 def _is_placeholder_password(password: str) -> bool:

@@ -24,6 +24,7 @@ from app.services.auth_service import RegistrationService
 from app.services.phone_verification_service import PhoneVerificationService
 
 SECRET = "phase-3b-test-only-verification-secret-with-adequate-entropy"
+JWT_TEST_SECRET = "phase-4a-test-only-jwt-secret-with-more-than-thirty-two-characters"
 PASSWORD = "StrongPassword123"
 
 
@@ -50,6 +51,7 @@ def development_config(**overrides: object) -> Settings:
         "sms_provider": "fake",
         "enable_fake_sms_dev_inbox": True,
         "fake_sms_localhost_only": True,
+        "jwt_secret_key": JWT_TEST_SECRET,
     }
     values.update(overrides)
     return Settings(**values)
@@ -129,6 +131,7 @@ def test_production_route_and_openapi_are_absent() -> None:
             sms_enabled=False,
             sms_provider="tencent",
             enable_fake_sms_dev_inbox=False,
+            jwt_secret_key=JWT_TEST_SECRET,
         )
     )
     assert "/api/v1/dev/fake-sms/latest" not in application.openapi()["paths"]

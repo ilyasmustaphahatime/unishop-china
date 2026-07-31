@@ -14,6 +14,8 @@ from app.integrations.development_fake_sms import (
 )
 from app.main import create_app
 
+JWT_TEST_SECRET = "phase-4a-test-only-jwt-secret-with-more-than-thirty-two-characters"
+
 PHONE = "+8613800000000"
 
 
@@ -144,6 +146,7 @@ def test_fake_inbox_is_blocked_outside_development(environment: str) -> None:
         _env_file=None,
         app_env=environment,
         enable_fake_sms_dev_inbox=True,
+        jwt_secret_key=JWT_TEST_SECRET,
     )
     with pytest.raises(UnsafeRuntimeConfigurationError) as captured:
         validate_runtime_security(config)
@@ -171,6 +174,7 @@ def test_explicit_development_fake_configuration_builds_memory_sender() -> None:
         sms_enabled=True,
         sms_provider="fake",
         enable_fake_sms_dev_inbox=True,
+        jwt_secret_key=JWT_TEST_SECRET,
     )
     validate_runtime_security(config)
     assert isinstance(build_sms_sender(config, fake_store=store), DevelopmentFakeSmsSender)
@@ -185,6 +189,7 @@ def test_non_development_application_forces_debug_off(environment: str) -> None:
         sms_enabled=False,
         sms_provider="tencent",
         enable_fake_sms_dev_inbox=False,
+        jwt_secret_key=JWT_TEST_SECRET,
     )
 
     application = create_app(config)

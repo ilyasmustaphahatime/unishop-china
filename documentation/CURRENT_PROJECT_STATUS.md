@@ -7,7 +7,9 @@
 - Phase 3A phone OTP generation, HMAC storage, resend limits, verification, and provider abstraction: complete.
 - Phase 3B secure local fake SMS workflow and manual verification: complete.
 - Real Tencent SMS: pending and disabled.
-- Phase 4 login, server-side sessions/tokens, logout, `/auth/me`, and protected-object authorization: not started.
+- Phase 4A secure email/phone login, short-lived access token, authentication dependency, and `/auth/me`: complete.
+- Phase 4B refresh-token rotation, HttpOnly cookies, reuse detection, logout, and durable frontend session: not started.
+- Protected marketplace object/function authorization: not started.
 
 ## Pre-Phase-4 cleanup status
 
@@ -22,7 +24,7 @@
 - React Router was migrated from the v7 compatibility package to patched `react-router` 8.3.0; existing declarative/data routing behavior and tests remain intact.
 - `npm audit` reports zero vulnerabilities, and `pip-audit` reports no known Python dependency vulnerabilities.
 - The ignored local backend `.env` now contains exactly one canonical development `APP_ENV` entry and one canonical local `FRONTEND_URL` entry; no secret-bearing value was changed.
-- Ready for Phase 4: yes. Phase 4 itself remains unimplemented.
+- Pre-Phase-4 security gates remain complete; Phase 4A was implemented without a schema migration.
 
 ## Verified foundation
 
@@ -34,12 +36,15 @@
 - Passwords use Argon2id; OTP values use HMAC-SHA256 and constant-time comparison.
 - Registration assigns only the `BUYER` role.
 - Phone resend retains its cooldown/hourly limits and verification retains its five-attempt limit.
-- Normal authentication APIs return no OTP, password, hash, token, provider error, stack trace, or database detail.
+- Registration and phone-verification APIs return no OTP, password, hash, token, provider error, stack trace, or database detail.
+- Login returns only a 15-minute access token plus a schema-protected user view; `/auth/me` reloads current roles and ACTIVE status from MySQL.
+- Unknown users, wrong passwords, and inactive users share one generic 401 response, with dummy Argon2 verification for unknown users.
+- Login limits are five attempts per connection peer per minute and ten attempts per HMAC-hashed identifier per 15 minutes.
 - Development fake SMS remains disabled by default, loopback-only, memory-only, and absent from production routing/OpenAPI.
 
 ## Tests and database state
 
-- Backend: 152 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Backend: 227 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
 - Frontend: 14 passed, 0 failed, 0 skipped.
 - Frontend type check, lint, and production build pass.
 - Development database baseline and final counts: users 4, roles 4, phone codes 3, refresh tokens 0, reset codes 0.
@@ -49,15 +54,16 @@ Every database test uses an outer transaction/savepoint and verifies exact count
 
 ## Authorization boundary
 
-The current backend exposes only public registration/phone-verification and health endpoints. There is no authenticated object API yet, so object-level authorization cannot truthfully be marked implemented. Frontend route guards are navigation aids only and are not treated as security controls. Phase 4 must add server-side authentication and deny-by-default object/function authorization before protected marketplace endpoints are activated.
+The backend now establishes identity through a validated access token and protects `/api/v1/auth/me`. There is still no marketplace object API in scope, so object-level authorization cannot truthfully be marked implemented. Frontend route guards remain navigation aids only. Future protected endpoints must add deny-by-default function and object authorization on top of `get_current_user()`.
 
 ## Known limitations
 
-- Login/JWT/refresh/logout/authenticated-object APIs do not exist and were not added during cleanup.
-- The in-memory registration limiter is per process; production horizontal deployments require a shared limiter.
+- Refresh tokens, cookies, rotation, reuse detection, logout, and durable frontend session bootstrap do not exist.
+- Access tokens cannot be revoked before their 15-minute expiry in Phase 4A.
+- Registration and login limiters are per process; production horizontal deployments require a shared limiter.
 - Real Tencent Signature/Template approval and credentials remain unavailable.
 - A third-party Starlette TestClient deprecation warning remains.
 
 ## Exact next step
 
-Review and commit the completed cleanup with the suggested message `chore: complete pre-phase-4 security cleanup`, then begin the separately scoped Phase 4 implementation.
+Review and commit Phase 4A with the suggested message `feat: implement secure login and access token authentication`. Phase 4B should then design refresh-token rotation, HttpOnly cookies, reuse detection, logout, and durable session bootstrap without introducing browser token persistence.

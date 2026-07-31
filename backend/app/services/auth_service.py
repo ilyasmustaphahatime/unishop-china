@@ -1,18 +1,21 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+import secrets
 
 from pydantic import SecretStr
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.common.enums import AccountStatus, UserRoleType
-from app.core.exceptions import RegistrationConflictError
+from app.core.exceptions import InvalidCredentialsError, RegistrationConflictError
 from app.core.security import (
     VerificationCodeGenerator,
     generate_verification_code,
     hash_password,
     hash_verification_code,
     resolve_verification_code_secret,
+    verify_password,
 )
 from app.models.base import utc_now
 from app.integrations.sms_client import DisabledSmsSender, SmsSender
@@ -21,7 +24,11 @@ from app.repositories.phone_verification_code_repository import (
 )
 from app.repositories.role_repository import UserRoleRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.auth import RegisterRequest
+from app.schemas.auth import LoginRequest, RegisterRequest
+from app.services.token_service import AccessTokenService
+
+
+_DUMMY_PASSWORD_HASH = hash_password(secrets.token_urlsafe(32))
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +42,89 @@ class RegistrationResult:
     roles: list[UserRoleType]
     phone_verification_required: bool
     created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class SafeAuthenticatedUser:
+    id: str
+    email: str | None
+    phone_number: str | None
+    email_verified: bool
+    phone_verified: bool
+    account_status: AccountStatus
+    roles: list[UserRoleType]
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class AuthenticationResult:
+    access_token: str
+    token_type: str
+    expires_in: int
+    user: SafeAuthenticatedUser
+
+
+class AuthenticationService:
+    def __init__(
+        self,
+        *,
+        user_repository: UserRepository | None = None,
+        role_repository: UserRoleRepository | None = None,
+        token_service: AccessTokenService | None = None,
+        password_verifier: Callable[[str, str], bool] = verify_password,
+        dummy_password_hash: str = _DUMMY_PASSWORD_HASH,
+    ) -> None:
+        self.user_repository = user_repository or UserRepository()
+        self.role_repository = role_repository or UserRoleRepository()
+        self.token_service = token_service or AccessTokenService()
+        self.password_verifier = password_verifier
+        self.dummy_password_hash = dummy_password_hash
+
+    def authenticate_user_and_create_access_token(
+        self,
+        session: Session,
+        request: LoginRequest,
+    ) -> AuthenticationResult:
+        if request.identifier_kind == "email":
+            user = self.user_repository.get_by_email(session, request.identifier)
+        else:
+            user = self.user_repository.get_by_phone(session, request.identifier)
+
+        password_hash = user.password_hash if user is not None else self.dummy_password_hash
+        password_is_valid = self.password_verifier(request.password, password_hash)
+        if (
+            user is None
+            or not password_is_valid
+            or user.account_status is not AccountStatus.ACTIVE
+        ):
+            raise InvalidCredentialsError
+
+        safe_user = self._safe_user(session, user)
+        return AuthenticationResult(
+            access_token=self.token_service.create_access_token(user.id),
+            token_type="bearer",
+            expires_in=self.token_service.expires_in_seconds,
+            user=safe_user,
+        )
+
+    def load_current_user(self, session: Session, user_id: str) -> SafeAuthenticatedUser | None:
+        user = self.user_repository.get_by_id(session, user_id)
+        if user is None or user.account_status is not AccountStatus.ACTIVE:
+            return None
+        return self._safe_user(session, user)
+
+    def _safe_user(self, session: Session, user: object) -> SafeAuthenticatedUser:
+        roles = self.role_repository.list_roles_for_user(session, user.id)
+        return SafeAuthenticatedUser(
+            id=user.id,
+            email=user.email,
+            phone_number=user.phone_number,
+            email_verified=user.email_verified,
+            phone_verified=user.phone_verified,
+            account_status=user.account_status,
+            roles=roles,
+            created_at=user.created_at,
+        )
 
 
 class RegistrationService:

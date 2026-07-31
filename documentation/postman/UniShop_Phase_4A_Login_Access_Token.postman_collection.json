@@ -1,0 +1,115 @@
+{
+  "info": {
+    "name": "UniShop China Phase 4A - Login and Access Token",
+    "description": "Synthetic placeholders only. No refresh, logout, cookie, or persistent frontend session is implemented.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:8000" },
+    { "key": "testEmail", "value": "" },
+    { "key": "testPhone", "value": "" },
+    { "key": "testPassword", "value": "" },
+    { "key": "wrongPassword", "value": "" },
+    { "key": "unknownIdentifier", "value": "" },
+    { "key": "accessToken", "value": "" },
+    { "key": "invalidToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Login with email",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('Login succeeds safely', () => { pm.response.to.have.status(200); const body = pm.response.json(); pm.expect(body.token_type).to.eql('bearer'); pm.expect(body.expires_in).to.eql(900); pm.expect(body.user).not.to.have.property('password_hash'); });",
+            "if (pm.response.code === 200) { pm.collectionVariables.set('accessToken', pm.response.json().access_token); }"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "Login with phone",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"{{testPhone}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "Login with wrong password",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"{{testEmail}}\",\n  \"password\": \"{{wrongPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Generic credential failure', () => { pm.response.to.have.status(401); pm.expect(pm.response.json()).to.eql({ detail: 'Invalid credentials.' }); });"] } }]
+    },
+    {
+      "name": "Login with unknown identifier",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"{{unknownIdentifier}}\",\n  \"password\": \"{{wrongPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Same generic credential failure', () => { pm.response.to.have.status(401); pm.expect(pm.response.json()).to.eql({ detail: 'Invalid credentials.' }); });"] } }]
+    },
+    {
+      "name": "Login rate-limit example",
+      "request": {
+        "description": "Send repeatedly within the configured window. The limited response is HTTP 429 with Retry-After and no account details.",
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"{{unknownIdentifier}}\",\n  \"password\": \"{{wrongPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "GET auth me with valid access token",
+      "request": {
+        "method": "GET",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+        "url": "{{baseUrl}}/api/v1/auth/me"
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Safe current user', () => { pm.response.to.have.status(200); const body = pm.response.json(); pm.expect(body).not.to.have.property('password_hash'); pm.expect(body).not.to.have.property('refresh_tokens'); });"] } }]
+    },
+    {
+      "name": "GET auth me without token",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/auth/me" },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Bearer authentication required', () => { pm.response.to.have.status(401); pm.expect(pm.response.headers.get('WWW-Authenticate')).to.eql('Bearer'); });"] } }]
+    },
+    {
+      "name": "GET auth me with invalid token",
+      "request": {
+        "method": "GET",
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{invalidToken}}", "type": "string" }] },
+        "url": "{{baseUrl}}/api/v1/auth/me"
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Invalid token rejected safely', () => { pm.response.to.have.status(401); pm.expect(pm.response.json()).to.eql({ detail: 'Could not validate credentials.' }); });"] } }]
+    }
+  ]
+}
