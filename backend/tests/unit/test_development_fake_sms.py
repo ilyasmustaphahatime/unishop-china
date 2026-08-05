@@ -195,3 +195,26 @@ def test_non_development_application_forces_debug_off(environment: str) -> None:
     application = create_app(config)
 
     assert application.debug is False
+
+
+def test_phase_4a_cors_uses_explicit_origin_without_credentials() -> None:
+    config = Settings(
+        _env_file=None,
+        app_env="production",
+        app_debug=False,
+        frontend_url="https://shop.example.test",
+        sms_enabled=False,
+        sms_provider="tencent",
+        enable_fake_sms_dev_inbox=False,
+        jwt_secret_key=JWT_TEST_SECRET,
+    )
+
+    application = create_app(config)
+    cors = next(
+        middleware
+        for middleware in application.user_middleware
+        if middleware.cls.__name__ == "CORSMiddleware"
+    )
+
+    assert cors.kwargs["allow_origins"] == ["https://shop.example.test"]
+    assert cors.kwargs["allow_credentials"] is False

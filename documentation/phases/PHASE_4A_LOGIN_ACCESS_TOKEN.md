@@ -63,6 +63,8 @@ The JWT secret remains only in ignored backend environment configuration. Missin
 
 `GET /api/v1/auth/me` returns only ID, optional email/phone, verification flags, account status, roles, and creation time. It performs no write.
 
+Phase 4A does not use cross-origin cookies. The backend CORS middleware and frontend API client therefore keep credential mode disabled. The development Fake SMS page and its API client are excluded from production frontend bundles.
+
 ## Rate limits
 
 - Connection peer: 5 attempts per 60 seconds.

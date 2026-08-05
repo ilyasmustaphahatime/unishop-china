@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { apiClient } from '../../src/services/apiClient';
 import { useAuthStore } from '../../src/stores/authStore';
 
 afterEach(() => {
@@ -8,6 +9,10 @@ afterEach(() => {
 });
 
 describe('pre-Phase-4 authentication scaffold security', () => {
+  it('does not enable cross-origin credentials before cookie authentication exists', () => {
+    expect(apiClient.defaults.withCredentials).not.toBe(true);
+  });
+
   it('keeps a simulated session in memory and writes no browser storage', () => {
     useAuthStore.getState().completeLogin({
       accessToken: 'test-only-access-token',

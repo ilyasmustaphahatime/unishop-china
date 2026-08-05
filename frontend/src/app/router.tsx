@@ -6,12 +6,26 @@ import GuestRoute from '../routes/GuestRoute';
 import ProtectedRoute from '../routes/ProtectedRoute';
 import RoleRoute from '../routes/RoleRoute';
 
-const pages = import.meta.glob('../pages/**/*.tsx');
+const pages = import.meta.glob(['../pages/**/*.tsx', '!../pages/dev/**/*.tsx']);
+const localPhoneVerificationPage = import.meta.env.DEV
+  ? () => import('../pages/dev/LocalPhoneVerificationPage')
+  : undefined;
+const localPhoneVerificationPath = import.meta.env.DEV ? '/dev/phone-verification' : undefined;
 
 function page(path: string) {
   const Page = lazy(pages[`../pages/${path}.tsx`] as () => Promise<{ default: ComponentType }>);
   return (
     <Suspense fallback={<p className="p-6 text-slate-600">Loading…</p>}>
+      <Page />
+    </Suspense>
+  );
+}
+
+function developmentPage() {
+  if (!localPhoneVerificationPage) return null;
+  const Page = lazy(localPhoneVerificationPage);
+  return (
+    <Suspense fallback={<p className="p-6 text-slate-600">Loadingâ€¦</p>}>
       <Page />
     </Suspense>
   );
@@ -83,8 +97,8 @@ export function buildRouteObjects({
   fakeSmsPageEnabled,
 }: RouterFlags): RouteObject[] {
   const developmentRoutes =
-    isDevelopment && fakeSmsPageEnabled
-      ? [{ path: '/dev/phone-verification', element: page('dev/LocalPhoneVerificationPage') }]
+    isDevelopment && fakeSmsPageEnabled && localPhoneVerificationPath
+      ? [{ path: localPhoneVerificationPath, element: developmentPage() }]
       : [];
 
   return [

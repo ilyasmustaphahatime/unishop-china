@@ -25,6 +25,7 @@
 - `npm audit` reports zero vulnerabilities, and `pip-audit` reports no known Python dependency vulnerabilities.
 - The ignored local backend `.env` now contains exactly one canonical development `APP_ENV` entry and one canonical local `FRONTEND_URL` entry; no secret-bearing value was changed.
 - Pre-Phase-4 security gates remain complete; Phase 4A was implemented without a schema migration.
+- The pre-Phase-4B full-system audit disabled unused CORS/browser credential mode and removed the development Fake SMS page from production bundles.
 
 ## Verified foundation
 
@@ -44,8 +45,8 @@
 
 ## Tests and database state
 
-- Backend: 227 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
-- Frontend: 14 passed, 0 failed, 0 skipped.
+- Backend: 228 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Frontend: 15 passed, 0 failed, 0 skipped.
 - Frontend type check, lint, and production build pass.
 - Development database baseline and final counts: users 4, roles 4, phone codes 3, refresh tokens 0, reset codes 0.
 - Orphan roles/codes: 0.
@@ -66,4 +67,4 @@ The backend now establishes identity through a validated access token and protec
 
 ## Exact next step
 
-Review and commit Phase 4A with the suggested message `feat: implement secure login and access token authentication`. Phase 4B should then design refresh-token rotation, HttpOnly cookies, reuse detection, logout, and durable session bootstrap without introducing browser token persistence.
+Review and commit the pre-Phase-4B CORS and production-bundle hardening repair. Phase 4B can then design refresh-token rotation, HttpOnly cookies, reuse detection, logout, and durable session bootstrap without introducing browser token persistence.

@@ -39,7 +39,7 @@ def create_app(
     application.add_middleware(
         CORSMiddleware,
         allow_origins=sorted(set(allowed_origins)),
-        allow_credentials=True,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )
