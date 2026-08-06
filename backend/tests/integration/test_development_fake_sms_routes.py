@@ -132,6 +132,7 @@ def test_production_route_and_openapi_are_absent() -> None:
             sms_provider="tencent",
             enable_fake_sms_dev_inbox=False,
             jwt_secret_key=JWT_TEST_SECRET,
+            refresh_cookie_secure=True,
         )
     )
     assert "/api/v1/dev/fake-sms/latest" not in application.openapi()["paths"]

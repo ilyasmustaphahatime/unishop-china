@@ -1,5 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
+import re
+from urllib.parse import urlparse
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -32,6 +34,15 @@ class AuthenticationConfigurationError(RuntimeError):
         self.unsafe_variables = tuple(sorted(unsafe_variables))
 
 
+class SessionConfigurationError(RuntimeError):
+    """Raised when refresh-session or credentialed-CORS settings are unsafe."""
+
+    def __init__(self, unsafe_variables: list[str]) -> None:
+        names = ", ".join(sorted(set(unsafe_variables)))
+        super().__init__(f"Unsafe session configuration variables: {names}")
+        self.unsafe_variables = tuple(sorted(set(unsafe_variables)))
+
+
 class Settings(BaseSettings):
     app_name: str = "UniShop China"
     app_env: str = "development"
@@ -53,6 +64,14 @@ class Settings(BaseSettings):
     jwt_audience: str = "unishop-china-web"
     jwt_clock_skew_seconds: int = Field(default=30, ge=0, le=120)
     verification_code_hash_secret: SecretStr | None = None
+    refresh_token_expire_days: int = Field(default=7, ge=1, le=30)
+    refresh_session_absolute_days: int = Field(default=30, ge=1, le=90)
+    refresh_cookie_name: str = "unishop_refresh_token"
+    csrf_cookie_name: str = "unishop_csrf_token"
+    refresh_cookie_secure: bool = False
+    refresh_cookie_samesite: str = "lax"
+    refresh_cookie_path: str = "/api/v1/auth"
+    max_active_session_families_per_user: int = Field(default=10, ge=1, le=100)
 
     sms_enabled: bool = False
     sms_provider: str = "tencent"
@@ -77,6 +96,15 @@ class Settings(BaseSettings):
     login_identifier_rate_limit_requests: int = Field(default=10, ge=1, le=100)
     login_identifier_rate_limit_window_seconds: int = Field(default=900, ge=60, le=86400)
     login_rate_limit_max_keys: int = Field(default=10000, ge=100, le=100000)
+    refresh_ip_rate_limit_requests: int = Field(default=20, ge=1, le=1000)
+    refresh_ip_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    refresh_session_rate_limit_requests: int = Field(default=10, ge=1, le=1000)
+    refresh_session_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    logout_ip_rate_limit_requests: int = Field(default=10, ge=1, le=1000)
+    logout_ip_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    logout_all_user_rate_limit_requests: int = Field(default=5, ge=1, le=1000)
+    logout_all_user_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    session_rate_limit_max_keys: int = Field(default=10000, ge=100, le=100000)
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
@@ -101,6 +129,7 @@ def validate_runtime_security(config: Settings) -> None:
         raise UnsafeRuntimeConfigurationError(list(set(unsafe)))
 
     validate_authentication_configuration(config)
+    validate_session_configuration(config)
 
 
 def validate_authentication_configuration(config: Settings) -> None:
@@ -123,6 +152,70 @@ def validate_authentication_configuration(config: Settings) -> None:
 
     if unsafe:
         raise AuthenticationConfigurationError(unsafe)
+
+
+def validate_session_configuration(config: Settings) -> None:
+    unsafe: list[str] = []
+    environment = config.app_env.strip().lower()
+    same_site = config.refresh_cookie_samesite.strip().lower()
+    cookie_name_pattern = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
+    placeholder_markers = ("replace_with", "change_me", "cookie_name", "placeholder")
+
+    if config.refresh_session_absolute_days < config.refresh_token_expire_days:
+        unsafe.extend(["REFRESH_TOKEN_EXPIRE_DAYS", "REFRESH_SESSION_ABSOLUTE_DAYS"])
+    if environment != "development" and not config.refresh_cookie_secure:
+        unsafe.append("REFRESH_COOKIE_SECURE")
+    if same_site not in {"lax", "strict", "none"}:
+        unsafe.append("REFRESH_COOKIE_SAMESITE")
+    if same_site == "none" and not config.refresh_cookie_secure:
+        unsafe.extend(["REFRESH_COOKIE_SAMESITE", "REFRESH_COOKIE_SECURE"])
+    if (
+        not config.refresh_cookie_path.startswith("/")
+        or any(character in config.refresh_cookie_path for character in ";,\r\n")
+    ):
+        unsafe.append("REFRESH_COOKIE_PATH")
+
+    cookie_names = {
+        "REFRESH_COOKIE_NAME": config.refresh_cookie_name.strip(),
+        "CSRF_COOKIE_NAME": config.csrf_cookie_name.strip(),
+    }
+    for variable, name in cookie_names.items():
+        if (
+            not name
+            or not cookie_name_pattern.fullmatch(name)
+            or any(marker in name.lower() for marker in placeholder_markers)
+        ):
+            unsafe.append(variable)
+    if cookie_names["REFRESH_COOKIE_NAME"] == cookie_names["CSRF_COOKIE_NAME"]:
+        unsafe.extend(["REFRESH_COOKIE_NAME", "CSRF_COOKIE_NAME"])
+
+    origin = config.frontend_url.strip()
+    parsed = urlparse(origin)
+    if (
+        origin == "*"
+        or not origin
+        or parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path not in {"", "/"}
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
+        unsafe.append("FRONTEND_URL")
+
+    if unsafe:
+        raise SessionConfigurationError(unsafe)
+
+
+def allowed_frontend_origins(config: Settings) -> tuple[str, ...]:
+    """Return the exact browser origins accepted by CORS and Origin checks."""
+    origins = {config.frontend_url.strip().rstrip("/")}
+    if config.app_env.strip().lower() == "development":
+        origins.update({"http://localhost:5173", "http://127.0.0.1:5173"})
+    return tuple(sorted(origins))
 
 
 def _is_placeholder_password(password: str) -> bool:

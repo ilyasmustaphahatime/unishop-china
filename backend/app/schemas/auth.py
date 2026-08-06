@@ -172,3 +172,11 @@ class LoginResponse(BaseModel):
     token_type: Literal["bearer"] = "bearer"
     expires_in: int
     user: SafeAuthenticatedUserResponse
+
+
+class RefreshResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+    expires_in: int

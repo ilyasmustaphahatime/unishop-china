@@ -190,6 +190,7 @@ def test_non_development_application_forces_debug_off(environment: str) -> None:
         sms_provider="tencent",
         enable_fake_sms_dev_inbox=False,
         jwt_secret_key=JWT_TEST_SECRET,
+        refresh_cookie_secure=True,
     )
 
     application = create_app(config)
@@ -197,7 +198,7 @@ def test_non_development_application_forces_debug_off(environment: str) -> None:
     assert application.debug is False
 
 
-def test_phase_4a_cors_uses_explicit_origin_without_credentials() -> None:
+def test_phase_4b_cors_uses_explicit_origin_with_credentials() -> None:
     config = Settings(
         _env_file=None,
         app_env="production",
@@ -207,6 +208,7 @@ def test_phase_4a_cors_uses_explicit_origin_without_credentials() -> None:
         sms_provider="tencent",
         enable_fake_sms_dev_inbox=False,
         jwt_secret_key=JWT_TEST_SECRET,
+        refresh_cookie_secure=True,
     )
 
     application = create_app(config)
@@ -217,4 +219,5 @@ def test_phase_4a_cors_uses_explicit_origin_without_credentials() -> None:
     )
 
     assert cors.kwargs["allow_origins"] == ["https://shop.example.test"]
-    assert cors.kwargs["allow_credentials"] is False
+    assert cors.kwargs["allow_credentials"] is True
+    assert "X-CSRF-Token" in cors.kwargs["allow_headers"]

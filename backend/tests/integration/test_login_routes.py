@@ -477,7 +477,7 @@ def test_identifier_rate_limit_isolated_and_recovers_with_injected_clock(
     assert recovered.status_code == 401
 
 
-def test_login_creates_no_refresh_or_verification_records(
+def test_login_creates_hashed_refresh_session_but_no_verification_record(
     client: TestClient,
     db_session: Session,
 ) -> None:
@@ -487,20 +487,29 @@ def test_login_creates_no_refresh_or_verification_records(
     codes_before = int(
         db_session.scalar(select(func.count()).select_from(PhoneVerificationCode)) or 0
     )
-    assert client.post(
+    response = client.post(
         "/api/v1/auth/login",
         json={"identifier": email, "password": PASSWORD},
-    ).status_code == 200
-    assert db_session.scalar(select(func.count()).select_from(RefreshToken)) == refresh_before
+    )
+    assert response.status_code == 200
+    assert db_session.scalar(select(func.count()).select_from(RefreshToken)) == refresh_before + 1
     assert db_session.scalar(select(func.count()).select_from(PhoneVerificationCode)) == codes_before
+    row = db_session.scalar(
+        select(RefreshToken).where(RefreshToken.user_id == response.json()["user"]["id"])
+    )
+    assert row is not None
+    assert row.token_hash not in response.text
+    assert row.csrf_token_hash not in response.text
+    assert "refresh_token" not in response.json()
 
 
-def test_openapi_contains_exact_phase_4a_paths(client: TestClient) -> None:
+def test_openapi_contains_exact_phase_4b_auth_paths(client: TestClient) -> None:
     paths = client.get("/openapi.json").json()["paths"]
     assert "/api/v1/auth/login" in paths
     assert "/api/v1/auth/me" in paths
-    assert "/api/v1/auth/refresh" not in paths
-    assert "/api/v1/auth/logout" not in paths
+    assert "/api/v1/auth/refresh" in paths
+    assert "/api/v1/auth/logout" in paths
+    assert "/api/v1/auth/logout-all" in paths
     assert "/api/v1/api/v1/auth/login" not in paths
     assert "/api/v1/auth/auth/login" not in paths
     assert "/auth/login" not in paths

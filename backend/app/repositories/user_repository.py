@@ -8,6 +8,9 @@ class UserRepository:
     def get_by_id(self, session: Session, user_id: str) -> User | None:
         return session.scalar(select(User).where(User.id == user_id))
 
+    def get_by_id_for_update(self, session: Session, user_id: str) -> User | None:
+        return session.scalar(select(User).where(User.id == user_id).with_for_update())
+
     def get_by_email(self, session: Session, email: str) -> User | None:
         return session.scalar(select(User).where(User.email == email))
 

@@ -1,0 +1,170 @@
+{
+  "info": {
+    "name": "UniShop Phase 4B - Refresh Sessions",
+    "description": "Synthetic backend-only Phase 4B checks. The Postman cookie jar carries HttpOnly cookies. Runtime variables are intentionally empty in the committed collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "email", "value": "" },
+    { "key": "password", "value": "" },
+    { "key": "access_token_runtime", "value": "" },
+    { "key": "csrf_token_runtime", "value": "" },
+    { "key": "old_refresh_token_runtime", "value": "" },
+    { "key": "old_csrf_token_runtime", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Login and receive cookies",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"identifier\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+        "url": "{{base_url}}/api/v1/auth/login"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('login succeeds', () => pm.response.to.have.status(200));",
+          "const body = pm.response.json();",
+          "pm.collectionVariables.set('access_token_runtime', body.access_token || '');",
+          "pm.collectionVariables.set('csrf_token_runtime', pm.cookies.get('unishop_csrf_token') || '');",
+          "pm.test('refresh token absent from JSON', () => pm.expect(body).not.to.have.property('refresh_token'));"
+        ] }
+      }]
+    },
+    {
+      "name": "2. Refresh with valid cookies and CSRF",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token_runtime}}" }],
+        "url": "{{base_url}}/api/v1/auth/refresh"
+      },
+      "event": [{
+        "listen": "prerequest",
+        "script": { "exec": ["pm.collectionVariables.set('csrf_token_runtime', pm.cookies.get('unishop_csrf_token') || '');"] }
+      }, {
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('refresh succeeds', () => pm.response.to.have.status(200));",
+          "const body = pm.response.json();",
+          "pm.collectionVariables.set('access_token_runtime', body.access_token || '');",
+          "pm.collectionVariables.set('csrf_token_runtime', pm.cookies.get('unishop_csrf_token') || '');",
+          "pm.test('session secrets absent from JSON', () => { pm.expect(body).not.to.have.property('refresh_token'); pm.expect(body).not.to.have.property('csrf_token'); });"
+        ] }
+      }]
+    },
+    {
+      "name": "3. Refresh without CSRF",
+      "request": { "method": "POST", "header": [], "url": "{{base_url}}/api/v1/auth/refresh" },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('CSRF is required', () => pm.response.to.have.status(403));"] } }]
+    },
+    {
+      "name": "4. Refresh with wrong CSRF",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "X-CSRF-Token", "value": "synthetic-wrong-csrf" }],
+        "url": "{{base_url}}/api/v1/auth/refresh"
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('wrong CSRF is rejected', () => pm.response.to.have.status(403));"] } }]
+    },
+    {
+      "name": "5. Refresh with missing cookie",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "X-CSRF-Token", "value": "synthetic-no-cookie" }],
+        "url": "{{base_url}}/api/v1/auth/refresh",
+        "description": "Clear the Postman cookie jar for the base URL before sending."
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('missing session is generic', () => pm.response.to.have.status(401));"] } }]
+    },
+    {
+      "name": "6. Refresh-token rotation",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token_runtime}}" }],
+        "url": "{{base_url}}/api/v1/auth/refresh",
+        "description": "Before sending, copy the current cookie-jar refresh and CSRF values only into the two old_* runtime variables. Remove those runtime values after test execution."
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('rotation succeeds', () => pm.response.to.have.status(200));",
+          "pm.collectionVariables.set('csrf_token_runtime', pm.cookies.get('unishop_csrf_token') || '');"
+        ] }
+      }]
+    },
+    {
+      "name": "7. Attempt old-token reuse",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-CSRF-Token", "value": "{{old_csrf_token_runtime}}" },
+          { "key": "Cookie", "value": "unishop_refresh_token={{old_refresh_token_runtime}}; unishop_csrf_token={{old_csrf_token_runtime}}" }
+        ],
+        "url": "{{base_url}}/api/v1/auth/refresh",
+        "description": "Uses ephemeral runtime values captured before request 6; never save real values into the collection."
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('old token reuse is rejected generically', () => pm.response.to.have.status(401));",
+        "pm.collectionVariables.unset('old_refresh_token_runtime');",
+        "pm.collectionVariables.unset('old_csrf_token_runtime');"
+      ] } }]
+    },
+    {
+      "name": "8. Logout current session",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token_runtime}}" }],
+        "url": "{{base_url}}/api/v1/auth/logout"
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('logout returns no content', () => pm.response.to.have.status(204));"] } }]
+    },
+    {
+      "name": "9. Logout without cookie",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{base_url}}/api/v1/auth/logout",
+        "description": "Clear the cookie jar before sending."
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('logout remains idempotent', () => pm.response.to.have.status(204));"] } }]
+    },
+    {
+      "name": "10. Logout All with access token",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{access_token_runtime}}" }],
+        "url": "{{base_url}}/api/v1/auth/logout-all"
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('logout-all returns no content', () => pm.response.to.have.status(204));"] } }]
+    },
+    {
+      "name": "11. Refresh after logout",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token_runtime}}" }],
+        "url": "{{base_url}}/api/v1/auth/refresh"
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('logged-out session cannot refresh', () => pm.response.to.have.status(401));"] } }]
+    },
+    {
+      "name": "12. Refresh after logout-all",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "X-CSRF-Token", "value": "{{csrf_token_runtime}}" }],
+        "url": "{{base_url}}/api/v1/auth/refresh"
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('logout-all sessions cannot refresh', () => pm.response.to.have.status(401));"] } }]
+    },
+    {
+      "name": "13. GET auth me with new access token",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{access_token_runtime}}" }],
+        "url": "{{base_url}}/api/v1/auth/me"
+      },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('access token authenticates', () => pm.response.to.have.status(200));"] } }]
+    }
+  ]
+}

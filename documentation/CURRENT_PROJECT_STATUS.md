@@ -8,7 +8,9 @@
 - Phase 3B secure local fake SMS workflow and manual verification: complete.
 - Real Tencent SMS: pending and disabled.
 - Phase 4A secure email/phone login, short-lived access token, authentication dependency, and `/auth/me`: complete.
-- Phase 4B refresh-token rotation, HttpOnly cookies, reuse detection, logout, and durable frontend session: not started.
+- Phase 4B backend refresh-token rotation, HttpOnly cookies, CSRF, reuse detection, logout, and logout-all: complete.
+- Phase 4C frontend session bootstrap and coordinated refresh: not started.
+- Phase 4D: not started.
 - Protected marketplace object/function authorization: not started.
 
 ## Pre-Phase-4 cleanup status
@@ -31,7 +33,7 @@
 
 - MySQL connection succeeds against `unishop_china`.
 - SQLAlchemy uses parameterized expressions and no request-derived raw SQL.
-- Alembic current and head remain `a75289cfd4a9`; no schema drift exists.
+- Alembic current and head are `c91e4a7b2d6f`; no schema drift exists.
 - Tables remain `alembic_version`, `users`, `user_roles`, `refresh_tokens`, `phone_verification_codes`, and `password_reset_codes`.
 - Strict Pydantic schemas reject unknown and privileged registration fields.
 - Passwords use Argon2id; OTP values use HMAC-SHA256 and constant-time comparison.
@@ -45,7 +47,7 @@
 
 ## Tests and database state
 
-- Backend: 228 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Backend: 266 passed, 0 failed, 0 skipped, 1 third-party deprecation warning after Phase 4B focused coverage was added.
 - Frontend: 15 passed, 0 failed, 0 skipped.
 - Frontend type check, lint, and production build pass.
 - Development database baseline and final counts: users 4, roles 4, phone codes 3, refresh tokens 0, reset codes 0.
@@ -59,7 +61,7 @@ The backend now establishes identity through a validated access token and protec
 
 ## Known limitations
 
-- Refresh tokens, cookies, rotation, reuse detection, logout, and durable frontend session bootstrap do not exist.
+- Phase 4C browser session bootstrap, credentialed frontend client, single-flight refresh, and retry queue remain pending.
 - Access tokens cannot be revoked before their 15-minute expiry in Phase 4A.
 - Registration and login limiters are per process; production horizontal deployments require a shared limiter.
 - Real Tencent Signature/Template approval and credentials remain unavailable.
@@ -67,4 +69,4 @@ The backend now establishes identity through a validated access token and protec
 
 ## Exact next step
 
-Review and commit the pre-Phase-4B CORS and production-bundle hardening repair. Phase 4B can then design refresh-token rotation, HttpOnly cookies, reuse detection, logout, and durable session bootstrap without introducing browser token persistence.
+Review and commit Phase 4B. The next implementation phase is Phase 4C frontend session bootstrap with in-memory access tokens, credentialed auth calls, single-flight refresh, and no browser token persistence.

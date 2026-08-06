@@ -1,4 +1,6 @@
 from collections.abc import Callable
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import secrets
@@ -26,6 +28,7 @@ from app.repositories.role_repository import UserRoleRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import LoginRequest, RegisterRequest
 from app.services.token_service import AccessTokenService
+from app.services.refresh_session_service import AuthCookieMaterial, RefreshSessionService
 
 
 _DUMMY_PASSWORD_HASH = hash_password(secrets.token_urlsafe(32))
@@ -62,6 +65,7 @@ class AuthenticationResult:
     token_type: str
     expires_in: int
     user: SafeAuthenticatedUser
+    cookies: AuthCookieMaterial
 
 
 class AuthenticationService:
@@ -71,12 +75,16 @@ class AuthenticationService:
         user_repository: UserRepository | None = None,
         role_repository: UserRoleRepository | None = None,
         token_service: AccessTokenService | None = None,
+        refresh_session_service: RefreshSessionService | None = None,
         password_verifier: Callable[[str, str], bool] = verify_password,
         dummy_password_hash: str = _DUMMY_PASSWORD_HASH,
     ) -> None:
         self.user_repository = user_repository or UserRepository()
         self.role_repository = role_repository or UserRoleRepository()
         self.token_service = token_service or AccessTokenService()
+        self.refresh_session_service = refresh_session_service or RefreshSessionService(
+            access_token_service=self.token_service
+        )
         self.password_verifier = password_verifier
         self.dummy_password_hash = dummy_password_hash
 
@@ -85,27 +93,33 @@ class AuthenticationService:
         session: Session,
         request: LoginRequest,
     ) -> AuthenticationResult:
-        if request.identifier_kind == "email":
-            user = self.user_repository.get_by_email(session, request.identifier)
-        else:
-            user = self.user_repository.get_by_phone(session, request.identifier)
+        with self._transaction(session):
+            if request.identifier_kind == "email":
+                user = self.user_repository.get_by_email(session, request.identifier)
+            else:
+                user = self.user_repository.get_by_phone(session, request.identifier)
 
-        password_hash = user.password_hash if user is not None else self.dummy_password_hash
-        password_is_valid = self.password_verifier(request.password, password_hash)
-        if (
-            user is None
-            or not password_is_valid
-            or user.account_status is not AccountStatus.ACTIVE
-        ):
-            raise InvalidCredentialsError
+            password_hash = user.password_hash if user is not None else self.dummy_password_hash
+            password_is_valid = self.password_verifier(request.password, password_hash)
+            if (
+                user is None
+                or not password_is_valid
+                or user.account_status is not AccountStatus.ACTIVE
+            ):
+                raise InvalidCredentialsError
 
-        safe_user = self._safe_user(session, user)
-        return AuthenticationResult(
-            access_token=self.token_service.create_access_token(user.id),
-            token_type="bearer",
-            expires_in=self.token_service.expires_in_seconds,
-            user=safe_user,
-        )
+            safe_user = self._safe_user(session, user)
+            cookies = self.refresh_session_service.create_login_session(
+                session,
+                user_id=user.id,
+            )
+            return AuthenticationResult(
+                access_token=self.token_service.create_access_token(user.id),
+                token_type="bearer",
+                expires_in=self.token_service.expires_in_seconds,
+                user=safe_user,
+                cookies=cookies,
+            )
 
     def load_current_user(self, session: Session, user_id: str) -> SafeAuthenticatedUser | None:
         user = self.user_repository.get_by_id(session, user_id)
@@ -125,6 +139,13 @@ class AuthenticationService:
             roles=roles,
             created_at=user.created_at,
         )
+
+    @staticmethod
+    @contextmanager
+    def _transaction(session: Session) -> Iterator[None]:
+        transaction = session.begin_nested() if session.in_transaction() else session.begin()
+        with transaction:
+            yield
 
 
 class RegistrationService:

@@ -10,6 +10,7 @@ from app.core.exceptions import InvalidCredentialsError
 from app.core.security import hash_rate_limit_identifier
 from app.schemas.auth import LoginRequest
 from app.services.auth_service import AuthenticationService
+from app.services.refresh_session_service import AuthCookieMaterial
 
 
 class FakeUserRepository:
@@ -40,6 +41,28 @@ class FakeTokenService:
 
     def create_access_token(self, _user_id: str) -> str:
         return "synthetic-unit-token"
+
+
+class FakeTransaction:
+    def __enter__(self) -> None:
+        return None
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+
+class FakeSession:
+    def in_transaction(self) -> bool:
+        return False
+
+    def begin(self) -> FakeTransaction:
+        return FakeTransaction()
+
+
+class FakeRefreshSessionService:
+    def create_login_session(self, _session: object, *, user_id: str) -> AuthCookieMaterial:
+        assert user_id
+        return AuthCookieMaterial("synthetic-refresh", "synthetic-csrf", 604800)
 
 
 def active_user(**overrides: object) -> object:
@@ -112,11 +135,12 @@ def test_authentication_accepts_correct_password_and_returns_safe_user() -> None
         user_repository=repository,
         role_repository=FakeRoleRepository(),
         token_service=FakeTokenService(),
+        refresh_session_service=FakeRefreshSessionService(),
         password_verifier=verifier,
         dummy_password_hash="dummy-hash",
     )
     result = service.authenticate_user_and_create_access_token(
-        object(), LoginRequest(identifier="USER@EXAMPLE.COM", password="submitted")
+        FakeSession(), LoginRequest(identifier="USER@EXAMPLE.COM", password="submitted")
     )
 
     assert verification_calls == [("submitted", "stored-password-hash")]
@@ -136,7 +160,7 @@ def test_wrong_password_returns_generic_internal_failure() -> None:
     )
     with pytest.raises(InvalidCredentialsError):
         service.authenticate_user_and_create_access_token(
-            object(), LoginRequest(identifier="user@example.com", password="wrong")
+            FakeSession(), LoginRequest(identifier="user@example.com", password="wrong")
         )
 
 
@@ -156,7 +180,7 @@ def test_unknown_user_uses_dummy_verification_path() -> None:
     )
     with pytest.raises(InvalidCredentialsError):
         service.authenticate_user_and_create_access_token(
-            object(), LoginRequest(identifier="unknown@example.com", password="submitted")
+            FakeSession(), LoginRequest(identifier="unknown@example.com", password="submitted")
         )
     assert calls == [("submitted", "controlled-dummy-hash")]
 
@@ -174,7 +198,7 @@ def test_inactive_accounts_receive_generic_failure(account_status: AccountStatus
     )
     with pytest.raises(InvalidCredentialsError):
         service.authenticate_user_and_create_access_token(
-            object(), LoginRequest(identifier="user@example.com", password="correct")
+            FakeSession(), LoginRequest(identifier="user@example.com", password="correct")
         )
 
 

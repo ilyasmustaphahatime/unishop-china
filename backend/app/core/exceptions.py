@@ -31,3 +31,15 @@ class InvalidCredentialsError(Exception):
 
 class TokenValidationError(Exception):
     """Internal access-token validation failure safe for public mapping."""
+
+
+class SessionRefreshError(Exception):
+    """Internal refresh-session failure mapped to one generic public response."""
+
+
+class RequestVerificationError(Exception):
+    """Internal Origin or CSRF validation failure mapped to one generic response."""
+
+
+class RefreshTokenCollisionError(RuntimeError):
+    """Raised after bounded refresh-token collision retries are exhausted."""

@@ -6,7 +6,12 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.api.v1.dev.fake_sms_routes import create_development_fake_sms_router
-from app.core.config import Settings, settings, validate_runtime_security
+from app.core.config import (
+    Settings,
+    allowed_frontend_origins,
+    settings,
+    validate_runtime_security,
+)
 from app.integrations.development_fake_sms import (
     DevelopmentFakeSmsStore,
     development_fake_sms_store,
@@ -33,15 +38,12 @@ def create_app(
         debug=config.app_debug and environment == "development",
         lifespan=lifespan,
     )
-    allowed_origins = [config.frontend_url]
-    if environment == "development":
-        allowed_origins.extend(["http://localhost:5173", "http://127.0.0.1:5173"])
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=sorted(set(allowed_origins)),
-        allow_credentials=False,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_origins=list(allowed_frontend_origins(config)),
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],
     )
     application.include_router(api_router, prefix=config.api_v1_prefix)
     if environment == "development" and config.enable_fake_sms_dev_inbox:
@@ -49,6 +51,19 @@ def create_app(
             create_development_fake_sms_router(fake_sms_store),
             prefix=f"{config.api_v1_prefix}/dev/fake-sms",
         )
+
+    no_store_paths = {
+        f"{config.api_v1_prefix}/auth/login",
+        f"{config.api_v1_prefix}/auth/refresh",
+    }
+
+    @application.middleware("http")
+    async def protect_token_responses_from_caching(request: Request, call_next):
+        response = await call_next(request)
+        if request.method == "POST" and request.url.path in no_store_paths:
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Pragma"] = "no-cache"
+        return response
 
     @application.get("/", tags=["health"])
     def root() -> dict[str, str]:

@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings, settings
 from app.core.database import get_db
-from app.core.exceptions import TokenValidationError
+from app.core.exceptions import RequestVerificationError, TokenValidationError
 from app.core.rate_limit import InMemoryRateLimiter
-from app.core.security import hash_rate_limit_identifier
+from app.core.security import hash_rate_limit_identifier, hash_rate_limit_value
+from app.core.session_security import validate_request_origin
 from app.integrations.sms_client import (
     DisabledSmsSender,
     SmsConfigurationError,
@@ -23,6 +24,7 @@ from app.integrations.development_fake_sms import (
 from app.schemas.auth import LoginRequest
 from app.services.auth_service import AuthenticationService, RegistrationService, SafeAuthenticatedUser
 from app.services.phone_verification_service import PhoneVerificationService
+from app.services.refresh_session_service import RefreshSessionService
 from app.services.token_service import AccessTokenService
 
 registration_rate_limiter = InMemoryRateLimiter(
@@ -39,6 +41,26 @@ login_identifier_rate_limiter = InMemoryRateLimiter(
     max_requests=settings.login_identifier_rate_limit_requests,
     window_seconds=settings.login_identifier_rate_limit_window_seconds,
     max_keys=settings.login_rate_limit_max_keys,
+)
+refresh_ip_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.refresh_ip_rate_limit_requests,
+    window_seconds=settings.refresh_ip_rate_limit_window_seconds,
+    max_keys=settings.session_rate_limit_max_keys,
+)
+refresh_session_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.refresh_session_rate_limit_requests,
+    window_seconds=settings.refresh_session_rate_limit_window_seconds,
+    max_keys=settings.session_rate_limit_max_keys,
+)
+logout_ip_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.logout_ip_rate_limit_requests,
+    window_seconds=settings.logout_ip_rate_limit_window_seconds,
+    max_keys=settings.session_rate_limit_max_keys,
+)
+logout_all_user_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.logout_all_user_rate_limit_requests,
+    window_seconds=settings.logout_all_user_rate_limit_window_seconds,
+    max_keys=settings.session_rate_limit_max_keys,
 )
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -108,6 +130,22 @@ def get_login_identifier_rate_limiter() -> InMemoryRateLimiter:
     return login_identifier_rate_limiter
 
 
+def get_refresh_ip_rate_limiter() -> InMemoryRateLimiter:
+    return refresh_ip_rate_limiter
+
+
+def get_refresh_session_rate_limiter() -> InMemoryRateLimiter:
+    return refresh_session_rate_limiter
+
+
+def get_logout_ip_rate_limiter() -> InMemoryRateLimiter:
+    return logout_ip_rate_limiter
+
+
+def get_logout_all_user_rate_limiter() -> InMemoryRateLimiter:
+    return logout_all_user_rate_limiter
+
+
 def enforce_registration_rate_limit(
     request: Request,
     limiter: InMemoryRateLimiter = Depends(get_registration_rate_limiter),
@@ -153,7 +191,66 @@ def _raise_login_rate_limit(retry_after_seconds: int | None) -> None:
     raise HTTPException(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
         detail="Too many login attempts. Please try again later.",
-        headers={"Retry-After": str(retry_after_seconds or 1)},
+        headers={
+            "Retry-After": str(retry_after_seconds or 1),
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+        },
+    )
+
+
+def enforce_auth_origin(request: Request) -> None:
+    try:
+        validate_request_origin(request.headers.get("origin"), settings)
+    except RequestVerificationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Request verification failed.",
+            headers={"Cache-Control": "no-store", "Pragma": "no-cache"},
+        ) from exc
+
+
+def enforce_refresh_rate_limit(
+    request: Request,
+    ip_limiter: InMemoryRateLimiter = Depends(get_refresh_ip_rate_limiter),
+    session_limiter: InMemoryRateLimiter = Depends(get_refresh_session_rate_limiter),
+) -> None:
+    client_host = request.client.host if request.client is not None else "unknown"
+    ip_decision = ip_limiter.consume(client_host)
+    if not ip_decision.allowed:
+        _raise_session_rate_limit(ip_decision.retry_after_seconds)
+    if settings.jwt_secret_key is None:
+        raise RuntimeError("JWT_SECRET_KEY is not configured.")
+    raw_token = request.cookies.get(settings.refresh_cookie_name) or "missing"
+    session_key = hash_rate_limit_value(
+        raw_token,
+        settings.jwt_secret_key,
+        namespace="refresh:session",
+    )
+    session_decision = session_limiter.consume(session_key)
+    if not session_decision.allowed:
+        _raise_session_rate_limit(session_decision.retry_after_seconds)
+
+
+def enforce_logout_rate_limit(
+    request: Request,
+    limiter: InMemoryRateLimiter = Depends(get_logout_ip_rate_limiter),
+) -> None:
+    client_host = request.client.host if request.client is not None else "unknown"
+    decision = limiter.consume(client_host)
+    if not decision.allowed:
+        _raise_session_rate_limit(decision.retry_after_seconds)
+
+
+def _raise_session_rate_limit(retry_after_seconds: int | None) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="Too many session requests. Please try again later.",
+        headers={
+            "Retry-After": str(retry_after_seconds or 1),
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+        },
     )
 
 
@@ -170,10 +267,20 @@ def get_access_token_service() -> AccessTokenService:
     return AccessTokenService(settings)
 
 
+def get_refresh_session_service(
+    token_service: AccessTokenService = Depends(get_access_token_service),
+) -> RefreshSessionService:
+    return RefreshSessionService(settings, access_token_service=token_service)
+
+
 def get_authentication_service(
     token_service: AccessTokenService = Depends(get_access_token_service),
+    refresh_service: RefreshSessionService = Depends(get_refresh_session_service),
 ) -> AuthenticationService:
-    return AuthenticationService(token_service=token_service)
+    return AuthenticationService(
+        token_service=token_service,
+        refresh_session_service=refresh_service,
+    )
 
 
 def get_current_user(
@@ -202,6 +309,17 @@ def _credentials_exception() -> HTTPException:
         detail="Could not validate credentials.",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+def enforce_logout_all_rate_limit(
+    request: Request,
+    current_user: SafeAuthenticatedUser = Depends(get_current_user),
+    limiter: InMemoryRateLimiter = Depends(get_logout_all_user_rate_limiter),
+) -> SafeAuthenticatedUser:
+    decision = limiter.consume(f"logout-all:user:{current_user.id}")
+    if not decision.allowed:
+        _raise_session_rate_limit(decision.retry_after_seconds)
+    return current_user
 
 
 def get_phone_verification_service(

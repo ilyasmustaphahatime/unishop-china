@@ -145,10 +145,14 @@ def test_deleting_user_cascades_to_roles(db_session: Session) -> None:
 
 def test_refresh_token_uses_hash_and_valid_user(db_session: Session) -> None:
     user = create_user(db_session, "refresh-token")
+    family_expiry = utc_now() + timedelta(days=30)
     token = RefreshToken(
         user_id=user.id,
         token_hash="refresh-token-hash",
+        family_id=str(uuid4()),
+        csrf_token_hash="c" * 64,
         expires_at=utc_now() + timedelta(days=7),
+        family_expires_at=family_expiry,
     )
     db_session.add(token)
     db_session.flush()
@@ -163,10 +167,25 @@ def test_refresh_token_uses_hash_and_valid_user(db_session: Session) -> None:
 def test_refresh_token_hash_is_unique(db_session: Session) -> None:
     user = create_user(db_session, "unique-refresh-token")
     expiry = utc_now() + timedelta(days=7)
+    family_expiry = utc_now() + timedelta(days=30)
     db_session.add_all(
         [
-            RefreshToken(user_id=user.id, token_hash="same-token-hash", expires_at=expiry),
-            RefreshToken(user_id=user.id, token_hash="same-token-hash", expires_at=expiry),
+            RefreshToken(
+                user_id=user.id,
+                token_hash="same-token-hash",
+                family_id=str(uuid4()),
+                csrf_token_hash="a" * 64,
+                expires_at=expiry,
+                family_expires_at=family_expiry,
+            ),
+            RefreshToken(
+                user_id=user.id,
+                token_hash="same-token-hash",
+                family_id=str(uuid4()),
+                csrf_token_hash="b" * 64,
+                expires_at=expiry,
+                family_expires_at=family_expiry,
+            ),
         ]
     )
 
@@ -180,7 +199,10 @@ def test_refresh_token_requires_existing_user(db_session: Session) -> None:
         RefreshToken(
             user_id=str(uuid4()),
             token_hash="orphan-refresh-token-hash",
+            family_id=str(uuid4()),
+            csrf_token_hash="c" * 64,
             expires_at=utc_now() + timedelta(days=7),
+            family_expires_at=utc_now() + timedelta(days=30),
         ),
     )
 
@@ -190,7 +212,10 @@ def test_deleting_user_cascades_to_refresh_tokens(db_session: Session) -> None:
     token = RefreshToken(
         user_id=user.id,
         token_hash="cascade-refresh-token-hash",
+        family_id=str(uuid4()),
+        csrf_token_hash="d" * 64,
         expires_at=utc_now() + timedelta(days=7),
+        family_expires_at=utc_now() + timedelta(days=30),
     )
     db_session.add(token)
     db_session.flush()
