@@ -47,7 +47,7 @@
 
 ## Tests and database state
 
-- Backend: 266 passed, 0 failed, 0 skipped, 1 third-party deprecation warning after Phase 4B focused coverage was added.
+- Backend: 269 passed, 0 failed, 0 skipped, 1 third-party deprecation warning after the Pre-Phase-4C verification coverage was added.
 - Frontend: 15 passed, 0 failed, 0 skipped.
 - Frontend type check, lint, and production build pass.
 - Development database baseline and final counts: users 4, roles 4, phone codes 3, refresh tokens 0, reset codes 0.
@@ -69,4 +69,4 @@ The backend now establishes identity through a validated access token and protec
 
 ## Exact next step
 
-Review and commit Phase 4B. The next implementation phase is Phase 4C frontend session bootstrap with in-memory access tokens, credentialed auth calls, single-flight refresh, and no browser token persistence.
+Implement Phase 4C frontend session bootstrap with in-memory access tokens, credentialed auth calls, single-flight refresh, and no browser token persistence.
