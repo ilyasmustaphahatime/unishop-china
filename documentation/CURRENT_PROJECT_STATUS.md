@@ -9,8 +9,9 @@
 - Real Tencent SMS: pending and disabled.
 - Phase 4A secure email/phone login, short-lived access token, authentication dependency, and `/auth/me`: complete.
 - Phase 4B backend refresh-token rotation, HttpOnly cookies, CSRF, reuse detection, logout, and logout-all: complete.
-- Phase 4C frontend session bootstrap and coordinated refresh: not started.
+- Phase 4C secure frontend authentication: complete, including 7/7 user-verified real-browser checks.
 - Phase 4D: not started.
+- Ready for Phase 4D: yes.
 - Protected marketplace object/function authorization: not started.
 
 ## Pre-Phase-4 cleanup status
@@ -47,8 +48,8 @@
 
 ## Tests and database state
 
-- Backend: 269 passed, 0 failed, 0 skipped, 1 third-party deprecation warning after the Pre-Phase-4C verification coverage was added.
-- Frontend: 15 passed, 0 failed, 0 skipped.
+- Backend: 272 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Frontend: 49 passed, 0 failed, 0 skipped.
 - Frontend type check, lint, and production build pass.
 - Development database baseline and final counts: users 4, roles 4, phone codes 3, refresh tokens 0, reset codes 0.
 - Orphan roles/codes: 0.
@@ -61,7 +62,7 @@ The backend now establishes identity through a validated access token and protec
 
 ## Known limitations
 
-- Phase 4C browser session bootstrap, credentialed frontend client, single-flight refresh, and retry queue remain pending.
+- Phase 4C real-browser verification passed using explicit user-provided evidence, not browser-tool evidence: no authentication token in LocalStorage or SessionStorage; refresh cookie `HttpOnly=true` and `Path=/api/v1/auth`; CSRF cookie `HttpOnly=false` and `Path=/`; F5 restored the authenticated session; logout and logout-everywhere both remained logged out after F5.
 - Access tokens cannot be revoked before their 15-minute expiry in Phase 4A.
 - Registration and login limiters are per process; production horizontal deployments require a shared limiter.
 - Real Tencent Signature/Template approval and credentials remain unavailable.
@@ -69,4 +70,4 @@ The backend now establishes identity through a validated access token and protec
 
 ## Exact next step
 
-Implement Phase 4C frontend session bootstrap with in-memory access tokens, credentialed auth calls, single-flight refresh, and no browser token persistence.
+Phase 4C is complete and ready for handoff. The next separately approved step is Phase 4D — Final Authentication Security Audit; it remains not started.

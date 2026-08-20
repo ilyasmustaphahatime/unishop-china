@@ -96,6 +96,8 @@ def test_origin_policy_accepts_exact_local_origins_and_rejects_foreign_origin() 
         {"refresh_cookie_name": "same", "csrf_cookie_name": "same"},
         {"refresh_cookie_name": "invalid name"},
         {"refresh_cookie_path": "/api/v1/auth; Domain=example.test"},
+        {"csrf_cookie_path": "/api/v1/auth"},
+        {"csrf_cookie_path": "/; Domain=example.test"},
         {"refresh_token_expire_days": 7, "refresh_session_absolute_days": 6},
         {"frontend_url": "*"},
         {"frontend_url": "https://user:password@example.test"},
@@ -136,7 +138,8 @@ def test_cookie_helpers_apply_matching_security_and_scope(secure: bool) -> None:
     assert bool(refresh["secure"]) is secure
     assert bool(csrf["secure"]) is secure
     assert refresh["samesite"].lower() == csrf["samesite"].lower() == "lax"
-    assert refresh["path"] == csrf["path"] == "/api/v1/auth"
+    assert refresh["path"] == "/api/v1/auth"
+    assert csrf["path"] == "/"
     assert refresh["domain"] == csrf["domain"] == ""
     assert refresh["max-age"] == csrf["max-age"] == "1234"
     assert refresh["expires"] and csrf["expires"]
@@ -145,5 +148,9 @@ def test_cookie_helpers_apply_matching_security_and_scope(secure: bool) -> None:
     clear_auth_cookies(cleared, config)
     clear_headers = [value.decode("latin-1") for key, value in cleared.raw_headers if key == b"set-cookie"]
     assert len(clear_headers) == 2
-    assert all("Path=/api/v1/auth" in value and "Max-Age=0" in value for value in clear_headers)
+    refresh_clear = next(value for value in clear_headers if config.refresh_cookie_name in value)
+    csrf_clear = next(value for value in clear_headers if config.csrf_cookie_name in value)
+    assert "Path=/api/v1/auth" in refresh_clear and "Max-Age=0" in refresh_clear
+    assert "Path=/" in csrf_clear and "Path=/api/v1/auth" not in csrf_clear
+    assert "Max-Age=0" in csrf_clear
     assert all("synthetic" not in value for value in clear_headers)

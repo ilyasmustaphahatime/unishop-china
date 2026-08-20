@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     refresh_cookie_secure: bool = False
     refresh_cookie_samesite: str = "lax"
     refresh_cookie_path: str = "/api/v1/auth"
+    csrf_cookie_path: str = "/"
     max_active_session_families_per_user: int = Field(default=10, ge=1, le=100)
 
     sms_enabled: bool = False
@@ -169,11 +170,15 @@ def validate_session_configuration(config: Settings) -> None:
         unsafe.append("REFRESH_COOKIE_SAMESITE")
     if same_site == "none" and not config.refresh_cookie_secure:
         unsafe.extend(["REFRESH_COOKIE_SAMESITE", "REFRESH_COOKIE_SECURE"])
-    if (
-        not config.refresh_cookie_path.startswith("/")
-        or any(character in config.refresh_cookie_path for character in ";,\r\n")
-    ):
-        unsafe.append("REFRESH_COOKIE_PATH")
+    cookie_paths = {
+        "REFRESH_COOKIE_PATH": config.refresh_cookie_path,
+        "CSRF_COOKIE_PATH": config.csrf_cookie_path,
+    }
+    for variable, path in cookie_paths.items():
+        if not path.startswith("/") or any(character in path for character in ";,\r\n"):
+            unsafe.append(variable)
+    if config.csrf_cookie_path != "/":
+        unsafe.append("CSRF_COOKIE_PATH")
 
     cookie_names = {
         "REFRESH_COOKIE_NAME": config.refresh_cookie_name.strip(),

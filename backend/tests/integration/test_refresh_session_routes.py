@@ -126,7 +126,7 @@ def current_cookie_pair(client: TestClient) -> tuple[str, str]:
         client.cookies.get(
             settings.csrf_cookie_name,
             domain="testserver.local",
-            path=settings.refresh_cookie_path,
+            path=settings.csrf_cookie_path,
         ),
     )
 
@@ -143,7 +143,7 @@ def install_cookie_pair(client: TestClient, refresh: str, csrf: str) -> None:
         settings.csrf_cookie_name,
         csrf,
         domain="testserver.local",
-        path=settings.refresh_cookie_path,
+        path=settings.csrf_cookie_path,
     )
 
 
@@ -173,6 +173,8 @@ def test_login_sets_scoped_cookies_and_persists_only_hashes(
     assert "HttpOnly" in refresh_header
     assert "HttpOnly" not in csrf_header
     assert "Path=/api/v1/auth" in refresh_header
+    assert "Path=/" in csrf_header
+    assert "Path=/api/v1/auth" not in csrf_header
     assert "SameSite=lax" in refresh_header
     assert "Domain=" not in refresh_header
 

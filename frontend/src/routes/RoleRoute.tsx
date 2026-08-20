@@ -1,4 +1,9 @@
 import { Navigate, Outlet } from 'react-router';
+import type { UserRole } from '../features/auth/types';
 import { useAuthStore } from '../stores/authStore';
-type Role = 'BUYER' | 'SELLER' | 'ADMIN';
-export default function RoleRoute({ allow }: { allow: Role[] }) { return useAuthStore((s) => allow.some((role) => s.roles.includes(role))) ? <Outlet /> : <Navigate to="/" replace />; }
+
+export default function RoleRoute({ allow }: { allow: UserRole[] }) {
+  const user = useAuthStore((state) => state.user);
+  // This improves navigation UX only; the backend remains the authorization boundary.
+  return allow.some((role) => user?.roles.includes(role)) ? <Outlet /> : <Navigate to="/" replace />;
+}

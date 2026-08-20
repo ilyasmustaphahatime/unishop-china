@@ -2,7 +2,7 @@
 
 ## Scope and status
 
-Phase 4B adds backend-only browser session renewal to the Phase 4A login system. It implements opaque refresh tokens, hash-only persistence, rotation, reuse detection, CSRF-bound cookies, explicit credentialed CORS, logout, logout-all, resource limits, and rate limiting. Phase 4C frontend bootstrap, `withCredentials`, single-flight refresh, retry queues, route integration, and persistent authentication are not implemented.
+Phase 4B adds backend-only browser session renewal to the Phase 4A login system. It implements opaque refresh tokens, hash-only persistence, rotation, reuse detection, CSRF-bound cookies, explicit credentialed CORS, logout, logout-all, resource limits, and rate limiting. At Phase 4B completion, the Phase 4C frontend bootstrap, `withCredentials`, single-flight refresh, retry queues, and route integration were not yet implemented. They now exist as uncommitted Phase 4C work with automated gates passing, and the final real-browser gate subsequently passed using explicit user-verified evidence.
 
 ## Architecture
 
@@ -24,7 +24,7 @@ Migration `c91e4a7b2d6f` follows `a75289cfd4a9`. It adds `family_id`, `csrf_toke
 
 ## Cookies, CORS, and CSRF
 
-The refresh cookie is HttpOnly; the CSRF cookie is JavaScript-readable. Both default to `SameSite=Lax`, path `/api/v1/auth`, no Domain, and aligned Max-Age/Expires. Secure is false only for local HTTP development and mandatory outside development. Startup rejects unsafe lifetime, name, SameSite, Secure, path, and wildcard-origin settings.
+The refresh cookie is HttpOnly and narrowly scoped to `/api/v1/auth`; the CSRF cookie is JavaScript-readable and scoped to `/` so frontend code running on application routes can read it. Both default to `SameSite=Lax`, no Domain, and aligned Max-Age/Expires. Cookie deletion uses each cookie's matching path. Secure is false only for local HTTP development and mandatory outside development. Startup rejects unsafe lifetime, name, SameSite, Secure, path, and wildcard-origin settings.
 
 Credentialed CORS accepts only the configured frontend origin plus localhost and 127.0.0.1 development origins. Methods and headers are narrow and include `X-CSRF-Token`. Login, refresh, logout, and logout-all reject a present foreign Origin; clients without Origin remain supported.
 
@@ -66,5 +66,4 @@ Use the Phase 4B Postman collection or a local test client with the development 
 - A stolen raw refresh cookie plus matching CSRF value remains usable until rotation, expiry, revocation, or detection.
 - In-process rate limiting is not sufficient for multiple application replicas.
 - No device metadata or session-management API is stored or exposed.
-- The frontend does not yet send credentialed requests or coordinate refresh; that is the Phase 4C handoff.
-
+- Phase 4C now sends credentialed requests and coordinates refresh per tab; its final real-browser workflow passed using explicit user-verified evidence.

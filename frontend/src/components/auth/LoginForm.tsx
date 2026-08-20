@@ -5,21 +5,18 @@ import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useLoginMutation } from '../../features/auth/hooks';
 import { loginSchema, type LoginFormValues } from '../../features/auth/schemas';
-import type { UserRole } from '../../features/auth/types';
+import { dashboardForRoles, safeInternalPath } from '../../routes/routePaths';
 import { useAuthStore } from '../../stores/authStore';
-
-function dashboardFor(roles: UserRole[]) {
-  if (roles.includes('ADMIN')) return '/admin';
-  if (roles.includes('SELLER')) return '/seller/dashboard';
-  return '/buyer/dashboard';
-}
 
 function errorMessage(error: unknown) {
   if (axios.isAxiosError<{ detail?: string }>(error)) {
     if (!error.response) return 'Unable to reach UniShop China. Check your connection and try again.';
-    if (error.response.status === 401) return 'The email, phone number, or password is incorrect.';
-    if (error.response.status === 403) return error.response.data.detail ?? 'This account cannot sign in right now.';
-    return error.response.data.detail ?? 'Sign in failed. Please try again.';
+    if (error.response.status === 401 || error.response.status === 403) {
+      return 'The email, phone number, or password is incorrect, or this account cannot sign in.';
+    }
+    if (error.response.status === 422) return 'Check your email or phone number and password, then try again.';
+    if (error.response.status === 429) return 'Too many sign-in attempts. Wait a moment and try again.';
+    return 'Sign in failed. Please try again.';
   }
   return 'Something unexpected happened. Please try again.';
 }
@@ -27,12 +24,16 @@ function errorMessage(error: unknown) {
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const mutation = useLoginMutation();
-  const completeLogin = useAuthStore((state) => state.completeLogin);
+  const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
   const navigate = useNavigate();
   const location = useLocation();
+  const logoutUnconfirmed = Boolean(
+    (location.state as { logoutUnconfirmed?: unknown } | null)?.logoutUnconfirmed,
+  );
   const {
     register,
     handleSubmit,
+    reset,
     setError,
     formState: { errors },
   } = useForm<LoginFormValues>({
@@ -43,9 +44,14 @@ export default function LoginForm() {
   async function onSubmit(values: LoginFormValues) {
     try {
       const session = await mutation.mutateAsync(values);
-      completeLogin(session);
-      const requestedPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
-      navigate(requestedPath || dashboardFor(session.user.roles), { replace: true });
+      setAuthenticated(session.accessToken, session.user);
+      reset({ identifier: values.identifier, password: '' });
+      const requestedLocation = (location.state as { from?: unknown } | null)?.from;
+      const destination = safeInternalPath(
+        requestedLocation,
+        dashboardForRoles(session.user.roles),
+      );
+      navigate(destination, { replace: true });
     } catch (error) {
       setError('root.server', { message: errorMessage(error) });
     }
@@ -53,6 +59,11 @@ export default function LoginForm() {
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
+      {logoutUnconfirmed && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+          This browser signed out locally, but the server could not confirm revocation. Try again when your connection is available.
+        </div>
+      )}
       {errors.root?.server && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
           {errors.root.server.message}

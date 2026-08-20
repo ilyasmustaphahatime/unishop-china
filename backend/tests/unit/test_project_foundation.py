@@ -34,11 +34,28 @@ def test_dockerfile_has_valid_json_command(
     assert json.loads(command_lines[0]) == expected_command
 
 
-def test_project_status_hands_off_from_phase_4b_to_phase_4c() -> None:
+def test_project_status_records_completed_phase_4c_browser_handoff() -> None:
     status = (PROJECT_ROOT / "documentation/CURRENT_PROJECT_STATUS.md").read_text(
         encoding="utf-8"
     )
 
     assert "Phase 4B backend refresh-token rotation" in status
-    assert "Phase 4C frontend session bootstrap and coordinated refresh: not started" in status
+    assert "Phase 4C secure frontend authentication: complete" in status
+    assert "7/7 user-verified real-browser checks" in status
+    assert "Ready for Phase 4D: yes" in status
+    assert "Phase 4D — Final Authentication Security Audit; it remains not started" in status
+    assert "final real-browser workflow sign-off pending" not in status
     assert "Review and commit Phase 4B" not in status
+
+
+def test_phase_4b_document_records_the_current_phase_4c_handoff() -> None:
+    phase_4b = (PROJECT_ROOT / "documentation/phases/PHASE_4B_REFRESH_SESSIONS.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "At Phase 4B completion" in phase_4b
+    assert "uncommitted Phase 4C work with automated gates passing" in phase_4b
+    assert "final real-browser gate subsequently passed using explicit user-verified evidence" in phase_4b
+    assert "final real-browser sign-off remains pending" not in phase_4b
+    assert "persistent authentication are not implemented" not in phase_4b
+    assert "frontend does not yet send credentialed requests" not in phase_4b
