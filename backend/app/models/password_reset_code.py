@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CHAR, DateTime, ForeignKey, String
+from sqlalchemy import CHAR, CheckConstraint, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -13,6 +13,12 @@ if TYPE_CHECKING:
 
 class PasswordResetCode(UUIDCreatedAtMixin, Base):
     __tablename__ = "password_reset_codes"
+    __table_args__ = (
+        CheckConstraint(
+            "attempts >= 0",
+            name="ck_password_reset_codes_attempts_non_negative",
+        ),
+    )
 
     user_id: Mapped[str] = mapped_column(
         CHAR(36),
@@ -27,5 +33,11 @@ class PasswordResetCode(UUIDCreatedAtMixin, Base):
         index=True,
     )
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        nullable=False,
+    )
 
     user: Mapped["User"] = relationship(back_populates="password_reset_codes")

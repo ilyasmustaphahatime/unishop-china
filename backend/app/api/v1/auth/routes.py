@@ -8,11 +8,13 @@ from app.api.v1.auth.dependencies import (
     enforce_login_rate_limit,
     enforce_logout_all_rate_limit,
     enforce_logout_rate_limit,
+    enforce_password_reset_rate_limit,
     enforce_refresh_rate_limit,
     enforce_registration_rate_limit,
     get_authentication_service,
     get_current_user,
     get_phone_verification_service,
+    get_password_reset_completion_service,
     get_password_reset_service,
     get_refresh_session_service,
     get_registration_service,
@@ -22,6 +24,7 @@ from app.core.auth_cookies import clear_auth_cookies, set_auth_cookies
 from app.core.config import settings
 from app.core.exceptions import (
     InvalidCredentialsError,
+    InvalidPasswordResetError,
     RequestVerificationError,
     RegistrationConflictError,
     SessionRefreshError,
@@ -34,6 +37,8 @@ from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
     RefreshResponse,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
     RegisterRequest,
     RegisterResponse,
     ResendPhoneVerificationCodeRequest,
@@ -44,7 +49,10 @@ from app.schemas.auth import (
 )
 from app.services.auth_service import AuthenticationService, RegistrationService, SafeAuthenticatedUser
 from app.services.password_reset_service import (
+    GENERIC_INVALID_PASSWORD_RESET_MESSAGE,
     GENERIC_FORGOT_PASSWORD_MESSAGE,
+    PASSWORD_RESET_SUCCESS_MESSAGE,
+    PasswordResetCompletionService,
     PasswordResetRequestService,
 )
 from app.services.phone_verification_service import PhoneVerificationService
@@ -76,6 +84,44 @@ def forgot_password(
         pass
     response.headers.update(NO_STORE_HEADERS)
     return ForgotPasswordResponse(message=GENERIC_FORGOT_PASSWORD_MESSAGE)
+
+
+@router.post(
+    "/password/reset",
+    response_model=ResetPasswordResponse,
+    status_code=status.HTTP_200_OK,
+)
+def reset_password(
+    response: Response,
+    _: None = Depends(enforce_auth_origin),
+    request: ResetPasswordRequest = Depends(enforce_password_reset_rate_limit),
+    session: Session = Depends(get_db),
+    service: PasswordResetCompletionService = Depends(
+        get_password_reset_completion_service
+    ),
+) -> ResetPasswordResponse:
+    try:
+        service.reset_password(
+            session,
+            identifier=request.identifier,
+            identifier_kind=request.identifier_kind,
+            code=request.code,
+            new_password=request.new_password,
+        )
+    except InvalidPasswordResetError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=GENERIC_INVALID_PASSWORD_RESET_MESSAGE,
+            headers=NO_STORE_HEADERS,
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Password reset could not be completed.",
+            headers=NO_STORE_HEADERS,
+        ) from exc
+    response.headers.update(NO_STORE_HEADERS)
+    return ResetPasswordResponse(message=PASSWORD_RESET_SUCCESS_MESSAGE)
 
 
 @router.post(

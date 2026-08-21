@@ -30,6 +30,9 @@ class UserRepository:
     def mark_phone_verified(self, user: User) -> None:
         user.phone_verified = True
 
+    def update_password_hash(self, user: User, password_hash: str) -> None:
+        user.password_hash = password_hash
+
     def create(
         self,
         session: Session,

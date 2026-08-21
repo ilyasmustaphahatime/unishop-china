@@ -666,10 +666,13 @@ def test_unknown_identifier_executes_dummy_database_workload(
     assert provider.deliveries == []
 
 
-def test_openapi_contains_only_the_phase_5a_password_recovery_route() -> None:
+def test_openapi_preserves_phase_5a_route_alongside_phase_5b() -> None:
     paths = app.openapi()["paths"]
 
     assert "/api/v1/auth/password/forgot" in paths
     assert "post" in paths["/api/v1/auth/password/forgot"]
-    assert "/api/v1/auth/password/reset" not in paths
+    assert sum(path == "/api/v1/auth/password/forgot" for path in paths) == 1
+    assert "/api/v1/auth/password/reset" in paths
+    assert "post" in paths["/api/v1/auth/password/reset"]
+    assert sum(path == "/api/v1/auth/password/reset" for path in paths) == 1
     assert not any("email/verify" in path for path in paths)

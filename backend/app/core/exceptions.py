@@ -29,6 +29,10 @@ class InvalidCredentialsError(Exception):
     """Internal generic authentication failure safe for public mapping."""
 
 
+class InvalidPasswordResetError(Exception):
+    """Internal reset failure mapped to one enumeration-safe public response."""
+
+
 class TokenValidationError(Exception):
     """Internal access-token validation failure safe for public mapping."""
 

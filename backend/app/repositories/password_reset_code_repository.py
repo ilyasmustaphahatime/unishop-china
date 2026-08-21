@@ -76,6 +76,7 @@ class PasswordResetCodeRepository:
             code_hash=code_hash,
             expires_at=expires_at,
             used_at=pending_at,
+            attempts=0,
             created_at=pending_at,
         )
         session.add(record)
@@ -95,6 +96,72 @@ class PasswordResetCodeRepository:
                 PasswordResetCode.used_at.is_not(None),
             )
             .values(used_at=None)
+            .execution_options(synchronize_session="fetch")
+        )
+        return int(session.execute(statement).rowcount or 0)
+
+    def increment_attempts_if_available(
+        self,
+        session: Session,
+        *,
+        code_id: str,
+        user_id: str,
+        now: datetime,
+        maximum_attempts: int,
+    ) -> int:
+        statement = (
+            update(PasswordResetCode)
+            .where(
+                PasswordResetCode.id == code_id,
+                PasswordResetCode.user_id == user_id,
+                PasswordResetCode.used_at.is_(None),
+                PasswordResetCode.expires_at > now,
+                PasswordResetCode.attempts < maximum_attempts,
+            )
+            .values(attempts=PasswordResetCode.attempts + 1)
+            .execution_options(synchronize_session="fetch")
+        )
+        return int(session.execute(statement).rowcount or 0)
+
+    def consume_if_available(
+        self,
+        session: Session,
+        *,
+        code_id: str,
+        user_id: str,
+        now: datetime,
+        maximum_attempts: int,
+    ) -> int:
+        statement = (
+            update(PasswordResetCode)
+            .where(
+                PasswordResetCode.id == code_id,
+                PasswordResetCode.user_id == user_id,
+                PasswordResetCode.used_at.is_(None),
+                PasswordResetCode.expires_at > now,
+                PasswordResetCode.attempts < maximum_attempts,
+            )
+            .values(used_at=now)
+            .execution_options(synchronize_session="fetch")
+        )
+        return int(session.execute(statement).rowcount or 0)
+
+    def invalidate_other_active_for_user(
+        self,
+        session: Session,
+        *,
+        user_id: str,
+        exclude_code_id: str,
+        now: datetime,
+    ) -> int:
+        statement = (
+            update(PasswordResetCode)
+            .where(
+                PasswordResetCode.user_id == user_id,
+                PasswordResetCode.id != exclude_code_id,
+                PasswordResetCode.used_at.is_(None),
+            )
+            .values(used_at=now)
             .execution_options(synchronize_session="fetch")
         )
         return int(session.execute(statement).rowcount or 0)

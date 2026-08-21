@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     password_reset_code_expiry_minutes: int = Field(default=10, ge=5, le=30)
     password_reset_cooldown_seconds: int = Field(default=60, ge=30, le=900)
     password_reset_hourly_limit_requests: int = Field(default=5, ge=1, le=20)
+    password_reset_max_attempts: int = Field(default=5, ge=1, le=10)
     password_reset_delivery_provider: str = "disabled"
     enable_fake_password_reset_dev_inbox: bool = False
     fake_password_reset_delivery_delay_seconds: float = Field(default=0, ge=0, le=20)
@@ -113,6 +114,15 @@ class Settings(BaseSettings):
         default=3600, ge=60, le=86400
     )
     forgot_password_rate_limit_max_keys: int = Field(default=10000, ge=100, le=100000)
+    password_reset_ip_rate_limit_requests: int = Field(default=10, ge=1, le=100)
+    password_reset_ip_rate_limit_window_seconds: int = Field(
+        default=900, ge=60, le=86400
+    )
+    password_reset_identifier_rate_limit_requests: int = Field(default=5, ge=1, le=20)
+    password_reset_identifier_rate_limit_window_seconds: int = Field(
+        default=900, ge=60, le=86400
+    )
+    password_reset_rate_limit_max_keys: int = Field(default=10000, ge=100, le=100000)
     refresh_ip_rate_limit_requests: int = Field(default=20, ge=1, le=1000)
     refresh_ip_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
     refresh_session_rate_limit_requests: int = Field(default=10, ge=1, le=1000)

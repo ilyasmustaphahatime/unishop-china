@@ -184,6 +184,34 @@ class ForgotPasswordResponse(BaseModel):
     message: str
 
 
+class ResetPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    identifier: LoginIdentifier
+    code: AsciiCode
+    new_password: LoginPassword
+
+    @field_validator("identifier", mode="before")
+    @classmethod
+    def normalize_identifier(cls, value: object) -> object:
+        return normalize_account_identifier(value)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        return validate_password_policy(value)
+
+    @property
+    def identifier_kind(self) -> Literal["email", "phone"]:
+        return "email" if "@" in self.identifier else "phone"
+
+
+class ResetPasswordResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str
+
+
 class SafeAuthenticatedUserResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", from_attributes=True)
 

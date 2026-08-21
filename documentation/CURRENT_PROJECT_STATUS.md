@@ -12,9 +12,10 @@
 - Phase 4C secure frontend authentication: complete, including 7/7 user-verified real-browser checks.
 - Phase 4D final authentication security audit: complete with no critical/high authentication blocker.
 - Phase 5A secure forgot-password request and reset-challenge generation: complete.
-- Phase 5B reset verification and password replacement: not started.
-- Phase 1-5A authentication foundation: complete.
-- Ready for the separately approved Phase 5B scope: yes.
+- Phase 5B secure reset verification, durable attempts, atomic password replacement, reset consumption, and refresh-session revocation: complete.
+- Phase 5C: not started.
+- Phase 1-5B authentication foundation: complete.
+- Ready for separately approved Phase 5C planning: yes.
 - Protected marketplace object/function authorization: not started.
 
 ## Pre-Phase-4 cleanup status
@@ -37,7 +38,7 @@
 
 - MySQL connection succeeds against `unishop_china`.
 - SQLAlchemy uses parameterized expressions and no request-derived raw SQL.
-- Alembic current and head are `c91e4a7b2d6f`; no schema drift exists.
+- Alembic current and head are `aca2dda0ef53`; no schema drift exists.
 - Tables remain `alembic_version`, `users`, `user_roles`, `refresh_tokens`, `phone_verification_codes`, and `password_reset_codes`.
 - Strict Pydantic schemas reject unknown and privileged registration fields.
 - Passwords use Argon2id; OTP values use HMAC-SHA256 and constant-time comparison.
@@ -52,10 +53,14 @@
 - Reset challenges are six secure digits stored only as domain-separated HMAC-SHA256, expire after ten minutes, and become usable only after confirmed delivery and a newest-row recheck.
 - Forgot-password abuse controls include actual-peer and HMAC-identifier process-local limits, a 60-second database cooldown, and a five-challenge rolling hourly cap.
 - Password-reset delivery is disabled by default; the optional fake provider/inbox is bounded, memory-only, identifier-scoped, loopback-only, development-only, and blocked in production.
+- Password-reset completion accepts only normalized identifier, six ASCII digits, and the registration-strength new password; all extra/internal fields are forbidden.
+- Reset challenges have a durable five-attempt budget, atomic MySQL increments, newest-only/expiry/consumption enforcement, and real concurrent-request coverage.
+- Successful reset stores only Argon2id, consumes the challenge, invalidates the user's other challenges, revokes every active refresh family, returns no token/cookie, and requires normal login.
+- Unknown, inactive, wrong, expired, superseded, consumed, and exhausted resets share one generic no-store failure.
 
 ## Tests and database state
 
-- Backend: 328 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Backend: 385 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
 - Frontend: 49 passed, 0 failed, 0 skipped.
 - Frontend type check, lint, and production build pass.
 - Development database baseline and final counts: users 4, user roles 4, phone codes 3, refresh tokens 6, reset codes 0.
@@ -76,6 +81,7 @@ The backend now establishes identity through a validated access token and protec
 - Forgot-password peer/identifier limiters and fake delivery are process-local.
 - Recovery timing uses a comparable dummy workload but cannot guarantee identical database/provider/network timing.
 - A provider failure after old-code invalidation can temporarily deny recovery; no undelivered challenge becomes usable.
+- A malicious party can exhaust a reset challenge's five attempts and temporarily deny recovery; a fresh Phase 5A challenge restores a new budget subject to cooldown/hour limits.
 - Frontend refresh single-flight coordination is per tab, not cross-tab.
 - Real Tencent Signature/Template approval and credentials remain unavailable.
 - Production TLS, CSP, monitoring, secret rotation, and distributed rate limiting are deployment prerequisites.
@@ -84,4 +90,4 @@ The backend now establishes identity through a validated access token and protec
 
 ## Exact next step
 
-Phase 5A is complete. The exact next step is a separately approved Phase 5B implementing bounded reset-code verification, atomic single-use consumption, Argon2id password replacement, and an explicit refresh-session revocation policy. Phase 5B, email verification, password-change UI/API, and marketplace features remain not started.
+Phase 5B is complete. Phase 5C is not started and requires separate approval and scope definition. Email verification, logged-in password change, recovery UI integration, MFA, OAuth, passkeys, and marketplace features remain outside the completed Phase 5B scope.

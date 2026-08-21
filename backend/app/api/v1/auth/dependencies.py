@@ -28,9 +28,12 @@ from app.integrations.password_reset_delivery import (
     PasswordResetDeliveryProvider,
     development_fake_password_reset_store,
 )
-from app.schemas.auth import ForgotPasswordRequest, LoginRequest
+from app.schemas.auth import ForgotPasswordRequest, LoginRequest, ResetPasswordRequest
 from app.services.auth_service import AuthenticationService, RegistrationService, SafeAuthenticatedUser
-from app.services.password_reset_service import PasswordResetRequestService
+from app.services.password_reset_service import (
+    PasswordResetCompletionService,
+    PasswordResetRequestService,
+)
 from app.services.phone_verification_service import PhoneVerificationService
 from app.services.refresh_session_service import RefreshSessionService
 from app.services.token_service import AccessTokenService
@@ -59,6 +62,16 @@ forgot_password_identifier_rate_limiter = InMemoryRateLimiter(
     max_requests=settings.forgot_password_identifier_rate_limit_requests,
     window_seconds=settings.forgot_password_identifier_rate_limit_window_seconds,
     max_keys=settings.forgot_password_rate_limit_max_keys,
+)
+password_reset_ip_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.password_reset_ip_rate_limit_requests,
+    window_seconds=settings.password_reset_ip_rate_limit_window_seconds,
+    max_keys=settings.password_reset_rate_limit_max_keys,
+)
+password_reset_identifier_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.password_reset_identifier_rate_limit_requests,
+    window_seconds=settings.password_reset_identifier_rate_limit_window_seconds,
+    max_keys=settings.password_reset_rate_limit_max_keys,
 )
 refresh_ip_rate_limiter = InMemoryRateLimiter(
     max_requests=settings.refresh_ip_rate_limit_requests,
@@ -154,6 +167,14 @@ def get_forgot_password_ip_rate_limiter() -> InMemoryRateLimiter:
 
 def get_forgot_password_identifier_rate_limiter() -> InMemoryRateLimiter:
     return forgot_password_identifier_rate_limiter
+
+
+def get_password_reset_ip_rate_limiter() -> InMemoryRateLimiter:
+    return password_reset_ip_rate_limiter
+
+
+def get_password_reset_identifier_rate_limiter() -> InMemoryRateLimiter:
+    return password_reset_identifier_rate_limiter
 
 
 def get_refresh_ip_rate_limiter() -> InMemoryRateLimiter:
@@ -264,6 +285,49 @@ def _raise_password_reset_rate_limit(retry_after_seconds: int | None) -> None:
     )
 
 
+def enforce_password_reset_rate_limit(
+    reset_request: ResetPasswordRequest,
+    request: Request,
+    ip_limiter: InMemoryRateLimiter = Depends(get_password_reset_ip_rate_limiter),
+    identifier_limiter: InMemoryRateLimiter = Depends(
+        get_password_reset_identifier_rate_limiter
+    ),
+) -> ResetPasswordRequest:
+    client_host = request.client.host if request.client is not None else "unknown"
+    ip_decision = ip_limiter.consume(client_host)
+    if not ip_decision.allowed:
+        _raise_password_reset_attempt_rate_limit(ip_decision.retry_after_seconds)
+
+    config = getattr(request.app.state, "settings", settings)
+    if config.jwt_secret_key is None:
+        raise RuntimeError("JWT_SECRET_KEY is not configured.")
+    identifier_key = hash_rate_limit_value(
+        reset_request.identifier,
+        config.jwt_secret_key,
+        namespace="password-reset:verification-identifier",
+    )
+    identifier_decision = identifier_limiter.consume(identifier_key)
+    if not identifier_decision.allowed:
+        _raise_password_reset_attempt_rate_limit(
+            identifier_decision.retry_after_seconds
+        )
+    return reset_request
+
+
+def _raise_password_reset_attempt_rate_limit(
+    retry_after_seconds: int | None,
+) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="Too many password reset attempts. Please try again later.",
+        headers={
+            "Retry-After": str(retry_after_seconds or 1),
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+        },
+    )
+
+
 def enforce_auth_origin(request: Request) -> None:
     config = getattr(request.app.state, "settings", settings)
     try:
@@ -365,6 +429,13 @@ def get_password_reset_service(
         config,
         delivery_provider=delivery_provider,
     )
+
+
+def get_password_reset_completion_service(
+    request: Request,
+) -> PasswordResetCompletionService:
+    config = getattr(request.app.state, "settings", settings)
+    return PasswordResetCompletionService(config)
 
 
 def get_access_token_service() -> AccessTokenService:
