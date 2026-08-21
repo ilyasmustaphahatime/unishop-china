@@ -21,8 +21,16 @@ from app.integrations.development_fake_sms import (
     DevelopmentFakeSmsStore,
     development_fake_sms_store,
 )
-from app.schemas.auth import LoginRequest
+from app.integrations.password_reset_delivery import (
+    DevelopmentFakePasswordResetDeliveryProvider,
+    DevelopmentFakePasswordResetStore,
+    DisabledPasswordResetDeliveryProvider,
+    PasswordResetDeliveryProvider,
+    development_fake_password_reset_store,
+)
+from app.schemas.auth import ForgotPasswordRequest, LoginRequest
 from app.services.auth_service import AuthenticationService, RegistrationService, SafeAuthenticatedUser
+from app.services.password_reset_service import PasswordResetRequestService
 from app.services.phone_verification_service import PhoneVerificationService
 from app.services.refresh_session_service import RefreshSessionService
 from app.services.token_service import AccessTokenService
@@ -41,6 +49,16 @@ login_identifier_rate_limiter = InMemoryRateLimiter(
     max_requests=settings.login_identifier_rate_limit_requests,
     window_seconds=settings.login_identifier_rate_limit_window_seconds,
     max_keys=settings.login_rate_limit_max_keys,
+)
+forgot_password_ip_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.forgot_password_ip_rate_limit_requests,
+    window_seconds=settings.forgot_password_ip_rate_limit_window_seconds,
+    max_keys=settings.forgot_password_rate_limit_max_keys,
+)
+forgot_password_identifier_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.forgot_password_identifier_rate_limit_requests,
+    window_seconds=settings.forgot_password_identifier_rate_limit_window_seconds,
+    max_keys=settings.forgot_password_rate_limit_max_keys,
 )
 refresh_ip_rate_limiter = InMemoryRateLimiter(
     max_requests=settings.refresh_ip_rate_limit_requests,
@@ -130,6 +148,14 @@ def get_login_identifier_rate_limiter() -> InMemoryRateLimiter:
     return login_identifier_rate_limiter
 
 
+def get_forgot_password_ip_rate_limiter() -> InMemoryRateLimiter:
+    return forgot_password_ip_rate_limiter
+
+
+def get_forgot_password_identifier_rate_limiter() -> InMemoryRateLimiter:
+    return forgot_password_identifier_rate_limiter
+
+
 def get_refresh_ip_rate_limiter() -> InMemoryRateLimiter:
     return refresh_ip_rate_limiter
 
@@ -199,9 +225,49 @@ def _raise_login_rate_limit(retry_after_seconds: int | None) -> None:
     )
 
 
+def enforce_forgot_password_rate_limit(
+    forgot_request: ForgotPasswordRequest,
+    request: Request,
+    ip_limiter: InMemoryRateLimiter = Depends(get_forgot_password_ip_rate_limiter),
+    identifier_limiter: InMemoryRateLimiter = Depends(
+        get_forgot_password_identifier_rate_limiter
+    ),
+) -> ForgotPasswordRequest:
+    client_host = request.client.host if request.client is not None else "unknown"
+    ip_decision = ip_limiter.consume(client_host)
+    if not ip_decision.allowed:
+        _raise_password_reset_rate_limit(ip_decision.retry_after_seconds)
+
+    config = getattr(request.app.state, "settings", settings)
+    if config.jwt_secret_key is None:
+        raise RuntimeError("JWT_SECRET_KEY is not configured.")
+    identifier_key = hash_rate_limit_value(
+        forgot_request.identifier,
+        config.jwt_secret_key,
+        namespace="password-reset:identifier",
+    )
+    identifier_decision = identifier_limiter.consume(identifier_key)
+    if not identifier_decision.allowed:
+        _raise_password_reset_rate_limit(identifier_decision.retry_after_seconds)
+    return forgot_request
+
+
+def _raise_password_reset_rate_limit(retry_after_seconds: int | None) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="Too many password reset requests. Please try again later.",
+        headers={
+            "Retry-After": str(retry_after_seconds or 1),
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+        },
+    )
+
+
 def enforce_auth_origin(request: Request) -> None:
+    config = getattr(request.app.state, "settings", settings)
     try:
-        validate_request_origin(request.headers.get("origin"), settings)
+        validate_request_origin(request.headers.get("origin"), config)
     except RequestVerificationError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -260,6 +326,44 @@ def get_registration_service(
     return RegistrationService(
         verification_code_hash_secret=settings.verification_code_hash_secret,
         sms_sender=sms_sender,
+    )
+
+
+def build_password_reset_delivery_provider(
+    config: Settings,
+    *,
+    fake_store: DevelopmentFakePasswordResetStore | None = None,
+) -> PasswordResetDeliveryProvider:
+    provider = config.password_reset_delivery_provider.strip().lower()
+    if provider == "fake" and config.app_env.strip().lower() == "development":
+        return DevelopmentFakePasswordResetDeliveryProvider(
+            fake_store or development_fake_password_reset_store
+        )
+    return DisabledPasswordResetDeliveryProvider()
+
+
+def get_password_reset_delivery_provider(
+    request: Request,
+) -> PasswordResetDeliveryProvider:
+    config = getattr(request.app.state, "settings", settings)
+    fake_store = getattr(
+        request.app.state,
+        "fake_password_reset_store",
+        development_fake_password_reset_store,
+    )
+    return build_password_reset_delivery_provider(config, fake_store=fake_store)
+
+
+def get_password_reset_service(
+    request: Request,
+    delivery_provider: PasswordResetDeliveryProvider = Depends(
+        get_password_reset_delivery_provider
+    ),
+) -> PasswordResetRequestService:
+    config = getattr(request.app.state, "settings", settings)
+    return PasswordResetRequestService(
+        config,
+        delivery_provider=delivery_provider,
     )
 
 

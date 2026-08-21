@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.auth.dependencies import (
     enforce_auth_origin,
+    enforce_forgot_password_rate_limit,
     enforce_login_rate_limit,
     enforce_logout_all_rate_limit,
     enforce_logout_rate_limit,
@@ -12,6 +13,7 @@ from app.api.v1.auth.dependencies import (
     get_authentication_service,
     get_current_user,
     get_phone_verification_service,
+    get_password_reset_service,
     get_refresh_session_service,
     get_registration_service,
 )
@@ -27,6 +29,8 @@ from app.core.exceptions import (
     VerificationCodeConfigurationError,
 )
 from app.schemas.auth import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
     LoginRequest,
     LoginResponse,
     RefreshResponse,
@@ -39,11 +43,39 @@ from app.schemas.auth import (
     VerifyPhoneCodeResponse,
 )
 from app.services.auth_service import AuthenticationService, RegistrationService, SafeAuthenticatedUser
+from app.services.password_reset_service import (
+    GENERIC_FORGOT_PASSWORD_MESSAGE,
+    PasswordResetRequestService,
+)
 from app.services.phone_verification_service import PhoneVerificationService
 from app.services.refresh_session_service import RefreshSessionService
 
 router = APIRouter(tags=["authentication"])
 NO_STORE_HEADERS = {"Cache-Control": "no-store", "Pragma": "no-cache"}
+
+
+@router.post(
+    "/password/forgot",
+    response_model=ForgotPasswordResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def forgot_password(
+    response: Response,
+    _: None = Depends(enforce_auth_origin),
+    request: ForgotPasswordRequest = Depends(enforce_forgot_password_rate_limit),
+    session: Session = Depends(get_db),
+    service: PasswordResetRequestService = Depends(get_password_reset_service),
+) -> ForgotPasswordResponse:
+    try:
+        service.request_reset(
+            session,
+            identifier=request.identifier,
+            identifier_kind=request.identifier_kind,
+        )
+    except Exception:
+        pass
+    response.headers.update(NO_STORE_HEADERS)
+    return ForgotPasswordResponse(message=GENERIC_FORGOT_PASSWORD_MESSAGE)
 
 
 @router.post(

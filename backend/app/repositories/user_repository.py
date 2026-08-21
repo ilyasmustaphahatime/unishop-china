@@ -11,8 +11,13 @@ class UserRepository:
     def get_by_id_for_update(self, session: Session, user_id: str) -> User | None:
         return session.scalar(select(User).where(User.id == user_id).with_for_update())
 
-    def get_by_email(self, session: Session, email: str) -> User | None:
-        return session.scalar(select(User).where(User.email == email))
+    def get_by_email(
+        self, session: Session, email: str, *, for_update: bool = False
+    ) -> User | None:
+        statement = select(User).where(User.email == email)
+        if for_update:
+            statement = statement.with_for_update()
+        return session.scalar(statement)
 
     def get_by_phone(
         self, session: Session, phone_number: str, *, for_update: bool = False

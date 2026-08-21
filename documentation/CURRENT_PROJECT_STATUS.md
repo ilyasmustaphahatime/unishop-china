@@ -11,8 +11,10 @@
 - Phase 4B backend refresh-token rotation, HttpOnly cookies, CSRF, reuse detection, logout, and logout-all: complete.
 - Phase 4C secure frontend authentication: complete, including 7/7 user-verified real-browser checks.
 - Phase 4D final authentication security audit: complete with no critical/high authentication blocker.
-- Phase 1-4D authentication foundation: complete.
-- Ready for the separately approved Phase 5 authentication-recovery scope: yes.
+- Phase 5A secure forgot-password request and reset-challenge generation: complete.
+- Phase 5B reset verification and password replacement: not started.
+- Phase 1-5A authentication foundation: complete.
+- Ready for the separately approved Phase 5B scope: yes.
 - Protected marketplace object/function authorization: not started.
 
 ## Pre-Phase-4 cleanup status
@@ -46,10 +48,14 @@
 - Unknown users, wrong passwords, and inactive users share one generic 401 response, with dummy Argon2 verification for unknown users.
 - Login limits are five attempts per connection peer per minute and ten attempts per HMAC-hashed identifier per 15 minutes.
 - Development fake SMS remains disabled by default, loopback-only, memory-only, and absent from production routing/OpenAPI.
+- Forgot-password accepts normalized email or Mainland China phone, returns one generic 202 contract, and uses a comparable dummy HMAC/database path for unknown or ineligible accounts.
+- Reset challenges are six secure digits stored only as domain-separated HMAC-SHA256, expire after ten minutes, and become usable only after confirmed delivery and a newest-row recheck.
+- Forgot-password abuse controls include actual-peer and HMAC-identifier process-local limits, a 60-second database cooldown, and a five-challenge rolling hourly cap.
+- Password-reset delivery is disabled by default; the optional fake provider/inbox is bounded, memory-only, identifier-scoped, loopback-only, development-only, and blocked in production.
 
 ## Tests and database state
 
-- Backend: 283 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Backend: 328 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
 - Frontend: 49 passed, 0 failed, 0 skipped.
 - Frontend type check, lint, and production build pass.
 - Development database baseline and final counts: users 4, user roles 4, phone codes 3, refresh tokens 6, reset codes 0.
@@ -67,6 +73,9 @@ The backend now establishes identity through a validated access token and protec
 - Access tokens cannot be revoked before their 15-minute expiry in Phase 4A.
 - Registration and login limiters are per process; production horizontal deployments require a shared limiter.
 - Refresh, logout, and logout-all limiters are also per process.
+- Forgot-password peer/identifier limiters and fake delivery are process-local.
+- Recovery timing uses a comparable dummy workload but cannot guarantee identical database/provider/network timing.
+- A provider failure after old-code invalidation can temporarily deny recovery; no undelivered challenge becomes usable.
 - Frontend refresh single-flight coordination is per tab, not cross-tab.
 - Real Tencent Signature/Template approval and credentials remain unavailable.
 - Production TLS, CSP, monitoring, secret rotation, and distributed rate limiting are deployment prerequisites.
@@ -75,4 +84,4 @@ The backend now establishes identity through a validated access token and protec
 
 ## Exact next step
 
-Phase 4D is complete. The authentication foundation is ready for a separately approved Phase 5 covering password recovery/change and email verification. No Phase 5 or marketplace feature has been implemented by this audit.
+Phase 5A is complete. The exact next step is a separately approved Phase 5B implementing bounded reset-code verification, atomic single-use consumption, Argon2id password replacement, and an explicit refresh-session revocation policy. Phase 5B, email verification, password-change UI/API, and marketplace features remain not started.

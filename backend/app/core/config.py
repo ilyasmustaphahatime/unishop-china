@@ -64,6 +64,15 @@ class Settings(BaseSettings):
     jwt_audience: str = "unishop-china-web"
     jwt_clock_skew_seconds: int = Field(default=30, ge=0, le=120)
     verification_code_hash_secret: SecretStr | None = None
+    password_reset_code_expiry_minutes: int = Field(default=10, ge=5, le=30)
+    password_reset_cooldown_seconds: int = Field(default=60, ge=30, le=900)
+    password_reset_hourly_limit_requests: int = Field(default=5, ge=1, le=20)
+    password_reset_delivery_provider: str = "disabled"
+    enable_fake_password_reset_dev_inbox: bool = False
+    fake_password_reset_delivery_delay_seconds: float = Field(default=0, ge=0, le=20)
+    fake_password_reset_inbox_ttl_seconds: int = Field(default=600, ge=60, le=1800)
+    fake_password_reset_inbox_max_messages: int = Field(default=100, ge=1, le=1000)
+    fake_password_reset_localhost_only: bool = True
     refresh_token_expire_days: int = Field(default=7, ge=1, le=30)
     refresh_session_absolute_days: int = Field(default=30, ge=1, le=90)
     refresh_cookie_name: str = "unishop_refresh_token"
@@ -97,6 +106,13 @@ class Settings(BaseSettings):
     login_identifier_rate_limit_requests: int = Field(default=10, ge=1, le=100)
     login_identifier_rate_limit_window_seconds: int = Field(default=900, ge=60, le=86400)
     login_rate_limit_max_keys: int = Field(default=10000, ge=100, le=100000)
+    forgot_password_ip_rate_limit_requests: int = Field(default=10, ge=1, le=100)
+    forgot_password_ip_rate_limit_window_seconds: int = Field(default=900, ge=60, le=86400)
+    forgot_password_identifier_rate_limit_requests: int = Field(default=5, ge=1, le=20)
+    forgot_password_identifier_rate_limit_window_seconds: int = Field(
+        default=3600, ge=60, le=86400
+    )
+    forgot_password_rate_limit_max_keys: int = Field(default=10000, ge=100, le=100000)
     refresh_ip_rate_limit_requests: int = Field(default=20, ge=1, le=1000)
     refresh_ip_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
     refresh_session_rate_limit_requests: int = Field(default=10, ge=1, le=1000)
@@ -117,6 +133,7 @@ class Settings(BaseSettings):
 def validate_runtime_security(config: Settings) -> None:
     environment = config.app_env.strip().lower()
     provider = config.sms_provider.strip().lower()
+    reset_provider = config.password_reset_delivery_provider.strip().lower()
     unsafe: list[str] = []
 
     if environment != "development" and provider == "fake":
@@ -125,6 +142,34 @@ def validate_runtime_security(config: Settings) -> None:
         unsafe.extend(["APP_ENV", "ENABLE_FAKE_SMS_DEV_INBOX"])
     if config.enable_fake_sms_dev_inbox and not config.fake_sms_localhost_only:
         unsafe.append("FAKE_SMS_LOCALHOST_ONLY")
+    if reset_provider not in {"disabled", "fake"}:
+        unsafe.append("PASSWORD_RESET_DELIVERY_PROVIDER")
+    if environment != "development" and reset_provider == "fake":
+        unsafe.extend(["APP_ENV", "PASSWORD_RESET_DELIVERY_PROVIDER"])
+    if environment != "development" and config.enable_fake_password_reset_dev_inbox:
+        unsafe.extend(["APP_ENV", "ENABLE_FAKE_PASSWORD_RESET_DEV_INBOX"])
+    if config.enable_fake_password_reset_dev_inbox and reset_provider != "fake":
+        unsafe.extend(
+            ["ENABLE_FAKE_PASSWORD_RESET_DEV_INBOX", "PASSWORD_RESET_DELIVERY_PROVIDER"]
+        )
+    if (
+        config.enable_fake_password_reset_dev_inbox
+        and not config.fake_password_reset_localhost_only
+    ):
+        unsafe.append("FAKE_PASSWORD_RESET_LOCALHOST_ONLY")
+
+    reset_secret = (
+        config.verification_code_hash_secret.get_secret_value().strip()
+        if config.verification_code_hash_secret is not None
+        else ""
+    )
+    placeholder_markers = ("replace_with", "change_me", "local_secret", "your_secret")
+    reset_secret_required = environment != "development" or reset_provider == "fake"
+    if reset_secret_required and (
+        len(reset_secret) < 32
+        or any(marker in reset_secret.lower() for marker in placeholder_markers)
+    ):
+        unsafe.append("VERIFICATION_CODE_HASH_SECRET")
 
     if unsafe:
         raise UnsafeRuntimeConfigurationError(list(set(unsafe)))

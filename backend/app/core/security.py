@@ -73,4 +73,20 @@ def verify_verification_code(code: str, code_hash: str, secret: SecretStr | str)
     return hmac.compare_digest(candidate_hash, code_hash)
 
 
+def hash_password_reset_code(code: str, secret: SecretStr | str) -> str:
+    """Hash a reset code in a domain isolated from phone-verification codes."""
+    key = resolve_verification_code_secret(secret).encode("utf-8")
+    payload = b"unishop-china:password-reset:v1\x00" + code.encode("ascii")
+    return hmac.new(key, payload, hashlib.sha256).hexdigest()
+
+
+def verify_password_reset_code(
+    code: str,
+    code_hash: str,
+    secret: SecretStr | str,
+) -> bool:
+    candidate_hash = hash_password_reset_code(code, secret)
+    return hmac.compare_digest(candidate_hash, code_hash)
+
+
 VerificationCodeGenerator = Callable[[], str]

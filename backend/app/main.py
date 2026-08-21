@@ -6,6 +6,9 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.api.v1.dev.fake_sms_routes import create_development_fake_sms_router
+from app.api.v1.dev.fake_password_reset_routes import (
+    create_development_fake_password_reset_router,
+)
 from app.core.config import (
     Settings,
     allowed_frontend_origins,
@@ -15,6 +18,10 @@ from app.core.config import (
 from app.integrations.development_fake_sms import (
     DevelopmentFakeSmsStore,
     development_fake_sms_store,
+)
+from app.integrations.password_reset_delivery import (
+    DevelopmentFakePasswordResetStore,
+    development_fake_password_reset_store,
 )
 
 STATUS = {"application": "UniShop China API", "status": "running", "version": "1.0.0"}
@@ -29,6 +36,9 @@ def create_app(
     config: Settings = settings,
     *,
     fake_sms_store: DevelopmentFakeSmsStore = development_fake_sms_store,
+    fake_password_reset_store: DevelopmentFakePasswordResetStore = (
+        development_fake_password_reset_store
+    ),
 ) -> FastAPI:
     validate_runtime_security(config)
     environment = config.app_env.strip().lower()
@@ -38,6 +48,8 @@ def create_app(
         debug=config.app_debug and environment == "development",
         lifespan=lifespan,
     )
+    application.state.settings = config
+    application.state.fake_password_reset_store = fake_password_reset_store
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(allowed_frontend_origins(config)),
@@ -51,10 +63,20 @@ def create_app(
             create_development_fake_sms_router(fake_sms_store),
             prefix=f"{config.api_v1_prefix}/dev/fake-sms",
         )
+    if (
+        environment == "development"
+        and config.password_reset_delivery_provider.strip().lower() == "fake"
+        and config.enable_fake_password_reset_dev_inbox
+    ):
+        application.include_router(
+            create_development_fake_password_reset_router(fake_password_reset_store),
+            prefix=f"{config.api_v1_prefix}/dev/fake-password-reset",
+        )
 
     no_store_paths = {
         f"{config.api_v1_prefix}/auth/login",
         f"{config.api_v1_prefix}/auth/refresh",
+        f"{config.api_v1_prefix}/auth/password/forgot",
     }
 
     @application.middleware("http")

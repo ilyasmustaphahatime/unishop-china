@@ -34,7 +34,7 @@ def test_dockerfile_has_valid_json_command(
     assert json.loads(command_lines[0]) == expected_command
 
 
-def test_project_status_records_completed_phase_4d_audit() -> None:
+def test_project_status_records_completed_phase_5a() -> None:
     status = (PROJECT_ROOT / "documentation/CURRENT_PROJECT_STATUS.md").read_text(
         encoding="utf-8"
     )
@@ -43,8 +43,10 @@ def test_project_status_records_completed_phase_4d_audit() -> None:
     assert "Phase 4C secure frontend authentication: complete" in status
     assert "7/7 user-verified real-browser checks" in status
     assert "Phase 4D final authentication security audit: complete" in status
-    assert "Ready for the separately approved Phase 5 authentication-recovery scope: yes" in status
-    assert "Backend: 283 passed" in status
+    assert "Phase 5A secure forgot-password request" in status
+    assert "Phase 5B reset verification and password replacement: not started" in status
+    assert "Ready for the separately approved Phase 5B scope: yes" in status
+    assert "Backend: 328 passed" in status
     assert "refresh tokens 6" in status
     assert "Phase 4D: not started" not in status
     assert "final real-browser workflow sign-off pending" not in status
@@ -53,6 +55,12 @@ def test_project_status_records_completed_phase_4d_audit() -> None:
     assert (PROJECT_ROOT / "documentation/phases/PHASE_4D_FINAL_AUTHENTICATION_AUDIT.md").is_file()
     assert (
         PROJECT_ROOT / "documentation/security/PHASE_4D_AUTHENTICATION_SECURITY_REVIEW.md"
+    ).is_file()
+    assert (
+        PROJECT_ROOT / "documentation/phases/PHASE_5A_FORGOT_PASSWORD_REQUEST.md"
+    ).is_file()
+    assert (
+        PROJECT_ROOT / "documentation/security/PHASE_5A_FORGOT_PASSWORD_THREAT_MODEL.md"
     ).is_file()
 
 

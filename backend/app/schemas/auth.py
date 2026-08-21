@@ -23,6 +23,28 @@ from app.common.validators import (
 EMAIL_ADAPTER = TypeAdapter(EmailStr)
 
 
+def normalize_account_identifier(value: object) -> object:
+    """Normalize the shared email-or-mainland-phone authentication identifier."""
+    if not isinstance(value, str):
+        return value
+    candidate = value.strip()
+    if not candidate or len(candidate) > 255:
+        raise ValueError("Enter a valid email address or mainland Chinese phone number.")
+    if "@" in candidate:
+        try:
+            return str(EMAIL_ADAPTER.validate_python(normalize_email_address(candidate)))
+        except (ValidationError, ValueError) as exc:
+            raise ValueError(
+                "Enter a valid email address or mainland Chinese phone number."
+            ) from exc
+    try:
+        return normalize_chinese_phone_number(candidate)
+    except ValueError as exc:
+        raise ValueError(
+            "Enter a valid email address or mainland Chinese phone number."
+        ) from exc
+
+
 class RegisterRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -134,22 +156,32 @@ class LoginRequest(BaseModel):
     @field_validator("identifier", mode="before")
     @classmethod
     def normalize_identifier(cls, value: object) -> object:
-        if not isinstance(value, str):
-            return value
-        candidate = value.strip()
-        if "@" in candidate:
-            try:
-                return str(EMAIL_ADAPTER.validate_python(normalize_email_address(candidate)))
-            except (ValidationError, ValueError) as exc:
-                raise ValueError("Enter a valid email address or mainland Chinese phone number.") from exc
-        try:
-            return normalize_chinese_phone_number(candidate)
-        except ValueError as exc:
-            raise ValueError("Enter a valid email address or mainland Chinese phone number.") from exc
+        return normalize_account_identifier(value)
 
     @property
     def identifier_kind(self) -> Literal["email", "phone"]:
         return "email" if "@" in self.identifier else "phone"
+
+
+class ForgotPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    identifier: LoginIdentifier
+
+    @field_validator("identifier", mode="before")
+    @classmethod
+    def normalize_identifier(cls, value: object) -> object:
+        return normalize_account_identifier(value)
+
+    @property
+    def identifier_kind(self) -> Literal["email", "phone"]:
+        return "email" if "@" in self.identifier else "phone"
+
+
+class ForgotPasswordResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str
 
 
 class SafeAuthenticatedUserResponse(BaseModel):
