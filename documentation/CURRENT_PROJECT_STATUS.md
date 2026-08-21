@@ -10,8 +10,9 @@
 - Phase 4A secure email/phone login, short-lived access token, authentication dependency, and `/auth/me`: complete.
 - Phase 4B backend refresh-token rotation, HttpOnly cookies, CSRF, reuse detection, logout, and logout-all: complete.
 - Phase 4C secure frontend authentication: complete, including 7/7 user-verified real-browser checks.
-- Phase 4D: not started.
-- Ready for Phase 4D: yes.
+- Phase 4D final authentication security audit: complete with no critical/high authentication blocker.
+- Phase 1-4D authentication foundation: complete.
+- Ready for the separately approved Phase 5 authentication-recovery scope: yes.
 - Protected marketplace object/function authorization: not started.
 
 ## Pre-Phase-4 cleanup status
@@ -48,11 +49,11 @@
 
 ## Tests and database state
 
-- Backend: 272 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Backend: 283 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
 - Frontend: 49 passed, 0 failed, 0 skipped.
 - Frontend type check, lint, and production build pass.
-- Development database baseline and final counts: users 4, roles 4, phone codes 3, refresh tokens 0, reset codes 0.
-- Orphan roles/codes: 0.
+- Development database baseline and final counts: users 4, user roles 4, phone codes 3, refresh tokens 6, reset codes 0.
+- Orphan roles, OTP rows, refresh rows, and reset rows: 0. Refresh replacement-link and family-integrity checks also pass.
 
 Every database test uses an outer transaction/savepoint and verifies exact counts plus pre-existing user/role identifiers after rollback. No broad deletion, truncation, schema reset, or legitimate-data modification is used.
 
@@ -65,9 +66,13 @@ The backend now establishes identity through a validated access token and protec
 - Phase 4C real-browser verification passed using explicit user-provided evidence, not browser-tool evidence: no authentication token in LocalStorage or SessionStorage; refresh cookie `HttpOnly=true` and `Path=/api/v1/auth`; CSRF cookie `HttpOnly=false` and `Path=/`; F5 restored the authenticated session; logout and logout-everywhere both remained logged out after F5.
 - Access tokens cannot be revoked before their 15-minute expiry in Phase 4A.
 - Registration and login limiters are per process; production horizontal deployments require a shared limiter.
+- Refresh, logout, and logout-all limiters are also per process.
+- Frontend refresh single-flight coordination is per tab, not cross-tab.
 - Real Tencent Signature/Template approval and credentials remain unavailable.
+- Production TLS, CSP, monitoring, secret rotation, and distributed rate limiting are deployment prerequisites.
+- Docker image construction was not rechecked in Phase 4D because Docker CLI was unavailable.
 - A third-party Starlette TestClient deprecation warning remains.
 
 ## Exact next step
 
-Phase 4C is complete and ready for handoff. The next separately approved step is Phase 4D — Final Authentication Security Audit; it remains not started.
+Phase 4D is complete. The authentication foundation is ready for a separately approved Phase 5 covering password recovery/change and email verification. No Phase 5 or marketplace feature has been implemented by this audit.

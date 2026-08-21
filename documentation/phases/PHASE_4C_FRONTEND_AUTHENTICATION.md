@@ -18,7 +18,7 @@ Browser verification source: **USER-VERIFIED PASS**
 
 Browser result: **7 / 7 USER-VERIFIED CHECKS PASSED**.
 
-Phase 4D — Final Authentication Security Audit is **NOT STARTED**. Phase 4C is ready to hand off to Phase 4D, but Phase 4D is outside this task and has not been started.
+At the time Phase 4C was signed off, Phase 4D had not started. Phase 4D has since completed in its separately scoped audit; see `PHASE_4D_FINAL_AUTHENTICATION_AUDIT.md`.
 
 ## Scope and backend assumptions
 
@@ -96,5 +96,5 @@ The backend cookie repair is covered by unit and integration assertions for sepa
 - Network-failed logout cannot prove server revocation.
 - Backend rate limits remain process-local until a shared production limiter is introduced.
 - The current same-site cookie topology must be reviewed before any unrelated-site deployment.
-- Phase 4D remains not started and should address only its separately approved scope.
-- Ready for Phase 4D: **YES**.
+- Phase 4D subsequently completed without changing the Phase 4C architecture or browser evidence.
+- Phase 4C remains a verified input to the final authentication audit.

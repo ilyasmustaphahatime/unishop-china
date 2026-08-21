@@ -119,6 +119,39 @@ def test_malformed_token_is_rejected(token: str) -> None:
 
 
 @pytest.mark.parametrize(
+    "missing_claim",
+    ["sub", "type", "jti", "iss", "aud", "iat", "nbf", "exp"],
+)
+def test_each_required_access_token_claim_is_enforced(missing_claim: str) -> None:
+    claims = required_claims(str(uuid4()))
+    claims.pop(missing_claim)
+
+    with pytest.raises(TokenValidationError):
+        AccessTokenService(token_settings()).decode_access_token(encode_claims(claims))
+
+
+def test_empty_token_identifier_is_rejected() -> None:
+    token = encode_claims(required_claims(str(uuid4()), jti=""))
+
+    with pytest.raises(TokenValidationError):
+        AccessTokenService(token_settings()).decode_access_token(token)
+
+
+def test_unsigned_alg_none_token_is_rejected() -> None:
+    token = jwt.encode(required_claims(str(uuid4())), key="", algorithm="none")
+
+    with pytest.raises(TokenValidationError):
+        AccessTokenService(token_settings()).decode_access_token(token)
+
+
+def test_token_signed_with_unsupported_algorithm_is_rejected() -> None:
+    token = jwt.encode(required_claims(str(uuid4())), TEST_SECRET, algorithm="HS384")
+
+    with pytest.raises(TokenValidationError):
+        AccessTokenService(token_settings()).decode_access_token(token)
+
+
+@pytest.mark.parametrize(
     "overrides",
     [
         {"jwt_secret_key": "short"},

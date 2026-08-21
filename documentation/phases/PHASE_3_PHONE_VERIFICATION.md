@@ -100,4 +100,4 @@ No real SMS was sent during Phase 3A.
 - Automated tests: passed
 - Tencent integration: prepared
 - Real SMS delivery: pending
-- Ready for Phase 4: no
+- Phase 4A-4D status: subsequently completed; real Tencent SMS remains deferred
