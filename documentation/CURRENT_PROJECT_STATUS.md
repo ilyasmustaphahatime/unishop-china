@@ -13,6 +13,7 @@
 - Phase 4D final authentication security audit: complete with no critical/high authentication blocker.
 - Phase 5A secure forgot-password request and reset-challenge generation: complete.
 - Phase 5B secure reset verification, durable attempts, atomic password replacement, reset consumption, and refresh-session revocation: complete.
+- Pre-Phase 5C validation-response and Docker build-context security blockers: resolved.
 - Phase 5C: not started.
 - Phase 1-5B authentication foundation: complete.
 - Ready for separately approved Phase 5C planning: yes.
@@ -30,6 +31,9 @@
 - One transitive dependency advisory was fixed by pinning `brace-expansion` to a patched version.
 - React Router was migrated from the v7 compatibility package to patched `react-router` 8.3.0; existing declarative/data routing behavior and tests remain intact.
 - `npm audit` reports zero vulnerabilities, and `pip-audit` reports no known Python dependency vulnerabilities.
+- Authentication validation errors now return only sanitized error type, field location, and fixed safe messages; request `input`, Pydantic context, exception representations, and request bodies are never returned or logged.
+- The backend Docker build context now excludes real `.env` variants, virtual environments, caches, tests, logs, and private/runtime uploads through `backend/.dockerignore`; `.env.example` remains an intentional placeholder-only exception.
+- The local audit virtual environment uses pip 26.2.1, resolving CVE-2026-13346 without changing application requirements.
 - The ignored local backend `.env` now contains exactly one canonical development `APP_ENV` entry and one canonical local `FRONTEND_URL` entry; no secret-bearing value was changed.
 - Pre-Phase-4 security gates remain complete; Phase 4A was implemented without a schema migration.
 - The pre-Phase-4B full-system audit disabled unused CORS/browser credential mode and removed the development Fake SMS page from production bundles.
@@ -41,6 +45,7 @@
 - Alembic current and head are `aca2dda0ef53`; no schema drift exists.
 - Tables remain `alembic_version`, `users`, `user_roles`, `refresh_tokens`, `phone_verification_codes`, and `password_reset_codes`.
 - Strict Pydantic schemas reject unknown and privileged registration fields.
+- Global validation-error sanitization prevents passwords, reset/verification codes, tokens, secrets, and nested submitted values from being reflected in HTTP 422 responses while retaining safe field metadata.
 - Passwords use Argon2id; OTP values use HMAC-SHA256 and constant-time comparison.
 - Registration assigns only the `BUYER` role.
 - Phone resend retains its cooldown/hourly limits and verification retains its five-attempt limit.
@@ -60,7 +65,8 @@
 
 ## Tests and database state
 
-- Backend: 385 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Backend: 401 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Pre-Phase 5C blocker suite: 16 passed, covering validation reflection, nested/extra sensitive input, safe metadata, no request-body logging, Docker ignore policy, Dockerfile secret patterns, and Compose runtime substitution.
 - Frontend: 49 passed, 0 failed, 0 skipped.
 - Frontend type check, lint, and production build pass.
 - Development database baseline and final counts: users 4, user roles 4, phone codes 3, refresh tokens 6, reset codes 0.
@@ -90,4 +96,4 @@ The backend now establishes identity through a validated access token and protec
 
 ## Exact next step
 
-Phase 5B is complete. Phase 5C is not started and requires separate approval and scope definition. Email verification, logged-in password change, recovery UI integration, MFA, OAuth, passkeys, and marketplace features remain outside the completed Phase 5B scope.
+The two verified Pre-Phase 5C security blockers are resolved and all regressions pass. Phase 5C is still not started and requires separate approval and scope definition. Email verification, logged-in password change, recovery UI integration, MFA, OAuth, passkeys, and marketplace features remain outside the completed scope.

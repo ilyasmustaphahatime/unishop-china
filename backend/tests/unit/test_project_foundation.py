@@ -45,9 +45,10 @@ def test_project_status_records_completed_phase_5b() -> None:
     assert "Phase 4D final authentication security audit: complete" in status
     assert "Phase 5A secure forgot-password request" in status
     assert "Phase 5B secure reset verification" in status
+    assert "Pre-Phase 5C validation-response and Docker build-context security blockers: resolved" in status
     assert "Phase 5C: not started" in status
     assert "Ready for separately approved Phase 5C planning: yes" in status
-    assert "Backend: 385 passed" in status
+    assert "Backend: 401 passed" in status
     assert "refresh tokens 6" in status
     assert "Phase 4D: not started" not in status
     assert "final real-browser workflow sign-off pending" not in status
@@ -68,6 +69,10 @@ def test_project_status_records_completed_phase_5b() -> None:
     ).is_file()
     assert (
         PROJECT_ROOT / "documentation/security/PHASE_5B_PASSWORD_RESET_THREAT_MODEL.md"
+    ).is_file()
+    assert (
+        PROJECT_ROOT
+        / "documentation/security/PRE_PHASE_5C_SECURITY_BLOCKER_RESOLUTION.md"
     ).is_file()
 
 
