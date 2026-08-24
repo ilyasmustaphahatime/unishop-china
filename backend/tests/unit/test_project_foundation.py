@@ -34,7 +34,7 @@ def test_dockerfile_has_valid_json_command(
     assert json.loads(command_lines[0]) == expected_command
 
 
-def test_project_status_records_completed_phase_5b() -> None:
+def test_project_status_records_completed_phase_5c() -> None:
     status = (PROJECT_ROOT / "documentation/CURRENT_PROJECT_STATUS.md").read_text(
         encoding="utf-8"
     )
@@ -46,9 +46,10 @@ def test_project_status_records_completed_phase_5b() -> None:
     assert "Phase 5A secure forgot-password request" in status
     assert "Phase 5B secure reset verification" in status
     assert "Pre-Phase 5C validation-response and Docker build-context security blockers: resolved" in status
-    assert "Phase 5C: not started" in status
-    assert "Ready for separately approved Phase 5C planning: yes" in status
-    assert "Backend: 401 passed" in status
+    assert "Phase 5C secure authenticated password change" in status
+    assert "Phase 5D: not started" in status
+    assert "Ready for separately approved Phase 5D planning: yes" in status
+    assert "Backend: 465 passed" in status
     assert "refresh tokens 6" in status
     assert "Phase 4D: not started" not in status
     assert "final real-browser workflow sign-off pending" not in status
@@ -73,6 +74,13 @@ def test_project_status_records_completed_phase_5b() -> None:
     assert (
         PROJECT_ROOT
         / "documentation/security/PRE_PHASE_5C_SECURITY_BLOCKER_RESOLUTION.md"
+    ).is_file()
+    assert (
+        PROJECT_ROOT / "documentation/phases/PHASE_5C_SECURE_CHANGE_PASSWORD.md"
+    ).is_file()
+    assert (
+        PROJECT_ROOT
+        / "documentation/security/PHASE_5C_CHANGE_PASSWORD_THREAT_MODEL.md"
     ).is_file()
 
 

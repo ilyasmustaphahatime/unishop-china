@@ -212,6 +212,24 @@ class ResetPasswordResponse(BaseModel):
     message: str
 
 
+class ChangePasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: LoginPassword
+    new_password: LoginPassword
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        return validate_password_policy(value)
+
+
+class ChangePasswordResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str
+
+
 class SafeAuthenticatedUserResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", from_attributes=True)
 

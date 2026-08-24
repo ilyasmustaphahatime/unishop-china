@@ -127,6 +127,7 @@ def create_app(
         f"{config.api_v1_prefix}/auth/refresh",
         f"{config.api_v1_prefix}/auth/password/forgot",
         f"{config.api_v1_prefix}/auth/password/reset",
+        f"{config.api_v1_prefix}/auth/password/change",
     }
 
     @application.middleware("http")

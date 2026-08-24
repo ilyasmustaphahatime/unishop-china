@@ -30,6 +30,7 @@ from app.integrations.password_reset_delivery import (
 )
 from app.schemas.auth import ForgotPasswordRequest, LoginRequest, ResetPasswordRequest
 from app.services.auth_service import AuthenticationService, RegistrationService, SafeAuthenticatedUser
+from app.services.password_change_service import PasswordChangeService
 from app.services.password_reset_service import (
     PasswordResetCompletionService,
     PasswordResetRequestService,
@@ -72,6 +73,16 @@ password_reset_identifier_rate_limiter = InMemoryRateLimiter(
     max_requests=settings.password_reset_identifier_rate_limit_requests,
     window_seconds=settings.password_reset_identifier_rate_limit_window_seconds,
     max_keys=settings.password_reset_rate_limit_max_keys,
+)
+password_change_ip_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.password_change_ip_rate_limit_requests,
+    window_seconds=settings.password_change_ip_rate_limit_window_seconds,
+    max_keys=settings.password_change_rate_limit_max_keys,
+)
+password_change_user_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.password_change_user_rate_limit_requests,
+    window_seconds=settings.password_change_user_rate_limit_window_seconds,
+    max_keys=settings.password_change_rate_limit_max_keys,
 )
 refresh_ip_rate_limiter = InMemoryRateLimiter(
     max_requests=settings.refresh_ip_rate_limit_requests,
@@ -175,6 +186,14 @@ def get_password_reset_ip_rate_limiter() -> InMemoryRateLimiter:
 
 def get_password_reset_identifier_rate_limiter() -> InMemoryRateLimiter:
     return password_reset_identifier_rate_limiter
+
+
+def get_password_change_ip_rate_limiter() -> InMemoryRateLimiter:
+    return password_change_ip_rate_limiter
+
+
+def get_password_change_user_rate_limiter() -> InMemoryRateLimiter:
+    return password_change_user_rate_limiter
 
 
 def get_refresh_ip_rate_limiter() -> InMemoryRateLimiter:
@@ -438,6 +457,10 @@ def get_password_reset_completion_service(
     return PasswordResetCompletionService(config)
 
 
+def get_password_change_service() -> PasswordChangeService:
+    return PasswordChangeService()
+
+
 def get_access_token_service() -> AccessTokenService:
     return AccessTokenService(settings)
 
@@ -476,6 +499,43 @@ def get_current_user(
     if current_user is None:
         raise _credentials_exception()
     return current_user
+
+
+def enforce_password_change_rate_limit(
+    request: Request,
+    current_user: SafeAuthenticatedUser = Depends(get_current_user),
+    ip_limiter: InMemoryRateLimiter = Depends(get_password_change_ip_rate_limiter),
+    user_limiter: InMemoryRateLimiter = Depends(get_password_change_user_rate_limiter),
+) -> SafeAuthenticatedUser:
+    client_host = request.client.host if request.client is not None else "unknown"
+    ip_decision = ip_limiter.consume(client_host)
+    if not ip_decision.allowed:
+        _raise_password_change_rate_limit(ip_decision.retry_after_seconds)
+
+    config = getattr(request.app.state, "settings", settings)
+    if config.jwt_secret_key is None:
+        raise RuntimeError("JWT_SECRET_KEY is not configured.")
+    user_key = hash_rate_limit_value(
+        current_user.id,
+        config.jwt_secret_key,
+        namespace="password-change:user",
+    )
+    user_decision = user_limiter.consume(user_key)
+    if not user_decision.allowed:
+        _raise_password_change_rate_limit(user_decision.retry_after_seconds)
+    return current_user
+
+
+def _raise_password_change_rate_limit(retry_after_seconds: int | None) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="Too many password change attempts. Please try again later.",
+        headers={
+            "Retry-After": str(retry_after_seconds or 1),
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+        },
+    )
 
 
 def _credentials_exception() -> HTTPException:

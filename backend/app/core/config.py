@@ -123,6 +123,15 @@ class Settings(BaseSettings):
         default=900, ge=60, le=86400
     )
     password_reset_rate_limit_max_keys: int = Field(default=10000, ge=100, le=100000)
+    password_change_ip_rate_limit_requests: int = Field(default=10, ge=1, le=100)
+    password_change_ip_rate_limit_window_seconds: int = Field(
+        default=900, ge=60, le=86400
+    )
+    password_change_user_rate_limit_requests: int = Field(default=5, ge=1, le=20)
+    password_change_user_rate_limit_window_seconds: int = Field(
+        default=900, ge=60, le=86400
+    )
+    password_change_rate_limit_max_keys: int = Field(default=10000, ge=100, le=100000)
     refresh_ip_rate_limit_requests: int = Field(default=20, ge=1, le=1000)
     refresh_ip_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
     refresh_session_rate_limit_requests: int = Field(default=10, ge=1, le=1000)

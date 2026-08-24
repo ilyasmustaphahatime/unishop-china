@@ -14,9 +14,10 @@
 - Phase 5A secure forgot-password request and reset-challenge generation: complete.
 - Phase 5B secure reset verification, durable attempts, atomic password replacement, reset consumption, and refresh-session revocation: complete.
 - Pre-Phase 5C validation-response and Docker build-context security blockers: resolved.
-- Phase 5C: not started.
-- Phase 1-5B authentication foundation: complete.
-- Ready for separately approved Phase 5C planning: yes.
+- Phase 5C secure authenticated password change, current-password proof, atomic reset/session invalidation, concurrency control, and dual rate limits: complete.
+- Phase 5D: not started.
+- Phase 1-5C authentication foundation: complete.
+- Ready for separately approved Phase 5D planning: yes.
 - Protected marketplace object/function authorization: not started.
 
 ## Pre-Phase-4 cleanup status
@@ -62,10 +63,17 @@
 - Reset challenges have a durable five-attempt budget, atomic MySQL increments, newest-only/expiry/consumption enforcement, and real concurrent-request coverage.
 - Successful reset stores only Argon2id, consumes the challenge, invalidates the user's other challenges, revokes every active refresh family, returns no token/cookie, and requires normal login.
 - Unknown, inactive, wrong, expired, superseded, consumed, and exhausted resets share one generic no-store failure.
+- Authenticated password change accepts only current and new password, derives identity from the validated Bearer subject, and rejects IDOR/mass-assignment fields.
+- The current password and same-as-current new password are verified through the existing Argon2id helper; the new value reuses the exact registration/reset policy.
+- Successful password change locks the user row and atomically updates the Argon2id hash, invalidates valid same-user reset challenges, and revokes all same-user refresh sessions while preserving every other user's state.
+- Password-change limits are five attempts per HMAC-keyed authenticated user and ten per actual connection peer per 15 minutes; forwarded headers are ignored.
+- Password-change authority is the explicit Bearer header plus current-password proof, not an ambient cookie. Exact Origin validation is retained, while refresh/logout double-submit CSRF controls remain unchanged.
+- Concurrent stale-password changes serialize on the MySQL user row and allow exactly one transition.
 
 ## Tests and database state
 
-- Backend: 401 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Backend: 465 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Phase 5C focused security suite: 64 passed, including IDOR, strict validation, Argon2id, wrong/same password, session and reset isolation, rate limits, CSRF decision, rollback, sensitive data, and real MySQL concurrency.
 - Pre-Phase 5C blocker suite: 16 passed, covering validation reflection, nested/extra sensitive input, safe metadata, no request-body logging, Docker ignore policy, Dockerfile secret patterns, and Compose runtime substitution.
 - Frontend: 49 passed, 0 failed, 0 skipped.
 - Frontend type check, lint, and production build pass.
@@ -84,6 +92,7 @@ The backend now establishes identity through a validated access token and protec
 - Access tokens cannot be revoked before their 15-minute expiry in Phase 4A.
 - Registration and login limiters are per process; production horizontal deployments require a shared limiter.
 - Refresh, logout, and logout-all limiters are also per process.
+- Password-change peer/user limiters are per process; production horizontal deployments require a shared limiter.
 - Forgot-password peer/identifier limiters and fake delivery are process-local.
 - Recovery timing uses a comparable dummy workload but cannot guarantee identical database/provider/network timing.
 - A provider failure after old-code invalidation can temporarily deny recovery; no undelivered challenge becomes usable.
@@ -96,4 +105,4 @@ The backend now establishes identity through a validated access token and protec
 
 ## Exact next step
 
-The two verified Pre-Phase 5C security blockers are resolved and all regressions pass. Phase 5C is still not started and requires separate approval and scope definition. Email verification, logged-in password change, recovery UI integration, MFA, OAuth, passkeys, and marketplace features remain outside the completed scope.
+Phase 5C is complete and all security/regression gates pass. Phase 5D remains not started and requires separate approval and scope definition. Email verification, recovery UI integration, MFA, OAuth, passkeys, password history, and marketplace features remain outside the completed scope.

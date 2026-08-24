@@ -915,7 +915,7 @@ def test_live_schema_contains_only_the_approved_attempt_security_change() -> Non
     }
 
 
-def test_openapi_has_exact_phase_5a_and_5b_routes_only() -> None:
+def test_openapi_preserves_phase_5a_and_5b_routes_with_phase_5c_once() -> None:
     paths = app.openapi()["paths"]
 
     assert "/api/v1/auth/password/forgot" in paths
@@ -925,4 +925,5 @@ def test_openapi_has_exact_phase_5a_and_5b_routes_only() -> None:
     assert sum(path == "/api/v1/auth/password/forgot" for path in paths) == 1
     assert sum(path == "/api/v1/auth/password/reset" for path in paths) == 1
     assert not any("email/verify" in path for path in paths)
-    assert not any("password/change" in path for path in paths)
+    assert sum(path == "/api/v1/auth/password/change" for path in paths) == 1
+    assert "post" in paths["/api/v1/auth/password/change"]

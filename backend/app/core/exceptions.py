@@ -33,6 +33,10 @@ class InvalidPasswordResetError(Exception):
     """Internal reset failure mapped to one enumeration-safe public response."""
 
 
+class InvalidPasswordChangeError(Exception):
+    """Internal password-change failure mapped to one generic public response."""
+
+
 class TokenValidationError(Exception):
     """Internal access-token validation failure safe for public mapping."""
 
