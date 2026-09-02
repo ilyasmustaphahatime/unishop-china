@@ -675,4 +675,6 @@ def test_openapi_preserves_phase_5a_route_alongside_phase_5b() -> None:
     assert "/api/v1/auth/password/reset" in paths
     assert "post" in paths["/api/v1/auth/password/reset"]
     assert sum(path == "/api/v1/auth/password/reset" for path in paths) == 1
-    assert not any("email/verify" in path for path in paths)
+    assert sum(path == "/api/v1/auth/email/resend-code" for path in paths) == 1
+    assert sum(path == "/api/v1/auth/email/verify" for path in paths) == 1
+    assert not any("email/change" in path for path in paths)

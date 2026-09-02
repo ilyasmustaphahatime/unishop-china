@@ -15,9 +15,10 @@
 - Phase 5B secure reset verification, durable attempts, atomic password replacement, reset consumption, and refresh-session revocation: complete.
 - Pre-Phase 5C validation-response and Docker build-context security blockers: resolved.
 - Phase 5C secure authenticated password change, current-password proof, atomic reset/session invalidation, concurrency control, and dual rate limits: complete.
-- Phase 5D: not started.
-- Phase 1-5C authentication foundation: complete.
-- Ready for separately approved Phase 5D planning: yes.
+- Phase 5D secure authenticated email ownership verification, provider-safe challenge activation, durable abuse controls, replay protection, and MySQL concurrency safety: complete.
+- Phase 5E: not started.
+- Phase 1-5D authentication foundation: complete.
+- Ready for separately approved Phase 5E planning: yes.
 - Protected marketplace object/function authorization: not started.
 
 ## Pre-Phase-4 cleanup status
@@ -43,8 +44,8 @@
 
 - MySQL connection succeeds against `unishop_china`.
 - SQLAlchemy uses parameterized expressions and no request-derived raw SQL.
-- Alembic current and head are `aca2dda0ef53`; no schema drift exists.
-- Tables remain `alembic_version`, `users`, `user_roles`, `refresh_tokens`, `phone_verification_codes`, and `password_reset_codes`.
+- Alembic current and head are `d5f0c1e2a3b4`; no schema drift exists.
+- Authentication tables are `users`, `user_roles`, `refresh_tokens`, `phone_verification_codes`, `password_reset_codes`, and `email_verification_codes`.
 - Strict Pydantic schemas reject unknown and privileged registration fields.
 - Global validation-error sanitization prevents passwords, reset/verification codes, tokens, secrets, and nested submitted values from being reflected in HTTP 422 responses while retaining safe field metadata.
 - Passwords use Argon2id; OTP values use HMAC-SHA256 and constant-time comparison.
@@ -69,16 +70,23 @@
 - Password-change limits are five attempts per HMAC-keyed authenticated user and ten per actual connection peer per 15 minutes; forwarded headers are ignored.
 - Password-change authority is the explicit Bearer header plus current-password proof, not an ambient cookie. Exact Origin validation is retained, while refresh/logout double-submit CSRF controls remain unchanged.
 - Concurrent stale-password changes serialize on the MySQL user row and allow exactly one transition.
+- Email-verification resend and verify derive identity only from the validated Bearer subject; request bodies cannot select an email or user.
+- Email challenges are six ASCII digits stored only as `email-verification:v1` domain-separated HMAC-SHA256, become active only after confirmed delivery, expire after ten minutes, and have five durable attempts.
+- Resend has a 60-second database cooldown and five-per-hour rolling cap plus peer/user HTTP limits; verification has peer/user HTTP limits and every 429 includes `Retry-After`.
+- The development Fake Email inbox is authenticated-user scoped, HMAC-referenced, bounded, expiring, memory-only, actual-loopback-only, disabled by default, and absent from production.
+- Successful verification atomically consumes the challenge and changes only `users.email_verified`; passwords, roles, phone state, account status, reset challenges, and refresh sessions are preserved.
+- Concurrent correct verification yields exactly one success, concurrent wrong attempts have no lost increments, concurrent resend leaves at most one usable challenge, and delayed provider delivery cannot resurrect stale state.
 
 ## Tests and database state
 
-- Backend: 465 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Backend: 522 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Phase 5D focused security suite: 57 passed, covering cryptography, strict schemas, provider guards/failure, IDOR, mass assignment, cooldown/hour limits, HTTP limits, Fake Email isolation, rollback, session preservation, and real MySQL concurrency.
 - Phase 5C focused security suite: 64 passed, including IDOR, strict validation, Argon2id, wrong/same password, session and reset isolation, rate limits, CSRF decision, rollback, sensitive data, and real MySQL concurrency.
 - Pre-Phase 5C blocker suite: 16 passed, covering validation reflection, nested/extra sensitive input, safe metadata, no request-body logging, Docker ignore policy, Dockerfile secret patterns, and Compose runtime substitution.
 - Frontend: 49 passed, 0 failed, 0 skipped.
 - Frontend type check, lint, and production build pass.
-- Development database baseline and final counts: users 4, user roles 4, phone codes 3, refresh tokens 6, reset codes 0.
-- Orphan roles, OTP rows, refresh rows, and reset rows: 0. Refresh replacement-link and family-integrity checks also pass.
+- Development database baseline and final counts: users 4, user roles 4, phone codes 3, refresh tokens 7, reset codes 0, email verification codes 0.
+- Orphan roles, OTP rows, refresh rows, reset rows, and email-verification rows: 0. Refresh replacement-link and family-integrity checks also pass.
 
 Every database test uses an outer transaction/savepoint and verifies exact counts plus pre-existing user/role identifiers after rollback. No broad deletion, truncation, schema reset, or legitimate-data modification is used.
 
@@ -93,6 +101,7 @@ The backend now establishes identity through a validated access token and protec
 - Registration and login limiters are per process; production horizontal deployments require a shared limiter.
 - Refresh, logout, and logout-all limiters are also per process.
 - Password-change peer/user limiters are per process; production horizontal deployments require a shared limiter.
+- Email-verification peer/user limiters and Fake Email delivery are process-local; production horizontal deployments require shared rate limiting and an approved real provider.
 - Forgot-password peer/identifier limiters and fake delivery are process-local.
 - Recovery timing uses a comparable dummy workload but cannot guarantee identical database/provider/network timing.
 - A provider failure after old-code invalidation can temporarily deny recovery; no undelivered challenge becomes usable.
@@ -105,4 +114,4 @@ The backend now establishes identity through a validated access token and protec
 
 ## Exact next step
 
-Phase 5C is complete and all security/regression gates pass. Phase 5D remains not started and requires separate approval and scope definition. Email verification, recovery UI integration, MFA, OAuth, passkeys, password history, and marketplace features remain outside the completed scope.
+Phase 5D is complete and all security/regression gates pass. Phase 5E remains not started and requires separate approval and scope definition. Email changing, a production email provider, recovery UI expansion, MFA, OAuth, passkeys, password history, and marketplace features remain outside the completed scope.

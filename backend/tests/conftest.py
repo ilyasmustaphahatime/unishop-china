@@ -8,6 +8,7 @@ import app.models  # noqa: F401 -- configure all authentication relationships
 from app.core.config import settings
 from app.core.database import engine
 from app.models import (
+    EmailVerificationCode,
     PasswordResetCode,
     PhoneVerificationCode,
     RefreshToken,
@@ -21,6 +22,7 @@ TRACKED_TEST_TABLES = (
     PhoneVerificationCode,
     RefreshToken,
     PasswordResetCode,
+    EmailVerificationCode,
 )
 
 

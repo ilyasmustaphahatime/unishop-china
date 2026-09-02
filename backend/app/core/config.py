@@ -74,6 +74,22 @@ class Settings(BaseSettings):
     fake_password_reset_inbox_ttl_seconds: int = Field(default=600, ge=60, le=1800)
     fake_password_reset_inbox_max_messages: int = Field(default=100, ge=1, le=1000)
     fake_password_reset_localhost_only: bool = True
+    email_verification_code_expiry_minutes: int = Field(default=10, ge=5, le=30)
+    email_verification_cooldown_seconds: int = Field(default=60, ge=30, le=900)
+    email_verification_hourly_limit_requests: int = Field(default=5, ge=1, le=20)
+    email_verification_max_attempts: int = Field(default=5, ge=1, le=10)
+    email_verification_delivery_provider: str = "disabled"
+    enable_fake_email_verification_dev_inbox: bool = False
+    fake_email_verification_delivery_delay_seconds: float = Field(
+        default=0, ge=0, le=20
+    )
+    fake_email_verification_inbox_ttl_seconds: int = Field(
+        default=600, ge=60, le=1800
+    )
+    fake_email_verification_inbox_max_messages: int = Field(
+        default=100, ge=1, le=1000
+    )
+    fake_email_verification_localhost_only: bool = True
     refresh_token_expire_days: int = Field(default=7, ge=1, le=30)
     refresh_session_absolute_days: int = Field(default=30, ge=1, le=90)
     refresh_cookie_name: str = "unishop_refresh_token"
@@ -132,6 +148,33 @@ class Settings(BaseSettings):
         default=900, ge=60, le=86400
     )
     password_change_rate_limit_max_keys: int = Field(default=10000, ge=100, le=100000)
+    email_verification_resend_ip_rate_limit_requests: int = Field(
+        default=10, ge=1, le=100
+    )
+    email_verification_resend_ip_rate_limit_window_seconds: int = Field(
+        default=900, ge=60, le=86400
+    )
+    email_verification_resend_user_rate_limit_requests: int = Field(
+        default=5, ge=1, le=20
+    )
+    email_verification_resend_user_rate_limit_window_seconds: int = Field(
+        default=3600, ge=60, le=86400
+    )
+    email_verification_verify_ip_rate_limit_requests: int = Field(
+        default=20, ge=1, le=100
+    )
+    email_verification_verify_ip_rate_limit_window_seconds: int = Field(
+        default=900, ge=60, le=86400
+    )
+    email_verification_verify_user_rate_limit_requests: int = Field(
+        default=10, ge=1, le=50
+    )
+    email_verification_verify_user_rate_limit_window_seconds: int = Field(
+        default=900, ge=60, le=86400
+    )
+    email_verification_rate_limit_max_keys: int = Field(
+        default=10000, ge=100, le=100000
+    )
     refresh_ip_rate_limit_requests: int = Field(default=20, ge=1, le=1000)
     refresh_ip_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
     refresh_session_rate_limit_requests: int = Field(default=10, ge=1, le=1000)
@@ -153,6 +196,7 @@ def validate_runtime_security(config: Settings) -> None:
     environment = config.app_env.strip().lower()
     provider = config.sms_provider.strip().lower()
     reset_provider = config.password_reset_delivery_provider.strip().lower()
+    email_provider = config.email_verification_delivery_provider.strip().lower()
     unsafe: list[str] = []
 
     if environment != "development" and provider == "fake":
@@ -176,6 +220,27 @@ def validate_runtime_security(config: Settings) -> None:
         and not config.fake_password_reset_localhost_only
     ):
         unsafe.append("FAKE_PASSWORD_RESET_LOCALHOST_ONLY")
+    if email_provider not in {"disabled", "fake"}:
+        unsafe.append("EMAIL_VERIFICATION_DELIVERY_PROVIDER")
+    if environment != "development" and email_provider == "fake":
+        unsafe.extend(["APP_ENV", "EMAIL_VERIFICATION_DELIVERY_PROVIDER"])
+    if environment != "development" and config.enable_fake_email_verification_dev_inbox:
+        unsafe.extend(["APP_ENV", "ENABLE_FAKE_EMAIL_VERIFICATION_DEV_INBOX"])
+    if (
+        config.enable_fake_email_verification_dev_inbox
+        and email_provider != "fake"
+    ):
+        unsafe.extend(
+            [
+                "ENABLE_FAKE_EMAIL_VERIFICATION_DEV_INBOX",
+                "EMAIL_VERIFICATION_DELIVERY_PROVIDER",
+            ]
+        )
+    if (
+        config.enable_fake_email_verification_dev_inbox
+        and not config.fake_email_verification_localhost_only
+    ):
+        unsafe.append("FAKE_EMAIL_VERIFICATION_LOCALHOST_ONLY")
 
     reset_secret = (
         config.verification_code_hash_secret.get_secret_value().strip()
@@ -183,8 +248,12 @@ def validate_runtime_security(config: Settings) -> None:
         else ""
     )
     placeholder_markers = ("replace_with", "change_me", "local_secret", "your_secret")
-    reset_secret_required = environment != "development" or reset_provider == "fake"
-    if reset_secret_required and (
+    verification_secret_required = (
+        environment != "development"
+        or reset_provider == "fake"
+        or email_provider == "fake"
+    )
+    if verification_secret_required and (
         len(reset_secret) < 32
         or any(marker in reset_secret.lower() for marker in placeholder_markers)
     ):

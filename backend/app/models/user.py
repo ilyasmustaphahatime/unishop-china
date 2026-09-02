@@ -9,6 +9,7 @@ from app.core.database import Base
 from app.models.base import UUIDTimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.email_verification_code import EmailVerificationCode
     from app.models.password_reset_code import PasswordResetCode
     from app.models.phone_verification_code import PhoneVerificationCode
     from app.models.refresh_token import RefreshToken
@@ -69,6 +70,11 @@ class User(UUIDTimestampMixin, Base):
         passive_deletes=True,
     )
     password_reset_codes: Mapped[list["PasswordResetCode"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    email_verification_codes: Mapped[list["EmailVerificationCode"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,

@@ -859,5 +859,7 @@ def test_phase_5c_openapi_inventory_is_exact_and_future_routes_are_absent() -> N
     assert sum(path == "/api/v1/auth/password/change" for path in paths) == 1
     assert sum(path == "/api/v1/auth/password/forgot" for path in paths) == 1
     assert sum(path == "/api/v1/auth/password/reset" for path in paths) == 1
-    assert not any("email/verify" in path for path in paths)
+    assert sum(path == "/api/v1/auth/email/resend-code" for path in paths) == 1
+    assert sum(path == "/api/v1/auth/email/verify" for path in paths) == 1
+    assert not any("email/change" in path for path in paths)
     assert not any("phase-5d" in path.lower() for path in paths)

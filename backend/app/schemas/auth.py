@@ -143,6 +143,30 @@ class VerifyPhoneCodeResponse(BaseModel):
     phone_verified: bool
 
 
+class ResendEmailVerificationCodeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class ResendEmailVerificationCodeResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str
+    expires_in_seconds: int = 600
+
+
+class VerifyEmailCodeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: AsciiCode
+
+
+class VerifyEmailCodeResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str
+    email_verified: bool
+
+
 LoginIdentifier = Annotated[str, StringConstraints(min_length=1, max_length=255, strict=True)]
 LoginPassword = Annotated[str, StringConstraints(min_length=1, max_length=128, strict=True)]
 

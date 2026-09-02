@@ -89,4 +89,20 @@ def verify_password_reset_code(
     return hmac.compare_digest(candidate_hash, code_hash)
 
 
+def hash_email_verification_code(code: str, secret: SecretStr | str) -> str:
+    """Hash an email code in a purpose isolated from every other challenge."""
+    key = resolve_verification_code_secret(secret).encode("utf-8")
+    payload = b"unishop-china:email-verification:v1\x00" + code.encode("ascii")
+    return hmac.new(key, payload, hashlib.sha256).hexdigest()
+
+
+def verify_email_verification_code(
+    code: str,
+    code_hash: str,
+    secret: SecretStr | str,
+) -> bool:
+    candidate_hash = hash_email_verification_code(code, secret)
+    return hmac.compare_digest(candidate_hash, code_hash)
+
+
 VerificationCodeGenerator = Callable[[], str]

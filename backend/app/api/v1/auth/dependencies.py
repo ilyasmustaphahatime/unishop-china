@@ -28,8 +28,16 @@ from app.integrations.password_reset_delivery import (
     PasswordResetDeliveryProvider,
     development_fake_password_reset_store,
 )
+from app.integrations.email_verification_delivery import (
+    DevelopmentFakeEmailVerificationProvider,
+    DevelopmentFakeEmailVerificationStore,
+    DisabledEmailVerificationDeliveryProvider,
+    EmailVerificationDeliveryProvider,
+    development_fake_email_verification_store,
+)
 from app.schemas.auth import ForgotPasswordRequest, LoginRequest, ResetPasswordRequest
 from app.services.auth_service import AuthenticationService, RegistrationService, SafeAuthenticatedUser
+from app.services.email_verification_service import EmailVerificationService
 from app.services.password_change_service import PasswordChangeService
 from app.services.password_reset_service import (
     PasswordResetCompletionService,
@@ -103,6 +111,26 @@ logout_all_user_rate_limiter = InMemoryRateLimiter(
     max_requests=settings.logout_all_user_rate_limit_requests,
     window_seconds=settings.logout_all_user_rate_limit_window_seconds,
     max_keys=settings.session_rate_limit_max_keys,
+)
+email_verification_resend_ip_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.email_verification_resend_ip_rate_limit_requests,
+    window_seconds=settings.email_verification_resend_ip_rate_limit_window_seconds,
+    max_keys=settings.email_verification_rate_limit_max_keys,
+)
+email_verification_resend_user_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.email_verification_resend_user_rate_limit_requests,
+    window_seconds=settings.email_verification_resend_user_rate_limit_window_seconds,
+    max_keys=settings.email_verification_rate_limit_max_keys,
+)
+email_verification_verify_ip_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.email_verification_verify_ip_rate_limit_requests,
+    window_seconds=settings.email_verification_verify_ip_rate_limit_window_seconds,
+    max_keys=settings.email_verification_rate_limit_max_keys,
+)
+email_verification_verify_user_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.email_verification_verify_user_rate_limit_requests,
+    window_seconds=settings.email_verification_verify_user_rate_limit_window_seconds,
+    max_keys=settings.email_verification_rate_limit_max_keys,
 )
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -210,6 +238,22 @@ def get_logout_ip_rate_limiter() -> InMemoryRateLimiter:
 
 def get_logout_all_user_rate_limiter() -> InMemoryRateLimiter:
     return logout_all_user_rate_limiter
+
+
+def get_email_verification_resend_ip_rate_limiter() -> InMemoryRateLimiter:
+    return email_verification_resend_ip_rate_limiter
+
+
+def get_email_verification_resend_user_rate_limiter() -> InMemoryRateLimiter:
+    return email_verification_resend_user_rate_limiter
+
+
+def get_email_verification_verify_ip_rate_limiter() -> InMemoryRateLimiter:
+    return email_verification_verify_ip_rate_limiter
+
+
+def get_email_verification_verify_user_rate_limiter() -> InMemoryRateLimiter:
+    return email_verification_verify_user_rate_limiter
 
 
 def enforce_registration_rate_limit(
@@ -457,6 +501,41 @@ def get_password_reset_completion_service(
     return PasswordResetCompletionService(config)
 
 
+def build_email_verification_delivery_provider(
+    config: Settings,
+    *,
+    fake_store: DevelopmentFakeEmailVerificationStore | None = None,
+) -> EmailVerificationDeliveryProvider:
+    provider = config.email_verification_delivery_provider.strip().lower()
+    if provider == "fake" and config.app_env.strip().lower() == "development":
+        return DevelopmentFakeEmailVerificationProvider(
+            fake_store or development_fake_email_verification_store
+        )
+    return DisabledEmailVerificationDeliveryProvider()
+
+
+def get_email_verification_delivery_provider(
+    request: Request,
+) -> EmailVerificationDeliveryProvider:
+    config = getattr(request.app.state, "settings", settings)
+    fake_store = getattr(
+        request.app.state,
+        "fake_email_verification_store",
+        development_fake_email_verification_store,
+    )
+    return build_email_verification_delivery_provider(config, fake_store=fake_store)
+
+
+def get_email_verification_service(
+    request: Request,
+    delivery_provider: EmailVerificationDeliveryProvider = Depends(
+        get_email_verification_delivery_provider
+    ),
+) -> EmailVerificationService:
+    config = getattr(request.app.state, "settings", settings)
+    return EmailVerificationService(config, delivery_provider=delivery_provider)
+
+
 def get_password_change_service() -> PasswordChangeService:
     return PasswordChangeService()
 
@@ -499,6 +578,84 @@ def get_current_user(
     if current_user is None:
         raise _credentials_exception()
     return current_user
+
+
+def enforce_email_verification_resend_rate_limit(
+    request: Request,
+    current_user: SafeAuthenticatedUser = Depends(get_current_user),
+    ip_limiter: InMemoryRateLimiter = Depends(
+        get_email_verification_resend_ip_rate_limiter
+    ),
+    user_limiter: InMemoryRateLimiter = Depends(
+        get_email_verification_resend_user_rate_limiter
+    ),
+) -> SafeAuthenticatedUser:
+    _enforce_email_verification_rate_limit(
+        request,
+        current_user,
+        ip_limiter=ip_limiter,
+        user_limiter=user_limiter,
+        namespace="email-verification:resend-user",
+    )
+    return current_user
+
+
+def enforce_email_verification_verify_rate_limit(
+    request: Request,
+    current_user: SafeAuthenticatedUser = Depends(get_current_user),
+    ip_limiter: InMemoryRateLimiter = Depends(
+        get_email_verification_verify_ip_rate_limiter
+    ),
+    user_limiter: InMemoryRateLimiter = Depends(
+        get_email_verification_verify_user_rate_limiter
+    ),
+) -> SafeAuthenticatedUser:
+    _enforce_email_verification_rate_limit(
+        request,
+        current_user,
+        ip_limiter=ip_limiter,
+        user_limiter=user_limiter,
+        namespace="email-verification:verify-user",
+    )
+    return current_user
+
+
+def _enforce_email_verification_rate_limit(
+    request: Request,
+    current_user: SafeAuthenticatedUser,
+    *,
+    ip_limiter: InMemoryRateLimiter,
+    user_limiter: InMemoryRateLimiter,
+    namespace: str,
+) -> None:
+    client_host = request.client.host if request.client is not None else "unknown"
+    ip_decision = ip_limiter.consume(client_host)
+    if not ip_decision.allowed:
+        _raise_email_verification_rate_limit(ip_decision.retry_after_seconds)
+
+    config = getattr(request.app.state, "settings", settings)
+    if config.jwt_secret_key is None:
+        raise RuntimeError("JWT_SECRET_KEY is not configured.")
+    user_key = hash_rate_limit_value(
+        current_user.id,
+        config.jwt_secret_key,
+        namespace=namespace,
+    )
+    user_decision = user_limiter.consume(user_key)
+    if not user_decision.allowed:
+        _raise_email_verification_rate_limit(user_decision.retry_after_seconds)
+
+
+def _raise_email_verification_rate_limit(retry_after_seconds: int | None) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="Too many email verification requests. Please try again later.",
+        headers={
+            "Retry-After": str(retry_after_seconds or 1),
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+        },
+    )
 
 
 def enforce_password_change_rate_limit(

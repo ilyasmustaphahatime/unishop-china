@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.auth.dependencies import (
     enforce_auth_origin,
+    enforce_email_verification_resend_rate_limit,
+    enforce_email_verification_verify_rate_limit,
     enforce_forgot_password_rate_limit,
     enforce_login_rate_limit,
     enforce_logout_all_rate_limit,
@@ -14,6 +16,7 @@ from app.api.v1.auth.dependencies import (
     enforce_registration_rate_limit,
     get_authentication_service,
     get_current_user,
+    get_email_verification_service,
     get_phone_verification_service,
     get_password_change_service,
     get_password_reset_completion_service,
@@ -26,6 +29,7 @@ from app.core.auth_cookies import clear_auth_cookies, set_auth_cookies
 from app.core.config import settings
 from app.core.exceptions import (
     InvalidCredentialsError,
+    EmailVerificationError,
     InvalidPasswordChangeError,
     InvalidPasswordResetError,
     RequestVerificationError,
@@ -48,11 +52,16 @@ from app.schemas.auth import (
     RegisterResponse,
     ResendPhoneVerificationCodeRequest,
     ResendPhoneVerificationCodeResponse,
+    ResendEmailVerificationCodeRequest,
+    ResendEmailVerificationCodeResponse,
     SafeAuthenticatedUserResponse,
     VerifyPhoneCodeRequest,
     VerifyPhoneCodeResponse,
+    VerifyEmailCodeRequest,
+    VerifyEmailCodeResponse,
 )
 from app.services.auth_service import AuthenticationService, RegistrationService, SafeAuthenticatedUser
+from app.services.email_verification_service import EmailVerificationService
 from app.services.password_reset_service import (
     GENERIC_INVALID_PASSWORD_RESET_MESSAGE,
     GENERIC_FORGOT_PASSWORD_MESSAGE,
@@ -70,6 +79,85 @@ from app.services.refresh_session_service import RefreshSessionService
 
 router = APIRouter(tags=["authentication"])
 NO_STORE_HEADERS = {"Cache-Control": "no-store", "Pragma": "no-cache"}
+
+
+@router.post(
+    "/email/resend-code",
+    response_model=ResendEmailVerificationCodeResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def resend_email_verification_code(
+    request: ResendEmailVerificationCodeRequest,
+    response: Response,
+    _: None = Depends(enforce_auth_origin),
+    current_user: SafeAuthenticatedUser = Depends(
+        enforce_email_verification_resend_rate_limit
+    ),
+    session: Session = Depends(get_db),
+    service: EmailVerificationService = Depends(get_email_verification_service),
+) -> ResendEmailVerificationCodeResponse:
+    try:
+        result = service.resend(session, user_id=current_user.id)
+    except EmailVerificationError as exc:
+        headers = dict(NO_STORE_HEADERS)
+        if exc.retry_after is not None:
+            headers["Retry-After"] = str(exc.retry_after)
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+            headers=headers,
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Email verification request could not be completed.",
+            headers=NO_STORE_HEADERS,
+        ) from exc
+    response.headers.update(NO_STORE_HEADERS)
+    return ResendEmailVerificationCodeResponse.model_validate(
+        result,
+        from_attributes=True,
+    )
+
+
+@router.post(
+    "/email/verify",
+    response_model=VerifyEmailCodeResponse,
+    status_code=status.HTTP_200_OK,
+)
+def verify_email_code(
+    request: VerifyEmailCodeRequest,
+    response: Response,
+    _: None = Depends(enforce_auth_origin),
+    current_user: SafeAuthenticatedUser = Depends(
+        enforce_email_verification_verify_rate_limit
+    ),
+    session: Session = Depends(get_db),
+    service: EmailVerificationService = Depends(get_email_verification_service),
+) -> VerifyEmailCodeResponse:
+    try:
+        result = service.verify(
+            session,
+            user_id=current_user.id,
+            submitted_code=request.code,
+        )
+    except EmailVerificationError as exc:
+        headers = dict(NO_STORE_HEADERS)
+        if exc.retry_after is not None:
+            headers["Retry-After"] = str(exc.retry_after)
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+            headers=headers,
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Email verification could not be completed.",
+            headers=NO_STORE_HEADERS,
+        ) from exc
+    response.headers.update(NO_STORE_HEADERS)
+    return VerifyEmailCodeResponse.model_validate(result, from_attributes=True)
 
 
 @router.post(
