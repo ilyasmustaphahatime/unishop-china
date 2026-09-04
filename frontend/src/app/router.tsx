@@ -1,12 +1,28 @@
 import { lazy, Suspense, type ComponentType } from 'react';
 import { createBrowserRouter, type RouteObject } from 'react-router';
 import AuthLayout from '../components/layout/AuthLayout';
+import AuthenticatedLayout from '../components/layout/AuthenticatedLayout';
 import MainLayout from '../components/layout/MainLayout';
+import ProfileGate from '../components/profiles/ProfileGate';
 import GuestRoute from '../routes/GuestRoute';
 import ProtectedRoute from '../routes/ProtectedRoute';
-import RoleRoute from '../routes/RoleRoute';
 
-const pages = import.meta.glob(['../pages/**/*.tsx', '!../pages/dev/**/*.tsx']);
+const pages = import.meta.glob([
+  '../pages/public/HomePage.tsx',
+  '../pages/public/PublicProfilePage.tsx',
+  '../pages/public/SafetyPage.tsx',
+  '../pages/public/TermsPage.tsx',
+  '../pages/public/PrivacyPage.tsx',
+  '../pages/public/NotFoundPage.tsx',
+  '../pages/auth/LoginPage.tsx',
+  '../pages/auth/SignUpPage.tsx',
+  '../pages/auth/PhoneVerificationPage.tsx',
+  '../pages/auth/ForgotPasswordPage.tsx',
+  '../pages/auth/ResetPasswordPage.tsx',
+  '../pages/shared/OnboardingPage.tsx',
+  '../pages/shared/ProfilePage.tsx',
+  '../pages/shared/EditProfilePage.tsx',
+]);
 const localPhoneVerificationPage = import.meta.env.DEV
   ? () => import('../pages/dev/LocalPhoneVerificationPage')
   : undefined;
@@ -37,9 +53,7 @@ function mapRoutes(routes: Array<[string, string]>): RouteObject[] {
 
 const publicRoutes = mapRoutes([
   ['/', 'public/HomePage'],
-  ['/marketplace', 'public/MarketplacePage'],
-  ['/products/:productId', 'public/ProductDetailsPage'],
-  ['/sellers/:sellerId', 'public/SellerPublicProfilePage'],
+  ['/users/:publicId', 'public/PublicProfilePage'],
   ['/safety', 'public/SafetyPage'],
   ['/terms', 'public/TermsPage'],
   ['/privacy', 'public/PrivacyPage'],
@@ -51,40 +65,9 @@ const guestRoutes = mapRoutes([
   ['/forgot-password', 'auth/ForgotPasswordPage'],
   ['/reset-password', 'auth/ResetPasswordPage'],
 ]);
-const buyerRoutes = mapRoutes([
-  ['/buyer/dashboard', 'buyer/BuyerDashboardPage'],
-  ['/buyer/profile', 'buyer/BuyerProfilePage'],
-  ['/buyer/favorites', 'buyer/FavoritesPage'],
-  ['/buyer/deals', 'buyer/BuyerDealsPage'],
-  ['/buyer/reviews', 'buyer/BuyerReviewsPage'],
-  ['/buyer/recently-viewed', 'buyer/RecentlyViewedPage'],
-]);
-const sellerRoutes = mapRoutes([
-  ['/seller/dashboard', 'seller/SellerDashboardPage'],
-  ['/seller/verification', 'seller/SellerVerificationPage'],
-  ['/seller/products', 'seller/SellerProductsPage'],
-  ['/seller/products/new', 'seller/AddProductPage'],
-  ['/seller/products/:productId/edit', 'seller/EditProductPage'],
-  ['/seller/deals', 'seller/SellerDealsPage'],
-  ['/seller/reviews', 'seller/SellerReviewsPage'],
-  ['/seller/profile', 'seller/SellerProfilePage'],
-]);
-const sharedRoutes = mapRoutes([
-  ['/messages', 'shared/MessagesPage'],
-  ['/notifications', 'shared/NotificationsPage'],
-  ['/settings', 'shared/SettingsPage'],
-  ['/reports', 'shared/ReportsPage'],
-]);
-const adminRoutes = mapRoutes([
-  ['/admin', 'admin/AdminDashboardPage'],
-  ['/admin/users', 'admin/AdminUsersPage'],
-  ['/admin/seller-verifications', 'admin/AdminSellerVerificationsPage'],
-  ['/admin/products', 'admin/AdminProductsPage'],
-  ['/admin/product-proofs', 'admin/AdminProductProofsPage'],
-  ['/admin/reports', 'admin/AdminReportsPage'],
-  ['/admin/reviews', 'admin/AdminReviewsPage'],
-  ['/admin/categories', 'admin/AdminCategoriesPage'],
-  ['/admin/cities', 'admin/AdminCitiesPage'],
+const profileRoutes = mapRoutes([
+  ['/profile', 'shared/ProfilePage'],
+  ['/profile/edit', 'shared/EditProfilePage'],
 ]);
 
 type RouterFlags = {
@@ -107,22 +90,19 @@ export function buildRouteObjects({
       children: [
         ...publicRoutes,
         ...developmentRoutes,
+        { path: '*', element: page('public/NotFoundPage') },
+      ],
+    },
+    {
+      element: <ProtectedRoute />,
+      children: [
         {
-          element: <ProtectedRoute />,
+          element: <AuthenticatedLayout />,
           children: [
-            ...sharedRoutes,
-            {
-              element: <RoleRoute allow={['BUYER', 'ADMIN']} />,
-              children: buyerRoutes,
-            },
-            {
-              element: <RoleRoute allow={['SELLER', 'ADMIN']} />,
-              children: sellerRoutes,
-            },
-            { element: <RoleRoute allow={['ADMIN']} />, children: adminRoutes },
+            { path: '/onboarding', element: page('shared/OnboardingPage') },
+            { element: <ProfileGate />, children: profileRoutes },
           ],
         },
-        { path: '*', element: page('public/NotFoundPage') },
       ],
     },
     {

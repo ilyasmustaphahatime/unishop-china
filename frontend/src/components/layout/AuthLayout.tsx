@@ -15,7 +15,7 @@ export default function AuthLayout() {
       <section className="flex min-h-screen flex-col">
         <header className="flex items-center justify-between p-5 sm:px-8">
           <Link className="font-black text-red-600 lg:hidden" to="/">UniShop China</Link>
-          <Link className="ml-auto text-sm font-semibold text-slate-600 hover:text-slate-950" to="/marketplace">Browse marketplace</Link>
+          <Link className="ml-auto text-sm font-semibold text-slate-600 hover:text-slate-950" to="/">About UniShop</Link>
         </header>
         <div className="flex flex-1 items-center justify-center px-4 pb-12 sm:px-8"><Outlet /></div>
       </section>

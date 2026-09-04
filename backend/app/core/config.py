@@ -184,6 +184,15 @@ class Settings(BaseSettings):
     logout_all_user_rate_limit_requests: int = Field(default=5, ge=1, le=1000)
     logout_all_user_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
     session_rate_limit_max_keys: int = Field(default=10000, ge=100, le=100000)
+    profile_write_user_rate_limit_requests: int = Field(default=30, ge=1, le=1000)
+    profile_write_ip_rate_limit_requests: int = Field(default=60, ge=1, le=2000)
+    profile_write_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    onboarding_user_rate_limit_requests: int = Field(default=10, ge=1, le=1000)
+    onboarding_ip_rate_limit_requests: int = Field(default=30, ge=1, le=2000)
+    onboarding_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    public_profile_ip_rate_limit_requests: int = Field(default=120, ge=1, le=5000)
+    public_profile_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    profile_rate_limit_max_keys: int = Field(default=10000, ge=100, le=100000)
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,

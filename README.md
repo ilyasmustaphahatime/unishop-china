@@ -5,7 +5,7 @@ UniShop China is a full-stack marketplace starter for international students and
 ## Stack and structure
 
 - `frontend/`: React, TypeScript, Vite, Router, Axios, TanStack Query, Zustand, Tailwind.
-- `backend/`: FastAPI, SQLAlchemy, Alembic, Pydantic, JWT-ready security placeholders, PyMySQL, WebSockets.
+- `backend/`: FastAPI, SQLAlchemy, Alembic, Pydantic, secure JWT/session authentication, PyMySQL, and the Phase 6 profile API.
 - `database/`: MySQL 8 bootstrap, seed placeholders, diagrams, ignored backups.
 - `documentation/`, `postman/`, `infrastructure/`, `scripts/`: engineering documentation and local tooling.
 
@@ -30,4 +30,4 @@ npm run dev
 
 Install MySQL 8 locally, create `unishop_china` with `utf8mb4`, and configure `backend/.env`; or start everything with `docker compose up --build`. Create migrations with `alembic revision --autogenerate -m "description"` and apply them with `alembic upgrade head`.
 
-Most domain models, schemas, repositories, services, routes, tests, and documentation pages are intentional placeholders. Authentication and marketplace business logic are not implemented yet.
+Authentication through Phase 5E and profiles/onboarding through Phase 6 are implemented and tested. Later marketplace domains remain intentional placeholders and are not exposed as functional frontend routes.

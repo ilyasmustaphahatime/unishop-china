@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from app.models.phone_verification_code import PhoneVerificationCode
     from app.models.refresh_token import RefreshToken
     from app.models.user_role import UserRole
+    from app.models.profile import UserProfile
 
 
 class User(UUIDTimestampMixin, Base):
@@ -78,4 +79,10 @@ class User(UUIDTimestampMixin, Base):
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
+    )
+    profile: Mapped["UserProfile | None"] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        uselist=False,
     )

@@ -54,7 +54,7 @@ function renderLogin(from: unknown = undefined) {
         <Routes>
           <Route path="/login" element={<LoginForm />} />
           <Route path="/messages" element={<p>Messages destination</p>} />
-          <Route path="/buyer/dashboard" element={<p>Buyer destination</p>} />
+          <Route path="/profile" element={<p>Profile destination</p>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -113,7 +113,7 @@ describe('real login integration', () => {
     await user.type(screen.getByLabelText('Password'), 'x');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    expect(await screen.findByText('Buyer destination')).toBeInTheDocument();
+    expect(await screen.findByText('Profile destination')).toBeInTheDocument();
   });
 
   it('does not reveal inactive-account details or establish local state on failure', async () => {

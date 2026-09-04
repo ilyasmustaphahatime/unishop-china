@@ -34,3 +34,22 @@ describe('development-only fake SMS route', () => {
     expect(paths).not.toContain('/dev/phone-verification');
   });
 });
+
+describe('Phase 6 route inventory', () => {
+  it('exposes profile routes without future marketplace feature routes', () => {
+    const paths = collectPaths(
+      buildRouteObjects({ isDevelopment: false, fakeSmsPageEnabled: false }),
+    );
+
+    expect(paths).toEqual(expect.arrayContaining(['/onboarding', '/profile', '/profile/edit', '/users/:publicId']));
+    expect(paths).not.toEqual(
+      expect.arrayContaining([
+        '/seller/verification',
+        '/seller/products',
+        '/messages',
+        '/admin',
+        '/products/:productId',
+      ]),
+    );
+  });
+});

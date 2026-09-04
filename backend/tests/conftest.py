@@ -13,6 +13,7 @@ from app.models import (
     PhoneVerificationCode,
     RefreshToken,
     User,
+    UserProfile,
     UserRole,
 )
 
@@ -23,6 +24,7 @@ TRACKED_TEST_TABLES = (
     RefreshToken,
     PasswordResetCode,
     EmailVerificationCode,
+    UserProfile,
 )
 
 

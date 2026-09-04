@@ -50,8 +50,11 @@ def test_project_status_records_completed_phase_5e() -> None:
     assert "Phase 5D secure authenticated email ownership verification" in status
     assert "Phase 5E final integrated authentication security audit" in status
     assert "Phase 1-5 authentication subsystem: closed" in status
-    assert "Ready for separately approved Phase 6 development: yes" in status
-    assert "Backend: 536 passed" in status
+    assert "Phase 6 secure profiles, onboarding" in status
+    assert "ready for separately approved Phase 7 development" in status
+    assert "Backend: 597 passed" in status
+    assert "Frontend: 68 passed" in status
+    assert "f6a1b2c3d4e5" in status
     assert "refresh tokens 7" in status
     assert "Phase 4D: not started" not in status
     assert "final real-browser workflow sign-off pending" not in status

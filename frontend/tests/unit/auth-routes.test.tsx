@@ -37,7 +37,7 @@ function renderGuest() {
   return render(
     <MemoryRouter initialEntries={['/login']}>
       <Routes>
-        <Route path="/buyer/dashboard" element={<p>Buyer dashboard</p>} />
+        <Route path="/profile" element={<p>Profile page</p>} />
         <Route element={<GuestRoute />}>
           <Route path="/login" element={<p>Guest login</p>} />
         </Route>
@@ -77,7 +77,7 @@ describe('authentication route guards', () => {
   it('redirects an authenticated visitor away from the login route', () => {
     useAuthStore.getState().setAuthenticated('memory-value-a', safeUser);
     renderGuest();
-    expect(screen.getByText('Buyer dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Profile page')).toBeInTheDocument();
   });
 });
 

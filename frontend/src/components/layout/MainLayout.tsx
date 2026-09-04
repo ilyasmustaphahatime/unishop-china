@@ -9,7 +9,6 @@ export default function MainLayout() {
           <Link to="/" className="font-bold text-red-600">
             UniShop China
           </Link>
-          <Link to="/marketplace">Marketplace</Link>
           <Link to="/safety">Safety</Link>
           <AuthActions />
         </nav>

@@ -18,8 +18,9 @@
 - Phase 5D secure authenticated email ownership verification, provider-safe challenge activation, durable abuse controls, replay protection, and MySQL concurrency safety: complete.
 - Phase 5E final integrated authentication security audit, cross-purpose/cross-user matrices, real-MySQL cross-feature races, lifecycle verification, and closure gate: complete.
 - Phase 1-5 authentication subsystem: closed.
-- Ready for separately approved Phase 6 development: yes.
-- Protected marketplace object/function authorization: not started.
+- Phase 6 secure profiles, onboarding, public-profile privacy, frontend design system, and authenticated shell: complete.
+- Phase 1-6 foundation: ready for separately approved Phase 7 development.
+- Protected profile object/function authorization: implemented and verified.
 
 ## Pre-Phase-4 cleanup status
 
@@ -44,8 +45,9 @@
 
 - MySQL connection succeeds against `unishop_china`.
 - SQLAlchemy uses parameterized expressions and no request-derived raw SQL.
-- Alembic current and head are `d5f0c1e2a3b4`; no schema drift exists.
+- Alembic current and head are `f6a1b2c3d4e5`; no schema drift exists.
 - Authentication tables are `users`, `user_roles`, `refresh_tokens`, `phone_verification_codes`, `password_reset_codes`, and `email_verification_codes`.
+- Marketplace profile data is isolated in `user_profiles` with unique user/public identifiers, bounded fields, and server-owned onboarding state.
 - Strict Pydantic schemas reject unknown and privileged registration fields.
 - Global validation-error sanitization prevents passwords, reset/verification codes, tokens, secrets, and nested submitted values from being reflected in HTTP 422 responses while retaining safe field metadata.
 - Passwords use Argon2id; OTP values use HMAC-SHA256 and constant-time comparison.
@@ -87,24 +89,36 @@
 - Registration identifier enumeration remains an accepted LOW contract risk; stateless access-token lifetime and process-local limiting remain documented architecture residuals.
 - Fresh browser automation was environment-blocked; no evidence was fabricated. The passing source/test audit and prior user-verified 7/7 Phase 4C browser gate remain the browser evidence.
 
+## Phase 6 closure evidence
+
+- One additive `user_profiles` migration passed upgrade, downgrade, upgrade-again, one-head, and drift checks against real MySQL.
+- Own-profile reads/writes derive identity only from the ACTIVE bearer principal; 16 malicious mass-assignment fields are rejected.
+- Incomplete and inactive profiles are hidden publicly; public responses exclude contact, internal ID, role, status, auth, and session data.
+- Onboarding is server-authoritative and idempotent. Clearing a required field clears completion.
+- First creation, update, onboarding, update-versus-completion, and rollback paths passed real-MySQL concurrency/integrity tests and five stress repetitions.
+- The responsive frontend includes a small accessible design system, authenticated shell, onboarding, own profile, edit profile, and safe public profile.
+- Private profile cache is user-scoped and removed at session clear; access/refresh token storage architecture is unchanged.
+- A fresh real HTTP/MySQL Phase 6 lifecycle passed with exact synthetic cleanup. In-app browser automation remained environment-blocked and no result was fabricated.
+
 ## Tests and database state
 
-- Backend: 536 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Backend: 597 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
 - Phase 5E integrated suite: 11 passed and also passed five consecutive stress repetitions; phone account-state regression adds three status cases.
 - Phase 5D focused security suite: 57 passed, covering cryptography, strict schemas, provider guards/failure, IDOR, mass assignment, cooldown/hour limits, HTTP limits, Fake Email isolation, rollback, session preservation, and real MySQL concurrency.
 - Phase 5C focused security suite: 64 passed, including IDOR, strict validation, Argon2id, wrong/same password, session and reset isolation, rate limits, CSRF decision, rollback, sensitive data, and real MySQL concurrency.
 - Pre-Phase 5C blocker suite: 16 passed, covering validation reflection, nested/extra sensitive input, safe metadata, no request-body logging, Docker ignore policy, Dockerfile secret patterns, and Compose runtime substitution.
-- Frontend: 49 passed, 0 failed, 0 skipped.
+- Frontend: 68 passed, 0 failed, 0 skipped.
 - Frontend type check, lint, and production build pass.
 - `pip check`, `pip-audit`, `npm audit`, and `npm audit --omit=dev` pass; Browserslist is pinned to patched `4.28.8` for the development/build graph.
 - Development database baseline and final counts: users 4, user roles 4, phone codes 3, refresh tokens 7, reset codes 0, email verification codes 0.
+- Phase 6 profile rows after synthetic cleanup: 0; orphan profiles and duplicate user/public profile identifiers: 0.
 - Orphan roles, OTP rows, refresh rows, reset rows, and email-verification rows: 0. Refresh replacement-link and family-integrity checks also pass.
 
 Every database test uses an outer transaction/savepoint and verifies exact counts plus pre-existing user/role identifiers after rollback. No broad deletion, truncation, schema reset, or legitimate-data modification is used.
 
 ## Authorization boundary
 
-The backend now establishes identity through a validated access token and protects `/api/v1/auth/me`. There is still no marketplace object API in scope, so object-level authorization cannot truthfully be marked implemented. Frontend route guards remain navigation aids only. Future protected endpoints must add deny-by-default function and object authorization on top of `get_current_user()`.
+The backend establishes identity through a validated access token and current ACTIVE database state. Profile writes use only `/profile/me`; no client-supplied internal or public identifier grants write authority. Public identifiers are read-only lookup keys, not authorization credentials. Frontend guards remain navigation aids only; backend dependencies and service rechecks are the enforcement boundary.
 
 ## Known limitations
 
@@ -125,8 +139,10 @@ The backend now establishes identity through a validated access token and protec
 - Dedicated local secret-scanner CLIs and fresh in-app browser automation were unavailable during Phase 5E; structural/pattern scanning and the prior manual browser gate were used without fabricating evidence.
 - Registration duplicate conflicts disclose identifier existence and remain an accepted LOW API-contract risk.
 - Same-account hostile MySQL races may select one request as a deadlock victim; rollback is atomic and the failed request must retry.
+- Profile/onboarding rate limits are process-local; production horizontal deployments require shared storage.
+- The six-city Phase 6 allow-list is intentionally small and will migrate to the managed Phase 8 city catalog.
 - A third-party Starlette TestClient deprecation warning remains.
 
 ## Exact next step
 
-Phases 1–5 authentication are closed. The next separately approved step is Phase 6 user profiles/onboarding, with backend object/function authorization added to each new protected resource. Email changing, a production email provider, MFA, OAuth, passkeys, account deletion/export, and other future identity features remain outside the completed scope.
+Phases 1–5 authentication remain closed and Phase 6 profiles/onboarding is complete. The next separately approved step is Phase 7; seller verification, KYC/documents/selfies/WeChat proof, products, images, search, chat, deals, reviews, notifications, and administration remain outside Phase 6.

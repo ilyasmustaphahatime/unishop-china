@@ -1,9 +1,8 @@
 import type { UserRole } from '../features/auth/types';
 
 export function dashboardForRoles(roles: UserRole[]): string {
-  if (roles.includes('ADMIN')) return '/admin';
-  if (roles.includes('SELLER')) return '/seller/dashboard';
-  return '/buyer/dashboard';
+  void roles;
+  return '/profile';
 }
 
 export function safeInternalPath(candidate: unknown, fallback: string): string {
