@@ -34,7 +34,7 @@ def test_dockerfile_has_valid_json_command(
     assert json.loads(command_lines[0]) == expected_command
 
 
-def test_project_status_records_completed_phase_5d() -> None:
+def test_project_status_records_completed_phase_5e() -> None:
     status = (PROJECT_ROOT / "documentation/CURRENT_PROJECT_STATUS.md").read_text(
         encoding="utf-8"
     )
@@ -48,9 +48,10 @@ def test_project_status_records_completed_phase_5d() -> None:
     assert "Pre-Phase 5C validation-response and Docker build-context security blockers: resolved" in status
     assert "Phase 5C secure authenticated password change" in status
     assert "Phase 5D secure authenticated email ownership verification" in status
-    assert "Phase 5E: not started" in status
-    assert "Ready for separately approved Phase 5E planning: yes" in status
-    assert "Backend: 522 passed" in status
+    assert "Phase 5E final integrated authentication security audit" in status
+    assert "Phase 1-5 authentication subsystem: closed" in status
+    assert "Ready for separately approved Phase 6 development: yes" in status
+    assert "Backend: 536 passed" in status
     assert "refresh tokens 7" in status
     assert "Phase 4D: not started" not in status
     assert "final real-browser workflow sign-off pending" not in status
@@ -90,6 +91,17 @@ def test_project_status_records_completed_phase_5d() -> None:
     assert (
         PROJECT_ROOT
         / "documentation/security/PHASE_5D_EMAIL_VERIFICATION_THREAT_MODEL.md"
+    ).is_file()
+    assert (
+        PROJECT_ROOT
+        / "documentation/phases/PHASE_5E_FINAL_AUTHENTICATION_SECURITY_AUDIT.md"
+    ).is_file()
+    assert (
+        PROJECT_ROOT
+        / "documentation/security/PHASE_5E_INTEGRATED_AUTH_THREAT_MODEL.md"
+    ).is_file()
+    assert (
+        PROJECT_ROOT / "documentation/security/PHASE_5E_SECURITY_FINDINGS.md"
     ).is_file()
 
 

@@ -16,9 +16,9 @@
 - Pre-Phase 5C validation-response and Docker build-context security blockers: resolved.
 - Phase 5C secure authenticated password change, current-password proof, atomic reset/session invalidation, concurrency control, and dual rate limits: complete.
 - Phase 5D secure authenticated email ownership verification, provider-safe challenge activation, durable abuse controls, replay protection, and MySQL concurrency safety: complete.
-- Phase 5E: not started.
-- Phase 1-5D authentication foundation: complete.
-- Ready for separately approved Phase 5E planning: yes.
+- Phase 5E final integrated authentication security audit, cross-purpose/cross-user matrices, real-MySQL cross-feature races, lifecycle verification, and closure gate: complete.
+- Phase 1-5 authentication subsystem: closed.
+- Ready for separately approved Phase 6 development: yes.
 - Protected marketplace object/function authorization: not started.
 
 ## Pre-Phase-4 cleanup status
@@ -50,7 +50,7 @@
 - Global validation-error sanitization prevents passwords, reset/verification codes, tokens, secrets, and nested submitted values from being reflected in HTTP 422 responses while retaining safe field metadata.
 - Passwords use Argon2id; OTP values use HMAC-SHA256 and constant-time comparison.
 - Registration assigns only the `BUYER` role.
-- Phone resend retains its cooldown/hourly limits and verification retains its five-attempt limit.
+- Phone resend retains its cooldown/hourly limits, verification retains its five-attempt limit, and `SUSPENDED`, `BANNED`, or `DELETED` accounts cannot receive or consume a phone challenge.
 - Registration and phone-verification APIs return no OTP, password, hash, token, provider error, stack trace, or database detail.
 - Login returns only a 15-minute access token plus a schema-protected user view; `/auth/me` reloads current roles and ACTIVE status from MySQL.
 - Unknown users, wrong passwords, and inactive users share one generic 401 response, with dummy Argon2 verification for unknown users.
@@ -77,14 +77,26 @@
 - Successful verification atomically consumes the challenge and changes only `users.email_verified`; passwords, roles, phone state, account status, reset challenges, and refresh sessions are preserved.
 - Concurrent correct verification yields exactly one success, concurrent wrong attempts have no lost increments, concurrent resend leaves at most one usable challenge, and delayed provider delivery cannot resurrect stale state.
 
+## Phase 5E closure evidence
+
+- The explicit phone/email/password-reset purpose-separation matrix permits only matching-purpose challenges.
+- IDOR/BOLA, mass-assignment, account-state, JWT, CSRF/Origin, cookie, CORS, validation, logging, secret, fake-provider, transaction, and OWASP-targeted reviews are complete.
+- Real HTTP/MySQL lifecycle passed registration, both verification channels, login, `/me`, refresh rotation, logout, reset, password change, logout-all, revocation, and exact synthetic cleanup.
+- The twelve-case real-MySQL concurrency matrix passes, including reset/change/logout-all versus refresh; a deadlock victim rolls back safely and requires retry.
+- One MEDIUM phone account-state defect and one LOW development dependency issue were fixed. No Critical, High, or unresolved Medium finding remains.
+- Registration identifier enumeration remains an accepted LOW contract risk; stateless access-token lifetime and process-local limiting remain documented architecture residuals.
+- Fresh browser automation was environment-blocked; no evidence was fabricated. The passing source/test audit and prior user-verified 7/7 Phase 4C browser gate remain the browser evidence.
+
 ## Tests and database state
 
-- Backend: 522 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Backend: 536 passed, 0 failed, 0 skipped, 1 third-party deprecation warning.
+- Phase 5E integrated suite: 11 passed and also passed five consecutive stress repetitions; phone account-state regression adds three status cases.
 - Phase 5D focused security suite: 57 passed, covering cryptography, strict schemas, provider guards/failure, IDOR, mass assignment, cooldown/hour limits, HTTP limits, Fake Email isolation, rollback, session preservation, and real MySQL concurrency.
 - Phase 5C focused security suite: 64 passed, including IDOR, strict validation, Argon2id, wrong/same password, session and reset isolation, rate limits, CSRF decision, rollback, sensitive data, and real MySQL concurrency.
 - Pre-Phase 5C blocker suite: 16 passed, covering validation reflection, nested/extra sensitive input, safe metadata, no request-body logging, Docker ignore policy, Dockerfile secret patterns, and Compose runtime substitution.
 - Frontend: 49 passed, 0 failed, 0 skipped.
 - Frontend type check, lint, and production build pass.
+- `pip check`, `pip-audit`, `npm audit`, and `npm audit --omit=dev` pass; Browserslist is pinned to patched `4.28.8` for the development/build graph.
 - Development database baseline and final counts: users 4, user roles 4, phone codes 3, refresh tokens 7, reset codes 0, email verification codes 0.
 - Orphan roles, OTP rows, refresh rows, reset rows, and email-verification rows: 0. Refresh replacement-link and family-integrity checks also pass.
 
@@ -110,8 +122,11 @@ The backend now establishes identity through a validated access token and protec
 - Real Tencent Signature/Template approval and credentials remain unavailable.
 - Production TLS, CSP, monitoring, secret rotation, and distributed rate limiting are deployment prerequisites.
 - Docker image construction was not rechecked in Phase 4D because Docker CLI was unavailable.
+- Dedicated local secret-scanner CLIs and fresh in-app browser automation were unavailable during Phase 5E; structural/pattern scanning and the prior manual browser gate were used without fabricating evidence.
+- Registration duplicate conflicts disclose identifier existence and remain an accepted LOW API-contract risk.
+- Same-account hostile MySQL races may select one request as a deadlock victim; rollback is atomic and the failed request must retry.
 - A third-party Starlette TestClient deprecation warning remains.
 
 ## Exact next step
 
-Phase 5D is complete and all security/regression gates pass. Phase 5E remains not started and requires separate approval and scope definition. Email changing, a production email provider, recovery UI expansion, MFA, OAuth, passkeys, password history, and marketplace features remain outside the completed scope.
+Phases 1–5 authentication are closed. The next separately approved step is Phase 6 user profiles/onboarding, with backend object/function authorization added to each new protected resource. Email changing, a production email provider, MFA, OAuth, passkeys, account deletion/export, and other future identity features remain outside the completed scope.

@@ -10,6 +10,7 @@ from app.api.v1.auth.dependencies import (
     get_phone_verification_service,
     get_registration_service,
 )
+from app.common.enums import AccountStatus
 from app.core.database import get_db
 from app.integrations.sms_client import FakeSmsSender
 from app.main import app
@@ -231,6 +232,40 @@ def test_already_verified_phone_resend_does_not_call_sender(
     assert verified.status_code == 200
     assert resend.status_code == 202
     assert len(fake_sender.deliveries) == 1
+
+
+@pytest.mark.parametrize(
+    "account_status",
+    [AccountStatus.SUSPENDED, AccountStatus.BANNED, AccountStatus.DELETED],
+)
+def test_inactive_accounts_cannot_resend_or_complete_phone_verification(
+    client: TestClient,
+    fake_sender: FakeSmsSender,
+    db_session: Session,
+    account_status: AccountStatus,
+) -> None:
+    register_phone(client)
+    user = db_session.scalar(select(User).where(User.phone_number == PHONE))
+    assert user is not None
+    user.account_status = account_status
+    db_session.commit()
+    delivery_count = len(fake_sender.deliveries)
+
+    resend = client.post(
+        "/api/v1/auth/phone/resend-code",
+        json={"phone_number": PHONE},
+    )
+    verification = client.post(
+        "/api/v1/auth/phone/verify",
+        json={"phone_number": PHONE, "code": "123456"},
+    )
+
+    assert resend.status_code == 202
+    assert verification.status_code == 400
+    assert verification.json()["detail"]["code"] == "INVALID_VERIFICATION_CODE"
+    assert len(fake_sender.deliveries) == delivery_count
+    db_session.refresh(user)
+    assert user.phone_verified is False
 
 
 def test_provider_failure_expires_exact_resend_record(

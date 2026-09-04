@@ -7,6 +7,7 @@ from pydantic import SecretStr
 from sqlalchemy.orm import Session
 
 from app.common.datetime_utils import as_utc
+from app.common.enums import AccountStatus
 from app.core.exceptions import PhoneVerificationError
 from app.core.security import (
     VerificationCodeGenerator,
@@ -68,7 +69,11 @@ class PhoneVerificationService:
         now = as_utc(self.now_provider())
         with session.begin():
             user = self.user_repository.get_by_phone(session, phone_number, for_update=True)
-            if user is None or user.phone_verified:
+            if (
+                user is None
+                or user.account_status is not AccountStatus.ACTIVE
+                or user.phone_verified
+            ):
                 return ResendResult()
 
             latest = self.phone_code_repository.get_latest_for_phone(session, phone_number)
@@ -131,7 +136,7 @@ class PhoneVerificationService:
         now = as_utc(self.now_provider())
         with session.begin():
             user = self.user_repository.get_by_phone(session, phone_number, for_update=True)
-            if user is None:
+            if user is None or user.account_status is not AccountStatus.ACTIVE:
                 outcome = self._invalid_error()
             elif user.phone_verified:
                 return VerificationResult()
