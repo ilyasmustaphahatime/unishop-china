@@ -1,4 +1,4 @@
-import { apiClient, sessionClient } from '../../services/apiClient';
+import { apiClient, currentSessionVersion, requireCurrentSession, sessionClient, settleSessionRequests } from '../../services/apiClient';
 import type { AuthUser, LoginCredentials, LoginResponse } from './types';
 import {
   authUserApiSchema,
@@ -20,7 +20,10 @@ function mapUser(user: AuthUserApiResponse): AuthUser {
 }
 
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
+  await settleSessionRequests();
+  const version = currentSessionVersion();
   const response = await sessionClient.post('/auth/login', credentials);
+  requireCurrentSession(version);
   const data = loginApiSchema.parse(response.data);
 
   return {

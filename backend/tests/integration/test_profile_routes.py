@@ -131,6 +131,10 @@ def test_update_and_idempotent_server_authoritative_onboarding(client: TestClien
     "field",
     [
         "user_id",
+        "id",
+        "profile_id",
+        "email",
+        "phone",
         "public_id",
         "role",
         "roles",

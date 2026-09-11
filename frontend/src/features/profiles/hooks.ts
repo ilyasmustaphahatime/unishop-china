@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
+import { currentSessionVersion, requireCurrentSession } from '../../services/apiClient';
 import {
   completeOnboarding,
   getMyProfile,
@@ -28,9 +29,14 @@ export function useMyProfile() {
 export function useUpdateProfile() {
   const userId = useAuthStore((state) => state.user?.id);
   const queryClient = useQueryClient();
+  const version = useAuthStore((state) => state.sessionVersion);
   return useMutation({
-    mutationFn: updateMyProfile,
+    mutationFn: (input: Parameters<typeof updateMyProfile>[0]) => {
+      requireCurrentSession(version);
+      return updateMyProfile(input);
+    },
     onSuccess: (profile) => {
+      if (version !== currentSessionVersion()) return;
       queryClient.setQueryData(profileKeys.my(userId), profile);
       queryClient.removeQueries({ queryKey: profileKeys.public(profile.publicId) });
     },
@@ -40,9 +46,14 @@ export function useUpdateProfile() {
 export function useCompleteOnboarding() {
   const userId = useAuthStore((state) => state.user?.id);
   const queryClient = useQueryClient();
+  const version = useAuthStore((state) => state.sessionVersion);
   return useMutation({
-    mutationFn: completeOnboarding,
+    mutationFn: () => {
+      requireCurrentSession(version);
+      return completeOnboarding();
+    },
     onSuccess: (profile) => {
+      if (version !== currentSessionVersion()) return;
       queryClient.setQueryData(profileKeys.my(userId), profile);
       queryClient.removeQueries({ queryKey: profileKeys.public(profile.publicId) });
     },

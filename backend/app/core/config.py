@@ -116,6 +116,9 @@ class Settings(BaseSettings):
     fake_sms_inbox_max_messages: int = Field(default=100, ge=1, le=1000)
     fake_sms_localhost_only: bool = True
     registration_rate_limit_requests: int = Field(default=20, ge=1, le=1000)
+    phone_verification_ip_rate_limit_requests: int = Field(default=20, ge=1, le=100)
+    phone_verification_ip_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    phone_verification_rate_limit_max_keys: int = Field(default=10000, ge=100, le=100000)
     registration_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
     registration_rate_limit_max_clients: int = Field(default=10000, ge=100, le=100000)
     login_ip_rate_limit_requests: int = Field(default=5, ge=1, le=100)

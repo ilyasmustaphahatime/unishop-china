@@ -19,11 +19,11 @@ class FakeUserRepository:
         self.email_lookups: list[str] = []
         self.phone_lookups: list[str] = []
 
-    def get_by_email(self, _session: object, email: str) -> object | None:
+    def get_by_email(self, _session: object, email: str, *, for_update: bool = False) -> object | None:
         self.email_lookups.append(email)
         return self.user
 
-    def get_by_phone(self, _session: object, phone: str) -> object | None:
+    def get_by_phone(self, _session: object, phone: str, *, for_update: bool = False) -> object | None:
         self.phone_lookups.append(phone)
         return self.user
 

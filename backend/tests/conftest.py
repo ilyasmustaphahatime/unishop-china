@@ -28,6 +28,15 @@ TRACKED_TEST_TABLES = (
 )
 
 
+@pytest.fixture(autouse=True)
+def isolate_phone_request_budget():
+    from app.api.v1.auth.dependencies import phone_verification_ip_rate_limiter
+
+    phone_verification_ip_rate_limiter.clear()
+    yield
+    phone_verification_ip_rate_limiter.clear()
+
+
 def _database_snapshot() -> tuple[tuple[int, ...], frozenset[str], frozenset[str]]:
     with Session(engine) as audit_session:
         counts = tuple(

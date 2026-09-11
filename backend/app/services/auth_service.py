@@ -95,9 +95,13 @@ class AuthenticationService:
     ) -> AuthenticationResult:
         with self._transaction(session):
             if request.identifier_kind == "email":
-                user = self.user_repository.get_by_email(session, request.identifier)
+                user = self.user_repository.get_by_email(
+                    session, request.identifier, for_update=True
+                )
             else:
-                user = self.user_repository.get_by_phone(session, request.identifier)
+                user = self.user_repository.get_by_phone(
+                    session, request.identifier, for_update=True
+                )
 
             password_hash = user.password_hash if user is not None else self.dummy_password_hash
             password_is_valid = self.password_verifier(request.password, password_hash)

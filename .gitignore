@@ -1,5 +1,11 @@
 ﻿.env
+.env.*
 !.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
 __pycache__/
 *.py[cod]
 .venv/

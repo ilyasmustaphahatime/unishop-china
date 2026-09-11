@@ -41,6 +41,12 @@ class InMemoryRateLimiter:
             requests = self._requests.get(key)
             if requests is None:
                 self._make_room_for_key(cutoff)
+                if len(self._requests) >= self.max_keys:
+                    retry_after = max(1, math.ceil(min(
+                        items[-1] + self.window_seconds - now
+                        for items in self._requests.values()
+                    )))
+                    return RateLimitDecision(False, retry_after)
                 requests = deque()
                 self._requests[key] = requests
             while requests and requests[0] <= cutoff:
@@ -63,10 +69,3 @@ class InMemoryRateLimiter:
         ]
         for key in expired_keys:
             self._requests.pop(key, None)
-
-        if len(self._requests) >= self.max_keys:
-            oldest_key = min(
-                self._requests,
-                key=lambda key: self._requests[key][-1],
-            )
-            self._requests.pop(oldest_key, None)

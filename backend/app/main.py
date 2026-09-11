@@ -140,20 +140,15 @@ def create_app(
             prefix=f"{config.api_v1_prefix}/dev/fake-email",
         )
 
-    no_store_paths = {
-        f"{config.api_v1_prefix}/auth/login",
-        f"{config.api_v1_prefix}/auth/refresh",
-        f"{config.api_v1_prefix}/auth/password/forgot",
-        f"{config.api_v1_prefix}/auth/password/reset",
-        f"{config.api_v1_prefix}/auth/password/change",
-        f"{config.api_v1_prefix}/auth/email/resend-code",
-        f"{config.api_v1_prefix}/auth/email/verify",
-    }
+    private_prefixes = tuple(
+        f"{config.api_v1_prefix}/{namespace}/"
+        for namespace in ("auth", "profile", "dev")
+    )
 
     @application.middleware("http")
     async def protect_token_responses_from_caching(request: Request, call_next):
         response = await call_next(request)
-        if request.method == "POST" and request.url.path in no_store_paths:
+        if request.url.path.startswith(private_prefixes):
             response.headers["Cache-Control"] = "no-store"
             response.headers["Pragma"] = "no-cache"
         return response
@@ -167,8 +162,15 @@ def create_app(
         return STATUS
 
     @application.exception_handler(Exception)
-    async def unhandled_exception(_: Request, exc: Exception) -> JSONResponse:
-        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+    async def unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
+        headers = (
+            {"Cache-Control": "no-store", "Pragma": "no-cache"}
+            if request.url.path.startswith(private_prefixes)
+            else None
+        )
+        return JSONResponse(
+            status_code=500, content={"detail": "Internal server error"}, headers=headers
+        )
 
     @application.exception_handler(RequestValidationError)
     async def request_validation_exception(

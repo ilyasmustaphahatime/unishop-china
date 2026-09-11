@@ -62,3 +62,12 @@ def test_compose_uses_guarded_backend_context_and_runtime_substitution() -> None
     for line in compose.splitlines():
         if re.search(r"MYSQL_PASSWORD|MYSQL_ROOT_PASSWORD|DATABASE_URL", line):
             assert "${" in line
+
+
+def test_both_build_contexts_exclude_environment_and_private_key_material() -> None:
+    for directory in (BACKEND_DIR, PROJECT_DIR / "frontend"):
+        rules = (directory / ".dockerignore").read_text(encoding="utf-8").splitlines()
+        for required in (".env", ".env.*", "**/.env", "**/.env.*", "*.pem", "*.key",
+                         "*.p12", "*.pfx", "credentials*.json", "uploads/"):
+            assert required in rules
+        assert rules.index("!.env.example") > rules.index("**/.env.*")

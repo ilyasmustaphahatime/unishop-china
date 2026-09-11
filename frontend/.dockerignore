@@ -1,0 +1,22 @@
+# Build contexts must not contain local secrets or private runtime files.
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+*.pem
+**/*.pem
+*.key
+**/*.key
+*.p12
+*.pfx
+credentials*.json
+node_modules/
+dist/
+coverage/
+.git/
+*.log
+*.tsbuildinfo
+tests/
+uploads/
+private_uploads/

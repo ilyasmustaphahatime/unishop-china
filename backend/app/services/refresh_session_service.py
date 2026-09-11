@@ -214,13 +214,14 @@ class RefreshSessionService:
                 header_token=csrf_header,
                 stored_hash=current.csrf_token_hash,
             )
-            if current.revoked_at is None:
-                self.repository.revoke_family(
-                    session,
-                    family_id=current.family_id,
-                    reason="logout",
-                    now=as_utc(self.now_provider()),
-                )
+            # A rotation can win before logout receives the replacement cookie.
+            # The original bound cookie still authorizes terminating its family.
+            self.repository.revoke_family(
+                session,
+                family_id=current.family_id,
+                reason="logout",
+                now=as_utc(self.now_provider()),
+            )
 
     def logout_all(self, session: Session, *, user_id: str) -> None:
         with self._transaction(session):

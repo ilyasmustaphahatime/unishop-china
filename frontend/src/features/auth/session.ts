@@ -1,5 +1,8 @@
 import {
   clearAuthenticatedSession,
+  coordinateLogout,
+  currentSessionVersion,
+  requireCurrentSession,
   refreshAccessToken,
   sessionClient,
 } from '../../services/apiClient';
@@ -11,6 +14,7 @@ let bootstrapPromise: Promise<void> | null = null;
 
 export function bootstrapSession(): Promise<void> {
   if (bootstrapPromise) return bootstrapPromise;
+  const version = currentSessionVersion();
 
   bootstrapPromise = (async () => {
     if (!readCsrfCookie()) {
@@ -21,9 +25,10 @@ export function bootstrapSession(): Promise<void> {
     try {
       const session = await refreshAccessToken();
       const user = await getCurrentUser();
+      requireCurrentSession(version);
       useAuthStore.getState().setAuthenticated(session.accessToken, user);
     } catch {
-      clearAuthenticatedSession();
+      if (version === currentSessionVersion()) clearAuthenticatedSession();
     }
   })().finally(() => {
     bootstrapPromise = null;
@@ -33,25 +38,21 @@ export function bootstrapSession(): Promise<void> {
 }
 
 export async function logoutCurrentSession(): Promise<void> {
-  try {
+  return coordinateLogout(async () => {
     const csrfToken = readCsrfCookie();
     await sessionClient.post('/auth/logout', undefined, {
       headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
     });
-  } finally {
-    clearAuthenticatedSession();
-  }
+  });
 }
 
 export async function logoutAllSessions(): Promise<void> {
   const accessToken = useAuthStore.getState().accessToken;
-  try {
+  return coordinateLogout(async () => {
     await sessionClient.post('/auth/logout-all', undefined, {
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     });
-  } finally {
-    clearAuthenticatedSession();
-  }
+  });
 }
 
 export function resetBootstrapCoordinatorForTests() {

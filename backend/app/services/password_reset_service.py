@@ -82,6 +82,7 @@ class PasswordResetRequestService:
         code_hash = hash_password_reset_code(raw_code, secret)
         pending_code_id: str | None = None
         pending_user_id: str | None = None
+        credential_version: str | None = None
         expires_at = now + timedelta(
             minutes=self.config.password_reset_code_expiry_minutes
         )
@@ -121,6 +122,9 @@ class PasswordResetRequestService:
                 )
                 pending_code_id = pending.id
                 pending_user_id = user.id
+                # Bind delayed delivery to the credentials observed when issued.
+                # This digest stays in memory and is never returned or logged.
+                credential_version = user.password_hash
 
         if pending_code_id is None or pending_user_id is None:
             return ForgotPasswordResult()
@@ -150,6 +154,7 @@ class PasswordResetRequestService:
                 if (
                     user is not None
                     and user.account_status is AccountStatus.ACTIVE
+                    and user.password_hash == credential_version
                     and latest is not None
                     and latest.id == pending_code_id
                 ):

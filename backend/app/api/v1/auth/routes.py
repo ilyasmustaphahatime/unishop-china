@@ -12,6 +12,7 @@ from app.api.v1.auth.dependencies import (
     enforce_logout_rate_limit,
     enforce_password_change_rate_limit,
     enforce_password_reset_rate_limit,
+    enforce_phone_verification_rate_limit,
     enforce_refresh_rate_limit,
     enforce_registration_rate_limit,
     get_authentication_service,
@@ -477,6 +478,7 @@ def register_user(
 def resend_phone_verification_code(
     request: ResendPhoneVerificationCodeRequest,
     response: Response,
+    _: None = Depends(enforce_phone_verification_rate_limit),
     session: Session = Depends(get_db),
     service: PhoneVerificationService = Depends(get_phone_verification_service),
 ) -> ResendPhoneVerificationCodeResponse:
@@ -505,6 +507,7 @@ def resend_phone_verification_code(
 )
 def verify_phone_code(
     request: VerifyPhoneCodeRequest,
+    _: None = Depends(enforce_phone_verification_rate_limit),
     session: Session = Depends(get_db),
     service: PhoneVerificationService = Depends(get_phone_verification_service),
 ) -> VerifyPhoneCodeResponse:

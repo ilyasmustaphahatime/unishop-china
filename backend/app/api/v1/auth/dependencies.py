@@ -52,6 +52,11 @@ registration_rate_limiter = InMemoryRateLimiter(
     window_seconds=settings.registration_rate_limit_window_seconds,
     max_keys=settings.registration_rate_limit_max_clients,
 )
+phone_verification_ip_rate_limiter = InMemoryRateLimiter(
+    max_requests=settings.phone_verification_ip_rate_limit_requests,
+    window_seconds=settings.phone_verification_ip_rate_limit_window_seconds,
+    max_keys=settings.phone_verification_rate_limit_max_keys,
+)
 login_ip_rate_limiter = InMemoryRateLimiter(
     max_requests=settings.login_ip_rate_limit_requests,
     window_seconds=settings.login_ip_rate_limit_window_seconds,
@@ -295,6 +300,17 @@ def enforce_login_rate_limit(
     if not identifier_decision.allowed:
         _raise_login_rate_limit(identifier_decision.retry_after_seconds)
     return login_request
+
+
+def enforce_phone_verification_rate_limit(request: Request) -> None:
+    peer = request.client.host if request.client is not None else "unknown"
+    decision = phone_verification_ip_rate_limiter.consume(peer)
+    if not decision.allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many phone verification requests. Please try again later.",
+            headers={"Retry-After": str(decision.retry_after_seconds or 1)},
+        )
 
 
 def _raise_login_rate_limit(retry_after_seconds: int | None) -> None:

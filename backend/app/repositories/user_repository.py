@@ -9,14 +9,17 @@ class UserRepository:
         return session.scalar(select(User).where(User.id == user_id))
 
     def get_by_id_for_update(self, session: Session, user_id: str) -> User | None:
-        return session.scalar(select(User).where(User.id == user_id).with_for_update())
+        return session.scalar(
+            select(User).where(User.id == user_id).with_for_update()
+            .execution_options(populate_existing=True)
+        )
 
     def get_by_email(
         self, session: Session, email: str, *, for_update: bool = False
     ) -> User | None:
         statement = select(User).where(User.email == email)
         if for_update:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
         return session.scalar(statement)
 
     def get_by_phone(
@@ -24,7 +27,7 @@ class UserRepository:
     ) -> User | None:
         statement = select(User).where(User.phone_number == phone_number)
         if for_update:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
         return session.scalar(statement)
 
     def mark_phone_verified(self, user: User) -> None:

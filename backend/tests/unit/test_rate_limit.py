@@ -49,6 +49,6 @@ def test_rate_limiter_bounds_unique_client_memory() -> None:
 
     assert limiter.consume("oldest-client").allowed is True
     assert limiter.consume("second-client").allowed is True
-    assert limiter.consume("third-client").allowed is True
+    assert limiter.consume("third-client").allowed is False
 
-    assert limiter.consume("oldest-client").allowed is True
+    assert limiter.consume("oldest-client").allowed is False

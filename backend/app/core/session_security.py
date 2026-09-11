@@ -43,5 +43,5 @@ def validate_request_origin(origin: str | None, config: Settings = settings) -> 
     """Allow non-browser clients without Origin and exact configured browser origins."""
     if origin is None:
         return
-    if origin.rstrip("/") not in allowed_frontend_origins(config):
+    if origin not in allowed_frontend_origins(config):
         raise RequestVerificationError
