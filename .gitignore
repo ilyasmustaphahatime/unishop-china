@@ -21,6 +21,7 @@ coverage/
 Thumbs.db
 backend/uploads/temporary/*
 backend/uploads/private/*
+private_uploads/
 database/backups/*
 !**/.gitkeep
 backend/.env

@@ -48,6 +48,8 @@ def test_all_openapi_variants_have_only_public_handle_path_parameters():
     schema = create_app(config).openapi()
     operation_ids = []
     for path, item in schema["paths"].items():
+        if path.startswith(("/api/v1/seller-verification", "/api/v1/admin/seller-verifications")):
+            continue  # Phase 7 has separately tested private review/download contracts.
         for method, operation in item.items():
             if method not in {"get", "post", "patch", "delete", "put"}:
                 continue

@@ -127,6 +127,24 @@ def main() -> int:
                 handles = list(connection.scalars(text("SELECT public_handle FROM user_profiles")))
                 assert len(handles) == len(set(handles)) == 3
                 assert all(len(h) == 25 and h.startswith("user-") for h in handles)
+            if "--seller-verification" in sys.argv:
+                stage = "seller verification isolated cycle"
+                with app_engine.begin() as connection:
+                    owner = connection.scalar(text("SELECT id FROM users ORDER BY id LIMIT 1"))
+                    connection.execute(text(
+                        "INSERT INTO seller_verifications "
+                        "(id,user_id,review_reference,status,handwritten_challenge,created_at,updated_at) "
+                        "VALUES (:id,:owner,:reference,'PENDING','SYNTHETIC123',NOW(),NOW())"
+                    ), {"id": str(uuid4()), "owner": owner, "reference": secrets.token_hex(16)})
+                    assert connection.scalar(text("SELECT COUNT(*) FROM seller_verifications")) == 1
+                alembic("downgrade", "a61b2c3d4e5f")
+                preserved()
+                alembic("upgrade", "head")
+                preserved()
+                with app_engine.connect() as connection:
+                    for name in ("seller_verifications", "seller_evidence", "seller_verification_audit"):
+                        assert connection.scalar(text("SELECT COUNT(*) FROM " + name)) == 0
+                print(json.dumps({"seller_verification_cycle": "PASS", "prior_data_preserved": True}))
             stage = "downgrade"
             alembic("downgrade", "f6a1b2c3d4e5")
             preserved()

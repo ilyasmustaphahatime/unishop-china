@@ -9,6 +9,7 @@ export function dashboardForRoles(roles: UserRole[]): string {
 const navigationPaths = new Set([
   '/', '/profile', '/profile/edit', '/onboarding', '/login', '/sign-up',
   '/verify-phone', '/forgot-password', '/reset-password', '/safety', '/terms', '/privacy',
+  '/seller/verification',
 ]);
 
 function allowedPath(value: unknown): string | null {

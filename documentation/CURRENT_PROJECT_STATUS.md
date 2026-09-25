@@ -2,6 +2,15 @@
 
 ## Authentication phases
 
+Phase 7 seller verification: implemented and locally verified (843 backend tests, 179 frontend
+tests, 58 live HTTP checks, isolated migration cycle and repeated seller concurrency tests passed).
+User-confirmed workflow: private draft, three required images, submission, admin review,
+and independent retry after rejection. New Alembic head: `b7c1d2e3f4a5`.
+See [Phase 7 implementation](phases/PHASE_7_SELLER_VERIFICATION.md) and
+[threat model](security/PHASE_7_SELLER_VERIFICATION_THREAT_MODEL.md).
+Production storage integration and browser/container runtime checks remain open.
+Phase 8 has not started. Earlier phase status/counts below are historical records.
+
 Phase 6.1 URL Privacy & Public Identifier Hardening: implemented. Canonical public profiles now use
 `/u/:handle`; private identifiers and local-inbox references travel in JSON bodies, never navigation URLs.
 Alembic head is `a61b2c3d4e5f`. See [Phase 6.1 evidence and policy](security/URL_PRIVACY_AND_PUBLIC_IDENTIFIERS.md).

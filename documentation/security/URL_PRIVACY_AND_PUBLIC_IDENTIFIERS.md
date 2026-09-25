@@ -1,5 +1,11 @@
 # Phase 6.1 — URL Privacy & Public Identifier Hardening
 
+Phase 7 update (2026-09-25): the implementation adds a narrowly scoped, authenticated,
+one-use signed evidence-download URL. It is never application navigation or a public share link;
+normal responses omit evidence URLs and internal IDs. See the
+[Phase 7 URL-privacy exception and controls](../phases/PHASE_7_SELLER_VERIFICATION.md).
+Operation/test counts and the no-Phase-7 statements below record the earlier Phase 6.1 audit.
+
 Audit date: 2026-09-11. Scope: existing Phase 1–6 functionality and URL privacy only.
 This is a development gate, not production certification.
 

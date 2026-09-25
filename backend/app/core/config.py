@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_debug: bool = True
     api_v1_prefix: str = "/api/v1"
+    seller_private_storage_dir: Path = BACKEND_DIR / "private_uploads" / "seller-evidence"
 
     mysql_host: str = "127.0.0.1"
     mysql_port: int = 3306

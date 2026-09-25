@@ -22,6 +22,7 @@ const pages = import.meta.glob([
   '../pages/shared/OnboardingPage.tsx',
   '../pages/shared/ProfilePage.tsx',
   '../pages/shared/EditProfilePage.tsx',
+  '../pages/seller/SellerVerificationPage.tsx',
 ]);
 const localPhoneVerificationPage = import.meta.env.DEV
   ? () => import('../pages/dev/LocalPhoneVerificationPage')
@@ -68,6 +69,7 @@ const guestRoutes = mapRoutes([
 const profileRoutes = mapRoutes([
   ['/profile', 'shared/ProfilePage'],
   ['/profile/edit', 'shared/EditProfilePage'],
+  ['/seller/verification', 'seller/SellerVerificationPage'],
 ]);
 
 type RouterFlags = {

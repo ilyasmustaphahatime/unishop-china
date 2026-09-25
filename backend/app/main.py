@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
+from app.core.evidence_security import EvidenceUploadBoundary, install_evidence_log_filter
 from app.api.v1.dev.fake_sms_routes import create_development_fake_sms_router
 from app.api.v1.dev.fake_password_reset_routes import (
     create_development_fake_password_reset_router,
@@ -106,6 +107,8 @@ def create_app(
         lifespan=lifespan,
     )
     application.state.settings = config
+    install_evidence_log_filter()
+    application.add_middleware(EvidenceUploadBoundary, prefix=config.api_v1_prefix)
     application.state.fake_password_reset_store = fake_password_reset_store
     application.state.fake_email_verification_store = fake_email_verification_store
     application.add_middleware(
@@ -142,14 +145,14 @@ def create_app(
 
     private_prefixes = tuple(
         f"{config.api_v1_prefix}/{namespace}/"
-        for namespace in ("auth", "profile", "dev")
+        for namespace in ("auth", "profile", "dev", "seller-verification", "admin")
     )
 
     @application.middleware("http")
     async def protect_token_responses_from_caching(request: Request, call_next):
         response = await call_next(request)
         response.headers["Referrer-Policy"] = "no-referrer"
-        if request.url.path.startswith(private_prefixes):
+        if request.url.path.startswith(private_prefixes) or request.url.path == f"{config.api_v1_prefix}/seller-verification":
             response.headers["Cache-Control"] = "no-store"
             response.headers["Pragma"] = "no-cache"
         return response
@@ -165,7 +168,7 @@ def create_app(
     @application.exception_handler(Exception)
     async def unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
         headers = {"Referrer-Policy": "no-referrer"}
-        if request.url.path.startswith(private_prefixes):
+        if request.url.path.startswith(private_prefixes) or request.url.path == f"{config.api_v1_prefix}/seller-verification":
             headers.update({"Cache-Control": "no-store", "Pragma": "no-cache"})
         return JSONResponse(
             status_code=500, content={"detail": "Internal server error"}, headers=headers

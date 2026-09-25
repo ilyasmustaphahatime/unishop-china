@@ -5,8 +5,10 @@ from app.models.profile import UserProfile
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.models.user_role import UserRole
+from app.models.seller_verification import SellerVerification, SellerEvidence, SellerVerificationAudit
 
 __all__ = [
+    "SellerVerification", "SellerEvidence", "SellerVerificationAudit",
     "EmailVerificationCode",
     "PasswordResetCode",
     "PhoneVerificationCode",

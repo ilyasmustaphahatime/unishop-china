@@ -12,6 +12,7 @@ import secrets
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 from uuid import uuid4
 
@@ -28,6 +29,7 @@ def snapshot(engine):
         for name in (
             "users", "user_roles", "phone_verification_codes", "refresh_tokens",
             "password_reset_codes", "email_verification_codes", "user_profiles",
+            "seller_verifications", "seller_evidence", "seller_verification_audit",
         ):
             table = Table(name, metadata, autoload_with=connection)
             rows = connection.execute(select(table).order_by(table.c.id)).all()
@@ -45,7 +47,10 @@ def main() -> int:
     from app.core.config import settings
     from app.core.database import engine
     from app.common.enums import AccountStatus
-    from app.models import User
+    from app.models import User, UserRole
+    from app.common.enums import UserRoleType
+    from io import BytesIO
+    from PIL import Image
 
     if settings.app_env.strip().lower() != "development" or engine.url.host not in {
         "127.0.0.1", "localhost", "::1",
@@ -65,6 +70,8 @@ def main() -> int:
         port_socket.bind(("127.0.0.1", 0))
         port = port_socket.getsockname()[1]
     env = os.environ.copy()
+    private_storage = tempfile.TemporaryDirectory(prefix="unishop-seller-http-")
+    assert Path(private_storage.name).resolve().parent == Path(tempfile.gettempdir()).resolve()
     env.update({
         "APP_ENV": "development", "APP_DEBUG": "false",
         "SMS_ENABLED": "true", "SMS_PROVIDER": "fake",
@@ -76,6 +83,7 @@ def main() -> int:
         "ENABLE_FAKE_EMAIL_VERIFICATION_DEV_INBOX": "true",
         "FAKE_EMAIL_VERIFICATION_DELIVERY_DELAY_SECONDS": "0",
         "REFRESH_COOKIE_SECURE": "false",
+        "SELLER_PRIVATE_STORAGE_DIR": private_storage.name,
     })
     process = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1",
@@ -172,6 +180,37 @@ def main() -> int:
                 "public_handle": public_handle, "bio": "Cross-user mutation",
             }).status_code == 422, "cross-user-mass-assignment-rejected")
             stage = "password-reset"
+            seller = "/api/v1/seller-verification"
+            started = first.post(seller, json={"action": "start"})
+            check(started.status_code == 200, "seller-draft")
+            reference = started.json()["review_reference"]
+            buffer = BytesIO()
+            Image.new("RGB", (16, 16), "blue").save(buffer, "PNG")
+            for kind in ("SELFIE", "WECHAT_PROOF", "HANDWRITTEN_CODE"):
+                uploaded = first.post(seller + "/evidence", data={"evidence_type": kind},
+                                      files={"file": ("proof.png", buffer.getvalue(), "image/png")})
+                check(uploaded.status_code == 200, "seller-upload:" + kind)
+            check(first.post(seller, json={"action": "submit"}).status_code == 200, "seller-submit")
+            access_body = {"review_reference": reference, "evidence_type": "SELFIE"}
+            check(second.post(seller + "/evidence/access", json=access_body).status_code == 404,
+                  "seller-evidence-owner-boundary")
+            access = first.post(seller + "/evidence/access", json=access_body)
+            check(access.status_code == 200, "seller-private-access-grant")
+            download = first.get(access.json()["url"])
+            check(download.status_code == 200 and download.headers.get("cache-control") == "no-store",
+                  "seller-private-download")
+            check(first.get(access.json()["url"]).status_code == 422, "seller-download-replay")
+            admin_path = "/api/v1/admin/seller-verifications"
+            check(second.get(admin_path).status_code == 403, "seller-admin-boundary")
+            with Session(engine) as session, session.begin():
+                synthetic_admin = session.scalar(select(User).where(User.email == emails[1]))
+                session.add(UserRole(user_id=synthetic_admin.id, role=UserRoleType.ADMIN))
+            check(second.get(admin_path).status_code == 200, "seller-admin-queue")
+            reviewed = second.post(admin_path + "/" + reference + "/approve", json={})
+            check(reviewed.status_code == 200 and reviewed.json()["status"] == "VERIFIED", "seller-approval")
+            check(first.post(seller + "/evidence", data={"evidence_type": "SELFIE"},
+                             files={"file": ("proof.png", buffer.getvalue(), "image/png")}).status_code == 409,
+                  "seller-evidence-immutable-after-review")
             check(first.post("/api/v1/auth/password/forgot", json={
                 "identifier": emails[0],
             }).status_code == 202, "forgot")
@@ -225,6 +264,7 @@ def main() -> int:
             process.wait(timeout=5)
         with Session(engine) as session, session.begin():
             session.execute(delete(User).where(User.email.in_(emails)))
+        private_storage.cleanup()
         preserved = snapshot(engine) == baseline
         print(json.dumps({"checks_passed": passed, "preservation": preserved,
                           "synthetic_cleanup": preserved, "server_stopped": process.poll() is not None}))

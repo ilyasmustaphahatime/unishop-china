@@ -4,11 +4,15 @@ from app.api.v1.auth.routes import router as auth_router
 from app.api.v1.profiles.routes import public_router as public_profiles_router
 from app.api.v1.profiles.routes import router as profiles_router
 from app.core.database import check_database_connection
+from app.api.v1.seller_verification.routes import router as seller_router
+from app.api.v1.admin.seller_verification_routes import router as seller_admin_router
 
 router = APIRouter()
 router.include_router(auth_router, prefix="/auth")
 router.include_router(profiles_router, prefix="/profile")
 router.include_router(public_profiles_router, prefix="/profiles")
+router.include_router(seller_router, prefix="/seller-verification")
+router.include_router(seller_admin_router, prefix="/admin/seller-verifications")
 
 
 @router.get("/health", tags=["health"])

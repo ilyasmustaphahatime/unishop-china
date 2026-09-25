@@ -15,9 +15,11 @@ from app.models import (
     User,
     UserProfile,
     UserRole,
+    SellerVerification, SellerEvidence, SellerVerificationAudit,
 )
 
 TRACKED_TEST_TABLES = (
+    SellerVerification, SellerEvidence, SellerVerificationAudit,
     User,
     UserRole,
     PhoneVerificationCode,

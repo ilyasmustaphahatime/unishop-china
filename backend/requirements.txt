@@ -9,5 +9,6 @@ PyMySQL>=1.1
 PyJWT>=2.9
 pwdlib[argon2]>=0.2
 python-multipart>=0.0.9
+Pillow==12.3.0
 cloudinary>=1.41
 tencentcloud-sdk-python>=3.0

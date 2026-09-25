@@ -46,7 +46,6 @@ describe('Phase 6 route inventory', () => {
     expect(paths.filter((path) => path.includes(':'))).toEqual(['/u/:handle']);
     expect(paths).not.toEqual(
       expect.arrayContaining([
-        '/seller/verification',
         '/seller/products',
         '/messages',
         '/admin',
