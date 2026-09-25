@@ -195,11 +195,11 @@ def test_phone_limit_counts_malformed_requests_and_ignores_forwarded_peer():
 def test_account_state_matrix_uses_current_database_authority(owned_user, account_status):
     user_id, email, password = owned_user
     token = AccessTokenService().create_access_token(user_id)
-    public_id = str(uuid4())
+    public_handle = "user-" + uuid4().hex[:20]
     with Session(engine) as session, session.begin():
         user = session.get(User, user_id)
         user.account_status = account_status
-        session.add(UserProfile(user_id=user_id, public_id=public_id, display_name="Audit User",
+        session.add(UserProfile(user_id=user_id, public_handle=public_handle, display_name="Audit User",
                                 city="Qingdao", onboarding_completed=True))
     active = account_status is AccountStatus.ACTIVE
     with TestClient(create_app(settings), raise_server_exceptions=False) as client:
@@ -216,7 +216,7 @@ def test_account_state_matrix_uses_current_database_authority(owned_user, accoun
         assert client.post("/api/v1/profile/onboarding/complete", json={}).status_code == (
             200 if active else 401
         )
-        assert client.get("/api/v1/profiles/" + public_id).status_code == (200 if active else 404)
+        assert client.get("/api/v1/profiles/by-handle/" + public_handle).status_code == (200 if active else 404)
         # These invalid challenges must never mutate verification or credentials.
         for path, payload in (
             ("/api/v1/auth/email/verify", {"code": "000000"}),

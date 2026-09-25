@@ -120,7 +120,7 @@ def test_update_and_idempotent_server_authoritative_onboarding(client: TestClien
     second = client.post("/api/v1/profile/onboarding/complete", json={})
     assert first.status_code == second.status_code == 200
     assert first.json()["onboarding_completed"] is True
-    assert second.json()["public_id"] == first.json()["public_id"]
+    assert second.json()["public_handle"] == first.json()["public_handle"]
 
     invalidated = client.patch("/api/v1/profile/me", json={"display_name": None})
     assert invalidated.status_code == 200
@@ -257,14 +257,14 @@ def test_public_profile_is_safe_and_hidden_until_complete(
     inactive_status: AccountStatus,
 ) -> None:
     profile = client.get("/api/v1/profile/me").json()
-    assert client.get(f"/api/v1/profiles/{profile['public_id']}").status_code == 404
+    assert client.get(f"/api/v1/profiles/by-handle/{profile['public_handle']}").status_code == 404
 
     client.patch(
         "/api/v1/profile/me",
         json={"display_name": "Public Person", "bio": "Hello", "city": "Hangzhou"},
     )
     client.post("/api/v1/profile/onboarding/complete", json={})
-    response = client.get(f"/api/v1/profiles/{profile['public_id']}")
+    response = client.get(f"/api/v1/profiles/by-handle/{profile['public_handle']}")
 
     assert response.status_code == 200
     body = response.json()
@@ -277,16 +277,16 @@ def test_public_profile_is_safe_and_hidden_until_complete(
         user = session.get(User, active_user.id)
         assert user is not None
         user.account_status = inactive_status
-    assert client.get(f"/api/v1/profiles/{profile['public_id']}").status_code == 404
+    assert client.get(f"/api/v1/profiles/by-handle/{profile['public_handle']}").status_code == 404
 
 
-def test_unknown_and_malformed_public_ids_are_safe(client: TestClient) -> None:
-    unknown = client.get(f"/api/v1/profiles/{uuid4()}")
-    malformed = client.get("/api/v1/profiles/not-a-uuid")
+def test_unknown_and_malformed_public_handles_are_safe(client: TestClient) -> None:
+    unknown = client.get("/api/v1/profiles/by-handle/user-unknown")
+    malformed = client.get("/api/v1/profiles/by-handle/admin")
 
     assert unknown.status_code == 404
     assert malformed.status_code == 422
-    assert "not-a-uuid" not in malformed.text
+    assert "admin" not in malformed.text
 
 
 def test_profile_write_limit_returns_retry_after(client: TestClient) -> None:

@@ -9,6 +9,7 @@ from app.api.v1.auth.dependencies import get_current_user
 from app.integrations.email_verification_delivery import (
     DevelopmentFakeEmailVerificationStore,
 )
+from app.schemas.development_inbox import ConsumeFakeMessageRequest
 from app.models.base import utc_now
 from app.services.auth_service import SafeAuthenticatedUser
 
@@ -76,15 +77,15 @@ def create_development_fake_email_router(
             ),
         )
 
-    @router.delete("/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+    @router.post("/consume", status_code=status.HTTP_204_NO_CONTENT)
     def consume_fake_email(
-        message_id: str,
+        payload: ConsumeFakeMessageRequest,
         request: Request,
         response: Response,
         current_user: SafeAuthenticatedUser = Depends(get_current_user),
     ) -> None:
         _require_loopback(request)
-        store.consume_message(user_id=current_user.id, message_id=message_id)
+        store.consume_message(user_id=current_user.id, message_id=payload.message_id)
         response.headers.update(NO_STORE_HEADERS)
 
     return router

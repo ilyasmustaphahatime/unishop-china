@@ -227,8 +227,8 @@ def test_cross_purpose_challenge_matrix_allows_only_matching_purpose(
 @pytest.mark.parametrize(
     "claim_overrides",
     [
-        {"nbf": datetime.now(timezone.utc) + timedelta(minutes=1)},
-        {"iat": datetime.now(timezone.utc) + timedelta(minutes=1)},
+        {"nbf": "future"},
+        {"iat": "future"},
         {"sub": str(uuid4()).upper()},
         {"jti": 12345},
         {"type": "refresh"},
@@ -250,6 +250,10 @@ def test_extended_jwt_adversarial_claims_are_rejected(
         "exp": now + timedelta(minutes=15),
     }
     claims.update(claim_overrides)
+    # Evaluate relative times at execution, not collection (slow CI/paused laptops).
+    for key in ("nbf", "iat"):
+        if claims[key] == "future":
+            claims[key] = now + timedelta(minutes=1)
     token = jwt.encode(claims, JWT_SECRET, algorithm="HS256")
     with pytest.raises(TokenValidationError):
         AccessTokenService(config).decode_access_token(token)

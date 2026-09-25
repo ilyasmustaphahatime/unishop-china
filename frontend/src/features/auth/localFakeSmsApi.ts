@@ -93,10 +93,8 @@ export const localFakeSmsApi: LocalFakeSmsApi = {
   },
   async latest(phoneNumber, signal) {
     try {
-      const response = await apiClient.get('/dev/fake-sms/latest', {
-        params: { phone_number: phoneNumber },
-        signal,
-      });
+      const response = await apiClient.post('/dev/fake-sms/latest',
+        { phone_number: phoneNumber }, { signal });
       return parseMessage(response.data);
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) return null;
@@ -120,7 +118,7 @@ export const localFakeSmsApi: LocalFakeSmsApi = {
   },
   async consume(messageId) {
     try {
-      await apiClient.delete(`/dev/fake-sms/${encodeURIComponent(messageId)}`);
+      await apiClient.post('/dev/fake-sms/consume', { message_id: messageId });
     } catch {
       // Database verification already committed; server-side consumption is primary.
     }

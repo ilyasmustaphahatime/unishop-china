@@ -7,10 +7,12 @@ import EmptyState from '../../components/common/EmptyState';
 import Spinner from '../../components/common/Spinner';
 import { profileErrorMessage } from '../../features/profiles/errors';
 import { usePublicProfile } from '../../features/profiles/hooks';
+import { normalizePublicHandle } from '../../features/profiles/handles';
 
 export default function PublicProfilePage() {
-  const { publicId } = useParams();
-  const profile = usePublicProfile(publicId);
+  const { handle } = useParams();
+  const profile = usePublicProfile(handle);
+  if (!handle || !normalizePublicHandle(handle)) return <Alert>This profile is not available.</Alert>;
   if (profile.isPending) return <Spinner label="Loading public profile" />;
   if (profile.isError || !profile.data) return <Alert>{profileErrorMessage(profile.error)}</Alert>;
   const data = profile.data;

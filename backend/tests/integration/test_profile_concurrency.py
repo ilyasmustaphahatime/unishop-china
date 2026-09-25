@@ -57,7 +57,7 @@ def test_concurrent_first_profile_creation_produces_exactly_one_profile() -> Non
                 select(func.count()).select_from(UserProfile).where(UserProfile.user_id == user_id)
             )
         assert count == 1
-        assert len({result.public_id for result in results}) == 1
+        assert len({result.public_handle for result in results}) == 1
     finally:
         remove_user(user_id)
 
@@ -120,7 +120,7 @@ def test_concurrent_onboarding_is_idempotent() -> None:
                 ]
             ]
         assert all(result.onboarding_completed for result in results)
-        assert len({result.public_id for result in results}) == 1
+        assert len({result.public_handle for result in results}) == 1
     finally:
         remove_user(user_id)
 

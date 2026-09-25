@@ -148,6 +148,7 @@ def create_app(
     @application.middleware("http")
     async def protect_token_responses_from_caching(request: Request, call_next):
         response = await call_next(request)
+        response.headers["Referrer-Policy"] = "no-referrer"
         if request.url.path.startswith(private_prefixes):
             response.headers["Cache-Control"] = "no-store"
             response.headers["Pragma"] = "no-cache"
@@ -163,11 +164,9 @@ def create_app(
 
     @application.exception_handler(Exception)
     async def unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
-        headers = (
-            {"Cache-Control": "no-store", "Pragma": "no-cache"}
-            if request.url.path.startswith(private_prefixes)
-            else None
-        )
+        headers = {"Referrer-Policy": "no-referrer"}
+        if request.url.path.startswith(private_prefixes):
+            headers.update({"Cache-Control": "no-store", "Pragma": "no-cache"})
         return JSONResponse(
             status_code=500, content={"detail": "Internal server error"}, headers=headers
         )

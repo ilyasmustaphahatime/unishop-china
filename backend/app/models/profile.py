@@ -1,7 +1,9 @@
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, CheckConstraint, ForeignKey, String, UniqueConstraint, text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+
+from app.common.public_handles import generate_public_handle, normalize_public_handle
 
 from app.core.database import Base
 from app.models.base import UUIDTimestampMixin, generate_uuid
@@ -27,6 +29,15 @@ class UserProfile(UUIDTimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("user_id", name="uq_user_profiles_user_id"),
         UniqueConstraint("public_id", name="uq_user_profiles_public_id"),
+        UniqueConstraint("public_handle", name="uq_user_profiles_public_handle"),
+        CheckConstraint(
+            "REGEXP_LIKE(public_handle, '^[a-z0-9][a-z0-9_-]{1,28}[a-z0-9]$', 'c') "
+            "AND public_handle NOT IN "
+            "('about','account','admin','api','assets','auth','categories','chat','cities',"
+            "'dev','help','login','logout','messages','notifications','products','profile',"
+            "'profiles','register','search','seller','sellers','settings','static','support','users')",
+            name="ck_user_profiles_public_handle",
+        ),
         CheckConstraint(
             "display_name IS NULL OR "
             "CHAR_LENGTH(TRIM(display_name)) BETWEEN 2 AND 50",
@@ -53,6 +64,9 @@ class UserProfile(UUIDTimestampMixin, Base):
         nullable=False,
     )
     display_name: Mapped[str | None] = mapped_column(String(50))
+    public_handle: Mapped[str] = mapped_column(
+        String(30), default=generate_public_handle, nullable=False, active_history=True,
+    )
     bio: Mapped[str | None] = mapped_column(String(300))
     city: Mapped[str | None] = mapped_column(String(32))
     onboarding_completed: Mapped[bool] = mapped_column(
@@ -63,3 +77,11 @@ class UserProfile(UUIDTimestampMixin, Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="profile")
+
+    @validates("public_handle")
+    def validate_public_handle(self, key: str, value: str) -> str:
+        normalized = normalize_public_handle(value)
+        previous = self.__dict__.get(key)
+        if previous is not None and previous != normalized:
+            raise ValueError("Public handles cannot be renamed.")
+        return normalized

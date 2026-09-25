@@ -6,6 +6,7 @@ import Card from '../../components/common/Card';
 import EmptyState from '../../components/common/EmptyState';
 import Spinner from '../../components/common/Spinner';
 import { useMyProfile } from '../../features/profiles/hooks';
+import { publicProfilePath } from '../../features/profiles/handles';
 
 export default function ProfilePage() {
   const profile = useMyProfile();
@@ -25,6 +26,7 @@ export default function ProfilePage() {
             <Link className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 hover:border-red-300 hover:text-red-700" to="/profile/edit">Edit profile</Link>
           </div>
           <h1 className="mt-5 text-3xl font-black tracking-tight">{data.displayName}</h1>
+          <Link className="text-red-700 hover:underline" to={publicProfilePath(data.publicHandle)}>View public profile</Link>
           <p className="mt-1 font-medium text-slate-500">{data.city}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Badge positive={data.emailVerified}>Email {data.emailVerified ? 'verified' : 'not verified'}</Badge>

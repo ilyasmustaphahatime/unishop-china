@@ -15,7 +15,7 @@ This is an engineering verification record, not a compliance certification.
 Migration `f6a1b2c3d4e5` adds `user_profiles` after `d5f0c1e2a3b4`. Authentication data remains in `users` and the existing auth/security tables. Marketplace-facing data is one-to-one with a user and contains:
 
 - UUID primary key;
-- immutable, unique UUID `public_id` for URLs;
+- unique UUID `public_id` (historical Phase 6 navigation; retained internally only since Phase 6.1);
 - unique foreign key `user_id -> users.id` with delete cascade;
 - nullable `display_name`, `bio`, and `city` while onboarding is incomplete;
 - server-controlled `onboarding_completed`;
@@ -23,7 +23,7 @@ Migration `f6a1b2c3d4e5` adds `user_profiles` after `d5f0c1e2a3b4`. Authenticati
 
 Database checks bound display names to 2–50 trimmed characters when present, bios to 300 characters, and cities to the six supported Phase 6 values. Application validation additionally performs Unicode NFC normalization, trimming, strict extra-field rejection, and control/direction-character rejection.
 
-Profiles are created lazily so the closed registration flow is untouched. A locked user row serializes first creation; unique `user_id` and `public_id` constraints provide database backstops.
+Profiles are created lazily so the closed registration flow is untouched. A locked user row serializes first creation; unique `user_id` and `public_id` constraints provide database backstops. Phase 6.1 adds unique `public_handle` for navigation; the old UUID route is removed. See [the current URL policy](../security/URL_PRIVACY_AND_PUBLIC_IDENTIFIERS.md).
 
 ## 6B — Onboarding rules
 
@@ -44,7 +44,7 @@ Routes:
 - `/onboarding` — refresh-safe, server-backed five-step onboarding;
 - `/profile` — own profile, verification indicators, member date, and empty-bio state;
 - `/profile/edit` — aligned validation and safe API errors;
-- `/users/:publicId` — safe public profile.
+- `/u/:handle` (updated by Phase 6.1) — safe public profile.
 
 TanStack Query keys include the authenticated user ID. Private queries carry private metadata and are removed by the existing logout/session-clear boundary. Access tokens remain memory-only; refresh remains in the HttpOnly cookie architecture.
 

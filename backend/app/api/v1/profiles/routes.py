@@ -1,6 +1,9 @@
-from uuid import UUID
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import AfterValidator, Field
+from app.common.public_handles import normalize_public_handle
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.v1.auth.dependencies import get_current_user
@@ -87,15 +90,24 @@ def complete_onboarding(
     return OwnProfileResponse.model_validate(result, from_attributes=True)
 
 
-@public_router.get("/{public_id}", response_model=PublicProfileResponse)
+@public_router.get("/by-handle/{handle}", response_model=PublicProfileResponse)
 def get_public_profile(
-    public_id: UUID,
+    handle: Annotated[
+        str,
+        Field(min_length=3, max_length=30,
+              pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{1,28}[A-Za-z0-9]$",
+              description="Public ASCII handle; lowercased for lookup. Reserved names are rejected."),
+        AfterValidator(normalize_public_handle),
+    ],
+    request: Request,
     _: None = Depends(enforce_public_profile_rate_limit),
     session: Session = Depends(get_db),
     service: ProfileService = Depends(get_profile_service),
 ) -> PublicProfileResponse:
+    if b"%" in request.scope.get("raw_path", b""):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
     try:
-        result = service.get_public(session, public_id=str(public_id))
+        result = service.get_public(session, public_handle=handle)
     except Exception as exc:
         raise _operation_error() from exc
     if result is None:

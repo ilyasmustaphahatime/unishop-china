@@ -38,7 +38,7 @@
     "typescript": "latest",
     "typescript-eslint": "latest",
     "vite": "latest",
-    "vitest": "latest"
+    "vitest": "4.1.11"
   },
   "overrides": {
     "brace-expansion": "5.0.9",

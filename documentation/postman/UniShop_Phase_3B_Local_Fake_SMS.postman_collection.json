@@ -42,14 +42,13 @@
         }
       }],
       "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{base_url}}/dev/fake-sms/latest?phone_number={{test_phone}}",
-          "host": ["{{base_url}}"],
-          "path": ["dev", "fake-sms", "latest"],
-          "query": [{ "key": "phone_number", "value": "{{test_phone}}" }]
-        }
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone_number\": \"{{test_phone}}\"\n}"
+        },
+        "url": "{{base_url}}/dev/fake-sms/latest"
       }
     },
     {
@@ -90,14 +89,13 @@
         }
       }],
       "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{base_url}}/dev/fake-sms/latest?phone_number={{test_phone}}",
-          "host": ["{{base_url}}"],
-          "path": ["dev", "fake-sms", "latest"],
-          "query": [{ "key": "phone_number", "value": "{{test_phone}}" }]
-        }
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone_number\": \"{{test_phone}}\"\n}"
+        },
+        "url": "{{base_url}}/dev/fake-sms/latest"
       }
     },
     {

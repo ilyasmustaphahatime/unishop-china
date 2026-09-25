@@ -82,14 +82,14 @@ describe('authentication route guards', () => {
 });
 
 describe('safe internal redirects', () => {
-  it('preserves internal path, query, and fragment', () => {
+  it('drops queries and fragments from an allowed internal destination', () => {
     expect(
-      safeInternalPath({ pathname: '/messages', search: '?thread=1', hash: '#latest' }, '/'),
-    ).toBe('/messages?thread=1#latest');
+      safeInternalPath({ pathname: '/profile', search: '?token=synthetic', hash: '#code' }, '/'),
+    ).toBe('/profile');
   });
 
   it.each(['https://evil.example', '//evil.example', 'javascript:alert(1)', 'data:text/html,x', '/\\evil.example'])(
     'rejects unsafe destination %s',
-    (candidate) => expect(safeInternalPath(candidate, '/buyer/dashboard')).toBe('/buyer/dashboard'),
+    (candidate) => expect(safeInternalPath(candidate, '/profile')).toBe('/profile'),
   );
 });

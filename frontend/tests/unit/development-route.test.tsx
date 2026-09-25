@@ -41,7 +41,9 @@ describe('Phase 6 route inventory', () => {
       buildRouteObjects({ isDevelopment: false, fakeSmsPageEnabled: false }),
     );
 
-    expect(paths).toEqual(expect.arrayContaining(['/onboarding', '/profile', '/profile/edit', '/users/:publicId']));
+    expect(paths).toEqual(expect.arrayContaining(['/onboarding', '/profile', '/profile/edit', '/u/:handle']));
+    expect(paths).not.toContain('/users/:publicId');
+    expect(paths.filter((path) => path.includes(':'))).toEqual(['/u/:handle']);
     expect(paths).not.toEqual(
       expect.arrayContaining([
         '/seller/verification',

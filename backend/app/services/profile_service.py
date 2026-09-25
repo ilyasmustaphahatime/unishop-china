@@ -2,7 +2,9 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
+from functools import wraps
 
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.common.enums import AccountStatus
@@ -21,9 +23,35 @@ class OnboardingIncompleteError(Exception):
     """Required server-side profile fields are missing."""
 
 
+def _retry_profile_deadlock(operation):
+    """Retry only whole transactions that InnoDB has already rolled back.
+
+    A failed savepoint cleanup can wrap the original 1213 error in a 1305 error;
+    inspect the cause chain without logging SQL or parameter values.
+    """
+    @wraps(operation)
+    def run(self, session: Session, *args, **kwargs):
+        for attempt in range(3):
+            try:
+                return operation(self, session, *args, **kwargs)
+            except DBAPIError as error:
+                current: BaseException | None = error
+                seen: set[int] = set()
+                deadlock = False
+                while current is not None and id(current) not in seen:
+                    seen.add(id(current))
+                    if isinstance(current, DBAPIError):
+                        deadlock |= getattr(current.orig, "args", (None,))[0] == 1213
+                    current = current.__cause__ or current.__context__
+                if not deadlock or attempt == 2:
+                    raise
+                session.rollback()
+    return run
+
+
 @dataclass(frozen=True, slots=True)
 class OwnProfileResult:
-    public_id: str
+    public_handle: str
     display_name: str | None
     bio: str | None
     city: str | None
@@ -37,7 +65,7 @@ class OwnProfileResult:
 
 @dataclass(frozen=True, slots=True)
 class PublicProfileResult:
-    public_id: str
+    public_handle: str
     display_name: str
     bio: str | None
     city: str
@@ -58,12 +86,14 @@ class ProfileService:
         self.profile_repository = profile_repository or ProfileRepository()
         self.user_repository = user_repository or UserRepository()
 
+    @_retry_profile_deadlock
     def get_or_create_own(self, session: Session, *, user_id: str) -> OwnProfileResult:
         with self._transaction(session):
             user = self._active_user_for_update(session, user_id)
             profile = self._profile_for_update_or_create(session, user.id)
             return self._own_result(profile, user)
 
+    @_retry_profile_deadlock
     def update_own(
         self,
         session: Session,
@@ -81,6 +111,7 @@ class ProfileService:
             session.flush()
             return self._own_result(profile, user)
 
+    @_retry_profile_deadlock
     def complete_onboarding(
         self,
         session: Session,
@@ -96,15 +127,15 @@ class ProfileService:
             session.flush()
             return self._own_result(profile, user)
 
-    def get_public(self, session: Session, *, public_id: str) -> PublicProfileResult | None:
-        row = self.profile_repository.get_active_public(session, public_id)
+    def get_public(self, session: Session, *, public_handle: str) -> PublicProfileResult | None:
+        row = self.profile_repository.get_active_public(session, public_handle)
         if row is None:
             return None
         profile, user = row
         if profile.display_name is None or profile.city is None:
             return None
         return PublicProfileResult(
-            public_id=profile.public_id,
+            public_handle=profile.public_handle,
             display_name=profile.display_name,
             bio=profile.bio,
             city=profile.city,
@@ -123,6 +154,8 @@ class ProfileService:
         profile = self.profile_repository.get_by_user_id(
             session,
             user_id,
+            # A current read must bypass the authentication transaction's older
+            # REPEATABLE READ snapshot, even after the owning user lock is held.
             for_update=True,
         )
         if profile is None:
@@ -140,7 +173,7 @@ class ProfileService:
     @staticmethod
     def _own_result(profile: UserProfile, user: User) -> OwnProfileResult:
         return OwnProfileResult(
-            public_id=profile.public_id,
+            public_handle=profile.public_handle,
             display_name=profile.display_name,
             bio=profile.bio,
             city=profile.city,

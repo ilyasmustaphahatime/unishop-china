@@ -9,6 +9,7 @@ from app.integrations.password_reset_delivery import (
     DevelopmentFakePasswordResetStore,
     PasswordResetDestinationKind,
 )
+from app.schemas.development_inbox import ConsumeFakeMessageRequest, FakeResetLookupRequest
 from app.models.base import utc_now
 from app.schemas.auth import normalize_account_identifier
 
@@ -45,21 +46,21 @@ def create_development_fake_password_reset_router(
 ) -> APIRouter:
     router = APIRouter(tags=["development-fake-password-reset"])
 
-    @router.get("/latest", response_model=DevelopmentFakePasswordResetResponse)
+    @router.post("/latest", response_model=DevelopmentFakePasswordResetResponse)
     def latest_fake_password_reset(
         request: Request,
         response: Response,
-        identifier: str | None = None,
+        payload: FakeResetLookupRequest,
     ) -> DevelopmentFakePasswordResetResponse:
         _require_loopback(request)
-        if set(request.query_params) - {"identifier"}:
+        if request.query_params:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail={"code": "INVALID_QUERY", "message": "Unknown query parameter."},
                 headers=NO_STORE_HEADERS,
             )
         try:
-            normalized = normalize_account_identifier(identifier)
+            normalized = normalize_account_identifier(payload.identifier)
         except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -99,14 +100,14 @@ def create_development_fake_password_reset_router(
             ),
         )
 
-    @router.delete("/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+    @router.post("/consume", status_code=status.HTTP_204_NO_CONTENT)
     def consume_fake_password_reset(
-        message_id: str,
+        payload: ConsumeFakeMessageRequest,
         request: Request,
         response: Response,
     ) -> None:
         _require_loopback(request)
-        store.consume_message(message_id)
+        store.consume_message(payload.message_id)
         response.headers.update(NO_STORE_HEADERS)
 
     return router

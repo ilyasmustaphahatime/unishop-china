@@ -10,7 +10,7 @@ import {
 
 export const profileKeys = {
   my: (userId: string | undefined) => ['profile', 'me', userId] as const,
-  public: (publicId: string) => ['profile', 'public', publicId] as const,
+  public: (publicHandle: string) => ['profile', 'public', publicHandle] as const,
 };
 
 export function useMyProfile() {
@@ -38,7 +38,7 @@ export function useUpdateProfile() {
     onSuccess: (profile) => {
       if (version !== currentSessionVersion()) return;
       queryClient.setQueryData(profileKeys.my(userId), profile);
-      queryClient.removeQueries({ queryKey: profileKeys.public(profile.publicId) });
+      queryClient.removeQueries({ queryKey: profileKeys.public(profile.publicHandle) });
     },
   });
 }
@@ -55,16 +55,16 @@ export function useCompleteOnboarding() {
     onSuccess: (profile) => {
       if (version !== currentSessionVersion()) return;
       queryClient.setQueryData(profileKeys.my(userId), profile);
-      queryClient.removeQueries({ queryKey: profileKeys.public(profile.publicId) });
+      queryClient.removeQueries({ queryKey: profileKeys.public(profile.publicHandle) });
     },
   });
 }
 
-export function usePublicProfile(publicId: string | undefined) {
+export function usePublicProfile(publicHandle: string | undefined) {
   return useQuery({
-    queryKey: profileKeys.public(publicId ?? ''),
-    queryFn: () => getPublicProfile(publicId ?? ''),
-    enabled: Boolean(publicId),
+    queryKey: profileKeys.public(publicHandle ?? ''),
+    queryFn: () => getPublicProfile(publicHandle ?? ''),
+    enabled: Boolean(publicHandle),
     retry: false,
   });
 }

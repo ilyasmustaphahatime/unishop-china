@@ -90,7 +90,7 @@ class OnboardingCompleteRequest(BaseModel):
 class OwnProfileResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    public_id: str
+    public_handle: str
     display_name: str | None
     bio: str | None
     city: SupportedCity | None
@@ -105,7 +105,7 @@ class OwnProfileResponse(BaseModel):
 class PublicProfileResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    public_id: str
+    public_handle: str
     display_name: str
     bio: str | None
     city: SupportedCity

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { myProfileApiSchema, publicProfileApiSchema } from '../../src/features/profiles/contracts';
 
 const base = {
-  public_id: '11111111-1111-4111-8111-111111111111',
+  public_handle: 'user-a1b2c3d4',
   display_name: 'Profile Person',
   bio: null,
   city: 'Qingdao',

@@ -26,7 +26,7 @@ const authUser = {
   createdAt: '2026-01-01T00:00:00Z',
 };
 const incompleteProfile: MyProfile = {
-  publicId: '11111111-1111-4111-8111-111111111111',
+  publicHandle: 'user-a1b2c3d4',
   displayName: null,
   bio: null,
   city: null,
@@ -47,7 +47,7 @@ const completeProfile: MyProfile = {
 
 function apiProfile(profile: MyProfile) {
   return {
-    public_id: profile.publicId,
+    public_handle: profile.publicHandle,
     display_name: profile.displayName,
     bio: profile.bio,
     city: profile.city,
@@ -208,6 +208,8 @@ describe('profile routing and display', () => {
     useAuthStore.getState().setAuthenticated('memory-only-token', authUser);
     const view = renderWithProfile(<ProfilePage />, completeProfile);
     expect(screen.getByText('No bio yet')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View public profile' }))
+      .toHaveAttribute('href', '/u/user-a1b2c3d4');
     view.unmount();
 
     renderWithProfile(
@@ -270,7 +272,7 @@ describe('profile editing and public privacy', () => {
 
   it('renders only safe public profile fields', async () => {
     const publicResponse = {
-      public_id: completeProfile.publicId,
+      public_handle: completeProfile.publicHandle,
       display_name: 'Public Person',
       bio: '<img src=x onerror=alert(1)>',
       city: 'Shanghai',
@@ -280,8 +282,8 @@ describe('profile editing and public privacy', () => {
     };
     vi.spyOn(apiClient, 'get').mockResolvedValue(response(publicResponse));
     renderWithProfile(<PublicProfilePage />, undefined, {
-      route: `/users/${completeProfile.publicId}`,
-      children: <Route path="/users/:publicId" element={<PublicProfilePage />} />,
+      route: `/u/${completeProfile.publicHandle}`,
+      children: <Route path="/u/:handle" element={<PublicProfilePage />} />,
     });
     expect(await screen.findByText('Public Person')).toBeInTheDocument();
     expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeInTheDocument();

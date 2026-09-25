@@ -1,8 +1,9 @@
 import { z } from 'zod';
+import { publicHandleSchema } from './handles';
 import { supportedCities } from './types';
 
 const baseProfileFields = {
-  public_id: z.uuid(),
+  public_handle: publicHandleSchema,
   display_name: z.string().nullable(),
   bio: z.string().nullable(),
   city: z.enum(supportedCities).nullable(),

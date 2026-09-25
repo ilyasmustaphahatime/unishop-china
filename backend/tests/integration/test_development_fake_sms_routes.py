@@ -167,7 +167,7 @@ def test_loopback_clients_may_access_inbox(
     clock.advance(3)
     application = create_app(development_config(), fake_sms_store=store)
     with TestClient(application, client=(client_host, 50000)) as client:
-        response = client.get("/api/v1/dev/fake-sms/latest", params={"phone_number": phone})
+        response = client.post("/api/v1/dev/fake-sms/latest", json={"phone_number": phone})
     assert response.status_code == 200
 
 
@@ -180,9 +180,9 @@ def test_remote_client_and_forged_forwarded_header_are_rejected(
     clock.advance(3)
     application = create_app(development_config(), fake_sms_store=store)
     with TestClient(application, client=("203.0.113.10", 50000)) as client:
-        response = client.get(
+        response = client.post(
             "/api/v1/dev/fake-sms/latest",
-            params={"phone_number": phone},
+            json={"phone_number": phone},
             headers={"X-Forwarded-For": "127.0.0.1"},
         )
     assert response.status_code == 403
@@ -199,10 +199,10 @@ def test_registration_message_obeys_delay_masking_and_no_store(
     payload = register_phone(dev_client, phone)
     assert {"otp", "code", "code_hash", "message_id"}.isdisjoint(payload)
 
-    pending = dev_client.get("/api/v1/dev/fake-sms/latest", params={"phone_number": phone})
+    pending = dev_client.post("/api/v1/dev/fake-sms/latest", json={"phone_number": phone})
     assert pending.status_code == 404
     clock.advance(3)
-    delivered = dev_client.get("/api/v1/dev/fake-sms/latest", params={"phone_number": phone})
+    delivered = dev_client.post("/api/v1/dev/fake-sms/latest", json={"phone_number": phone})
     body = delivered.json()
     assert delivered.status_code == 200
     assert delivered.headers["cache-control"] == "no-store"
@@ -343,25 +343,25 @@ def test_expired_memory_message_is_not_returned(
     clock.advance(601)
     application = create_app(development_config(), fake_sms_store=store)
     with TestClient(application, client=("127.0.0.1", 50000)) as client:
-        response = client.get("/api/v1/dev/fake-sms/latest", params={"phone_number": phone})
+        response = client.post("/api/v1/dev/fake-sms/latest", json={"phone_number": phone})
     assert response.status_code == 404
 
 
-def test_unknown_query_parameter_is_rejected(
+def test_unknown_body_parameter_is_rejected(
     dev_client: TestClient,
 ) -> None:
-    response = dev_client.get(
+    response = dev_client.post(
         "/api/v1/dev/fake-sms/latest",
-        params={"phone_number": unique_phone(), "user_id": "not-allowed"},
+        json={"phone_number": unique_phone(), "user_id": "not-allowed"},
     )
     assert response.status_code == 422
     assert response.headers["cache-control"] == "no-store"
 
 
-def test_missing_phone_query_is_rejected_without_caching(
+def test_missing_phone_body_is_rejected_without_caching(
     dev_client: TestClient,
 ) -> None:
-    response = dev_client.get("/api/v1/dev/fake-sms/latest")
+    response = dev_client.post("/api/v1/dev/fake-sms/latest")
 
     assert response.status_code == 422
     assert response.headers["cache-control"] == "no-store"

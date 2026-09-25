@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.common.validators import mask_phone_number, normalize_chinese_phone_number
 from app.integrations.development_fake_sms import DeliveryType, DevelopmentFakeSmsStore
+from app.schemas.development_inbox import ConsumeFakeMessageRequest, FakeSmsLookupRequest
 from app.models.base import utc_now
 
 NO_STORE_HEADERS = {"Cache-Control": "no-store", "Pragma": "no-cache"}
@@ -41,27 +42,27 @@ def _require_loopback(request: Request) -> None:
 def create_development_fake_sms_router(store: DevelopmentFakeSmsStore) -> APIRouter:
     router = APIRouter(tags=["development-fake-sms"])
 
-    @router.get("/latest", response_model=DevelopmentFakeSmsResponse)
+    @router.post("/latest", response_model=DevelopmentFakeSmsResponse)
     def latest_fake_sms(
         request: Request,
         response: Response,
-        phone_number: str | None = None,
+        payload: FakeSmsLookupRequest,
     ) -> DevelopmentFakeSmsResponse:
         _require_loopback(request)
-        if set(request.query_params) - {"phone_number"}:
+        if request.query_params:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail={"code": "INVALID_QUERY", "message": "Unknown query parameter."},
                 headers=NO_STORE_HEADERS,
             )
-        if phone_number is None:
+        if payload.phone_number is None:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail={"code": "INVALID_PHONE", "message": "Enter a valid phone number."},
                 headers=NO_STORE_HEADERS,
             )
         try:
-            normalized_phone = normalize_chinese_phone_number(phone_number)
+            normalized_phone = normalize_chinese_phone_number(payload.phone_number)
         except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -88,10 +89,10 @@ def create_development_fake_sms_router(store: DevelopmentFakeSmsStore) -> APIRou
             expires_in_seconds=expires_in,
         )
 
-    @router.delete("/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
-    def consume_fake_sms(message_id: str, request: Request, response: Response) -> None:
+    @router.post("/consume", status_code=status.HTTP_204_NO_CONTENT)
+    def consume_fake_sms(payload: ConsumeFakeMessageRequest, request: Request, response: Response) -> None:
         _require_loopback(request)
-        store.consume_message(message_id)
+        store.consume_message(payload.message_id)
         response.headers.update(NO_STORE_HEADERS)
 
     return router

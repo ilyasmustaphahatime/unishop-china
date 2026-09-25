@@ -53,7 +53,7 @@ function renderLogin(from: unknown = undefined) {
       <MemoryRouter initialEntries={[{ pathname: '/login', state: { from } }]}>
         <Routes>
           <Route path="/login" element={<LoginForm />} />
-          <Route path="/messages" element={<p>Messages destination</p>} />
+          <Route path="/profile/edit" element={<p>Edit profile destination</p>} />
           <Route path="/profile" element={<p>Profile destination</p>} />
         </Routes>
       </MemoryRouter>
@@ -78,13 +78,13 @@ describe('real login integration', () => {
   it('stores the safe response in memory and follows an intended internal route', async () => {
     const request = vi.spyOn(sessionClient, 'post').mockResolvedValue(response(loginResponse));
     const user = userEvent.setup();
-    renderLogin({ pathname: '/messages' });
+    renderLogin({ pathname: '/profile/edit' });
 
     await user.type(screen.getByLabelText('Email address or phone number'), 'synthetic@example.test');
     await user.type(screen.getByLabelText('Password'), 'x');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    expect(await screen.findByText('Messages destination')).toBeInTheDocument();
+    expect(await screen.findByText('Edit profile destination')).toBeInTheDocument();
     expect(request).toHaveBeenCalledWith('/auth/login', {
       identifier: 'synthetic@example.test',
       password: 'x',

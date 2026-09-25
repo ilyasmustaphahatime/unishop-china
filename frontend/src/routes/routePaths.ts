@@ -1,29 +1,29 @@
 import type { UserRole } from '../features/auth/types';
+import { normalizePublicHandle } from '../features/profiles/handles';
 
 export function dashboardForRoles(roles: UserRole[]): string {
   void roles;
   return '/profile';
 }
 
-export function safeInternalPath(candidate: unknown, fallback: string): string {
-  let path: string | null = null;
-  if (typeof candidate === 'string') {
-    path = candidate;
-  } else if (candidate && typeof candidate === 'object') {
-    const location = candidate as { pathname?: unknown; search?: unknown; hash?: unknown };
-    if (typeof location.pathname === 'string') {
-      path = `${location.pathname}${typeof location.search === 'string' ? location.search : ''}${
-        typeof location.hash === 'string' ? location.hash : ''
-      }`;
-    }
-  }
+const navigationPaths = new Set([
+  '/', '/profile', '/profile/edit', '/onboarding', '/login', '/sign-up',
+  '/verify-phone', '/forgot-password', '/reset-password', '/safety', '/terms', '/privacy',
+]);
 
-  if (!path?.startsWith('/') || path.startsWith('//') || path.includes('\\')) return fallback;
-  try {
-    const parsed = new URL(path, window.location.origin);
-    if (parsed.origin !== window.location.origin) return fallback;
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-  } catch {
-    return fallback;
+function allowedPath(value: unknown): string | null {
+  const path = typeof value === 'string' ? value
+    : value && typeof value === 'object' ? (value as { pathname?: unknown }).pathname : null;
+  if (typeof path !== 'string') return null;
+  // No query/fragment is used by current routes. Never forward arbitrary URL state.
+  if (navigationPaths.has(path)) return path;
+  if (path.startsWith('/u/')) {
+    const handle = normalizePublicHandle(path.slice(3));
+    if (handle) return `/u/${handle}`;
   }
+  return null;
+}
+
+export function safeInternalPath(candidate: unknown, fallback: string): string {
+  return allowedPath(candidate) ?? allowedPath(fallback) ?? '/';
 }

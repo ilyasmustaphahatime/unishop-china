@@ -42,7 +42,7 @@ describe('profile cache and session isolation', () => {
 
   it.each(['update', 'complete'])('does not repopulate private cache after a late %s', async (action) => {
     const profile: MyProfile = {
-      publicId: '4ecf6924-5957-4d9a-8326-a3459b9d2882', displayName: 'Audit User',
+      publicHandle: 'user-audit123', displayName: 'Audit User',
       bio: 'Private draft', city: 'Qingdao', onboardingCompleted: true,
       memberSince: '2026-01-01T00:00:00Z', createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-01-01T00:00:00Z', emailVerified: false, phoneVerified: false,

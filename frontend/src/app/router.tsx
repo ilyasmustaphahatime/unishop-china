@@ -53,7 +53,7 @@ function mapRoutes(routes: Array<[string, string]>): RouteObject[] {
 
 const publicRoutes = mapRoutes([
   ['/', 'public/HomePage'],
-  ['/users/:publicId', 'public/PublicProfilePage'],
+  ['/u/:handle', 'public/PublicProfilePage'],
   ['/safety', 'public/SafetyPage'],
   ['/terms', 'public/TermsPage'],
   ['/privacy', 'public/PrivacyPage'],

@@ -43,9 +43,9 @@ Tracked example files contain safe defaults and placeholders only.
 
 ## Backend fake inbox
 
-`GET /api/v1/dev/fake-sms/latest?phone_number=...` returns only the newest delivered, unexpired message for the normalized lookup phone. The response masks the phone and has `Cache-Control: no-store` and `Pragma: no-cache`.
+`POST /api/v1/dev/fake-sms/latest` with JSON body `{"phone_number": "..."}` returns only the newest delivered, unexpired message for the normalized lookup phone. Phase 6.1 removed the former GET/query form. The response masks the phone and has `Cache-Control: no-store` and `Pragma: no-cache`.
 
-`DELETE /api/v1/dev/fake-sms/{message_id}` removes one local message. Successful backend verification also consumes the matching message after the database transaction commits.
+`POST /api/v1/dev/fake-sms/consume` with JSON body `{"message_id": "..."}` removes one local message. Phase 6.1 removed the former DELETE/path form. Successful backend verification also consumes the matching message after the database transaction commits.
 
 Both routes are registered only when the backend is in development and the inbox flag is explicitly enabled.
 

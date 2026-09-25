@@ -246,9 +246,9 @@ def test_fake_inbox_route_is_development_only_loopback_and_identifier_scoped() -
     application = create_app(config, fake_password_reset_store=store)
 
     with TestClient(application, client=("127.0.0.1", 51000)) as local:
-        response = local.get(
+        response = local.post(
             "/api/v1/dev/fake-password-reset/latest",
-            params={"identifier": "PERSON@example.com"},
+            json={"identifier": "PERSON@example.com"},
         )
         assert response.status_code == 200
         assert response.json()["code"] == "123456"
@@ -256,9 +256,9 @@ def test_fake_inbox_route_is_development_only_loopback_and_identifier_scoped() -
         assert response.headers["cache-control"] == "no-store"
 
     with TestClient(application, client=("198.51.100.50", 51000)) as remote:
-        rejected = remote.get(
+        rejected = remote.post(
             "/api/v1/dev/fake-password-reset/latest",
-            params={"identifier": "person@example.com"},
+            json={"identifier": "person@example.com"},
             headers={"X-Forwarded-For": "127.0.0.1"},
         )
         assert rejected.status_code == 403

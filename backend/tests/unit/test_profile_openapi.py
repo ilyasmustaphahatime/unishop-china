@@ -8,14 +8,14 @@ def test_phase_6_profile_operations_are_unique_and_exact() -> None:
         for path, path_item in schema["paths"].items()
         for method in ("get", "post", "patch", "put", "delete")
         if method in path_item
-        and (path.startswith("/api/v1/profile/") or path.startswith("/api/v1/profiles/"))
+        and (path.startswith("/api/v1/profile/") or path.startswith("/api/v1/profiles/by-handle/"))
     }
 
     assert operations == {
         ("GET", "/api/v1/profile/me"),
         ("PATCH", "/api/v1/profile/me"),
         ("POST", "/api/v1/profile/onboarding/complete"),
-        ("GET", "/api/v1/profiles/{public_id}"),
+        ("GET", "/api/v1/profiles/by-handle/{handle}"),
     }
 
 
@@ -30,7 +30,7 @@ def test_public_profile_openapi_schema_has_no_private_fields() -> None:
     public_schema = app.openapi()["components"]["schemas"]["PublicProfileResponse"]
 
     assert set(public_schema["properties"]) == {
-        "public_id",
+        "public_handle",
         "display_name",
         "bio",
         "city",

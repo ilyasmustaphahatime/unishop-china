@@ -2,6 +2,15 @@
 
 ## Authentication phases
 
+Phase 6.1 URL Privacy & Public Identifier Hardening: implemented. Canonical public profiles now use
+`/u/:handle`; private identifiers and local-inbox references travel in JSON bodies, never navigation URLs.
+Alembic head is `a61b2c3d4e5f`. See [Phase 6.1 evidence and policy](security/URL_PRIVACY_AND_PUBLIC_IDENTIFIERS.md).
+Final double-check: 791 backend tests, 163 frontend tests, 45 live HTTP checks and three
+46-case concurrency runs passed. Three reproduced issues were repaired. Changes remain
+unstaged; browser and Docker runtime checks remain environment-blocked, so the full
+runtime gate and Phase 7 approval are pending. See [final audit](security/PHASE_6_1_FINAL_DOUBLE_CHECK.md).
+Earlier phase counts below remain historical evidence, not the latest test totals.
+
 - Phase 1 authentication database models and migration: complete.
 - Phase 2 user registration API and test isolation: complete.
 - Phase 3A phone OTP generation, HMAC storage, resend limits, verification, and provider abstraction: complete.

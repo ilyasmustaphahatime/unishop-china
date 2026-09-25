@@ -44,6 +44,7 @@ def main() -> int:
     import app.models  # noqa: F401
     from app.core.config import settings
     from app.core.database import engine
+    from app.common.enums import AccountStatus
     from app.models import User
 
     if settings.app_env.strip().lower() != "development" or engine.url.host not in {
@@ -125,7 +126,7 @@ def main() -> int:
                           and "SameSite=lax" in c for c in cookies), f"cookie-scope:{i}")
             stage = "verification"
             check(first.get("/api/v1/auth/me").status_code == 200, "auth-me")
-            code = first.get("/api/v1/dev/fake-sms/latest", params={"phone_number": phone})
+            code = first.post("/api/v1/dev/fake-sms/latest", json={"phone_number": phone})
             check(code.status_code == 200, "fake-phone-delivery")
             check(first.post("/api/v1/auth/phone/verify", json={
                 "phone_number": phone, "code": code.json()["code"],
@@ -141,6 +142,9 @@ def main() -> int:
             profile = first.get("/api/v1/profile/me")
             check(profile.status_code == 200, "lazy-profile")
             check(profile.headers.get("cache-control") == "no-store", "private-profile-no-store")
+            public_handle = profile.json()["public_handle"]
+            public_path = "/api/v1/profiles/by-handle/" + public_handle
+            check(second.get(public_path).status_code == 404, "incomplete-profile-hidden")
             check(first.post("/api/v1/profile/onboarding/complete", json={}).status_code == 409,
                   "incomplete-onboarding-rejected")
             check(first.patch("/api/v1/profile/me", json={
@@ -149,21 +153,29 @@ def main() -> int:
             }).status_code == 200, "update-profile")
             check(first.post("/api/v1/profile/onboarding/complete", json={}).status_code == 200,
                   "complete-onboarding")
-            public_id = profile.json()["public_id"]
-            public = second.get("/api/v1/profiles/" + public_id)
+            public = second.get(public_path)
             check(public.status_code == 200 and set(public.json()) == {
-                "public_id", "display_name", "bio", "city", "member_since",
+                "public_handle", "display_name", "bio", "city", "member_since",
                 "email_verified", "phone_verified",
             }, "public-minimal-contract")
             check(public.json()["bio"] == "<img src=x onerror=alert(1)>", "plain-text-contract")
+            for account_status in (AccountStatus.SUSPENDED, AccountStatus.BANNED, AccountStatus.DELETED):
+                with Session(engine) as session, session.begin():
+                    synthetic_user = session.scalar(select(User).where(User.email == emails[0]))
+                    synthetic_user.account_status = account_status
+                check(second.get(public_path).status_code == 404,
+                      "hidden-profile:" + account_status.value)
+            with Session(engine) as session, session.begin():
+                synthetic_user = session.scalar(select(User).where(User.email == emails[0]))
+                synthetic_user.account_status = AccountStatus.ACTIVE
             check(second.patch("/api/v1/profile/me", json={
-                "public_id": public_id, "bio": "Cross-user mutation",
+                "public_handle": public_handle, "bio": "Cross-user mutation",
             }).status_code == 422, "cross-user-mass-assignment-rejected")
             stage = "password-reset"
             check(first.post("/api/v1/auth/password/forgot", json={
                 "identifier": emails[0],
             }).status_code == 202, "forgot")
-            code = first.get("/api/v1/dev/fake-password-reset/latest", params={
+            code = first.post("/api/v1/dev/fake-password-reset/latest", json={
                 "identifier": emails[0],
             })
             check(code.status_code == 200, "fake-reset-delivery")

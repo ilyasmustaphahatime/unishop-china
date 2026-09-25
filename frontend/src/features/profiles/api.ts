@@ -1,10 +1,11 @@
 import { apiClient } from '../../services/apiClient';
 import { myProfileApiSchema, publicProfileApiSchema } from './contracts';
+import { normalizePublicHandle } from './handles';
 import type { MyProfile, PublicProfile, UpdateProfileInput } from './types';
 
 function mapMyProfile(data: ReturnType<typeof myProfileApiSchema.parse>): MyProfile {
   return {
-    publicId: data.public_id,
+    publicHandle: data.public_handle,
     displayName: data.display_name,
     bio: data.bio,
     city: data.city,
@@ -36,11 +37,13 @@ export async function completeOnboarding(): Promise<MyProfile> {
   return mapMyProfile(myProfileApiSchema.parse(response.data));
 }
 
-export async function getPublicProfile(publicId: string): Promise<PublicProfile> {
-  const response = await apiClient.get(`/profiles/${encodeURIComponent(publicId)}`);
+export async function getPublicProfile(publicHandle: string): Promise<PublicProfile> {
+  const handle = normalizePublicHandle(publicHandle);
+  if (!handle) throw new Error('Profile not found.');
+  const response = await apiClient.get(`/profiles/by-handle/${handle}`);
   const data = publicProfileApiSchema.parse(response.data);
   return {
-    publicId: data.public_id,
+    publicHandle: data.public_handle,
     displayName: data.display_name,
     bio: data.bio,
     city: data.city,

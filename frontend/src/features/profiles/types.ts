@@ -10,7 +10,7 @@ export const supportedCities = [
 export type SupportedCity = (typeof supportedCities)[number];
 
 export type MyProfile = {
-  publicId: string;
+  publicHandle: string;
   displayName: string | null;
   bio: string | null;
   city: SupportedCity | null;
@@ -24,7 +24,7 @@ export type MyProfile = {
 
 export type PublicProfile = Pick<
   MyProfile,
-  | 'publicId'
+  | 'publicHandle'
   | 'displayName'
   | 'bio'
   | 'city'
