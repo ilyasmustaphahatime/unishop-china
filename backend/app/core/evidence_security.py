@@ -1,4 +1,4 @@
-"""Bound upload ingress before multipart parsing and suppress signed-URL access logs."""
+"""Limit seller ingress before parsing and suppress private-download access logs."""
 import asyncio
 import logging
 from fastapi.responses import JSONResponse
@@ -23,12 +23,18 @@ def install_evidence_log_filter():
 class EvidenceUploadBoundary:
     def __init__(self, app, prefix: str):
         self.app = app
+        self.seller_path = prefix + "/seller-verification"
+        self.admin_path = prefix + "/admin/seller-verifications"
         self.path = prefix + "/seller-verification/evidence"
         self.slots = asyncio.Semaphore(4)
         self.limiter = InMemoryRateLimiter(max_requests=36, window_seconds=60, max_keys=10000)
+        self.peer_limits = {
+            name: InMemoryRateLimiter(max_requests=count, window_seconds=60, max_keys=10000)
+            for name, count in {"submission": 15, "admin": 90, "read": 180}.items()
+        }
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or scope["path"] != self.path or scope["method"] != "POST":
+        if scope["type"] != "http":
             return await self.app(scope, receive, send)
 
         async def reject(status, message):
@@ -39,6 +45,19 @@ class EvidenceUploadBoundary:
             await response(scope, receive, send)
 
         host = (scope.get("client") or ("unknown",))[0]
+        path = scope["path"]
+        upload = path == self.path and scope["method"] == "POST"
+        if not upload:
+            # FastAPI parses JSON before dependencies. Invalid JSON must still
+            # consume a bounded, actual-peer budget; never trust forwarded headers.
+            namespace = (
+                "admin" if path == self.admin_path or path.startswith(self.admin_path + "/")
+                else "submission" if path == self.seller_path or path == self.seller_path + "/"
+                else "read" if path.startswith(self.seller_path + "/") else None
+            )
+            if namespace and not self.peer_limits[namespace].consume(host).allowed:
+                return await reject(429, "Too many verification requests.")
+            return await self.app(scope, receive, send)
         if not self.limiter.consume(host).allowed or self.slots.locked():
             return await reject(429, "Too many uploads.")
         headers = dict(scope.get("headers", []))

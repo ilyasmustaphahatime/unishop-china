@@ -1,9 +1,10 @@
 # Phase 6.1 — URL Privacy & Public Identifier Hardening
 
-Phase 7 update (2026-09-25): the implementation adds a narrowly scoped, authenticated,
-one-use signed evidence-download URL. It is never application navigation or a public share link;
-normal responses omit evidence URLs and internal IDs. See the
-[Phase 7 URL-privacy exception and controls](../phases/PHASE_7_SELLER_VERIFICATION.md).
+Phase 7 update (2026-10-04): private evidence uses authenticated, one-use header credentials.
+The access response separates a fixed credential-free URL from the ticket; retrieval requires
+X-Evidence-Ticket and bearer authentication. There is no secret-query exception.
+Normal responses omit evidence URLs and internal IDs. See the
+[Phase 7 private retrieval controls](../phases/PHASE_7_SELLER_VERIFICATION.md).
 Operation/test counts and the no-Phase-7 statements below record the earlier Phase 6.1 audit.
 
 Audit date: 2026-09-11. Scope: existing Phase 1–6 functionality and URL privacy only.

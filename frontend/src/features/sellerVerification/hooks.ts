@@ -16,7 +16,8 @@ export function useVerification() {
   });
 }
 
-type Command = { action: 'start' | 'submit' } | { action: 'upload'; kind: EvidenceType; file: File };
+type Command = { action: 'start' | 'submit' | 'renew_challenge' }
+  | { action: 'upload'; kind: EvidenceType; file: File; challenge?: string };
 export function useVerificationMutation() {
   const userId = useAuthStore((s) => s.user?.id);
   const version = useAuthStore((s) => s.sessionVersion);
@@ -24,8 +25,12 @@ export function useVerificationMutation() {
   return useMutation({
     mutationFn: async (command: Command) => {
       requireCurrentSession(version);
-      return command.action === 'upload'
-        ? uploadEvidence(command.kind, command.file) : changeVerification(command.action);
+      if (command.action === 'upload') {
+        return command.kind === 'HANDWRITTEN_CODE'
+          ? uploadEvidence(command.kind, command.file, command.challenge)
+          : uploadEvidence(command.kind, command.file);
+      }
+      return changeVerification(command.action);
     },
     onSuccess: (data) => {
       if (version !== currentSessionVersion()) return;

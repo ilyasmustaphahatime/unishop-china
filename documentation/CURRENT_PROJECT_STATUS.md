@@ -2,6 +2,29 @@
 
 ## Authentication phases
 
+### Current Phase 7 follow-up (final regression 2026-10-05)
+
+The existing Phase 7 implementation is retained and extended with expiring handwritten
+challenges, draft-only renewal, a boolean public seller badge, header-only private download
+credentials, audit-before-image release, and pre-parse seller/admin peer limits.
+Current database head: `c7d8e9f0a1b2` (additive to `b7c1d2e3f4a5`).
+Backend tests: 883 passed; frontend tests: 187 passed; live HTTP/MySQL checks: 64 passed.
+Migration round-trips use an isolated instance only. Development rows and private files are preserved.
+**LOCAL PHASE 7 PASSED: YES. PRODUCTION READY: NO.** The local automated functional/security,
+migration and data-preservation regressions pass. Trusted-system-CA npm installation succeeded;
+actual Axios 1.20.0, brace-expansion 5.0.12 and Undici 7.29.1 match the lockfile and passed the
+full frontend gate. Verified PyJWT/urllib3 updates are retained; full backend suite and pip-audit pass.
+Full npm audit remains non-clean: one unpatched braces advisory affects five High dependency
+nodes in the Tailwind 3 build graph. npm audit --omit=dev has zero known vulnerabilities.
+Per the user, retain Tailwind 3 and resolve braces in a separate dependency-migration task.
+This remains a production/security blocker, not accepted risk. Private production object storage
+is unconfigured; browser and Docker/NGINX runtime checks are environment-blocked.
+See the [full completion report and file manifest](phases/PHASE_7_COMPLETION_GATE_2026_10_04.md).
+Do not treat historical audit-clean statements below as current.
+Phase 8 has not started. No commit or push was made by this follow-up.
+
+### Earlier phase evidence (historical)
+
 Phase 7 seller verification: implemented and locally verified (843 backend tests, 179 frontend
 tests, 58 live HTTP checks, isolated migration cycle and repeated seller concurrency tests passed).
 User-confirmed workflow: private draft, three required images, submission, admin review,
@@ -163,4 +186,6 @@ The backend establishes identity through a validated access token and current AC
 
 ## Exact next step
 
-Phases 1–5 authentication remain closed and Phase 6 profiles/onboarding is complete. The next separately approved step is Phase 7; seller verification, KYC/documents/selfies/WeChat proof, products, images, search, chat, deals, reviews, notifications, and administration remain outside Phase 6.
+Resolve the remaining dependency/runtime gate findings in the latest Phase 7 report before
+claiming closure. Phase 8 requires a separate request; no products, search, chat, deals,
+payments, external KYC or full administration dashboard is implemented here.

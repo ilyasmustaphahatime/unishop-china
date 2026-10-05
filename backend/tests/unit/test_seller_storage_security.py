@@ -1,6 +1,7 @@
 from io import BytesIO
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 import logging
-from urllib.parse import urlsplit, parse_qs
 import pytest
 from PIL import Image, PngImagePlugin
 from app.services.storage_service import LocalPrivateStorage, UnsafeEvidence, sanitize_image
@@ -51,9 +52,8 @@ def test_storage_collision_never_deletes_existing_file(tmp_path, monkeypatch):
 
 
 def ticket(storage, key):
-    url = storage.generate_signed_url(key, actor_id="owner", reference="review",
-                                      evidence_type="SELFIE", prefix="/api/v1")
-    return parse_qs(urlsplit(url).query)["ticket"][0]
+    return storage.issue_download_ticket(key, actor_id="owner", reference="review",
+                                         evidence_type="SELFIE")
 
 
 def test_signed_access_tamper_binding_expiry_replay(tmp_path):
@@ -85,3 +85,19 @@ def test_ticket_memory_bound(tmp_path):
     storage.tickets = {str(i): (storage.clock() + 60, "u", "k", "r", "t") for i in range(1000)}
     with pytest.raises(UnsafeEvidence):
         ticket(storage, "key")
+
+
+def test_concurrent_ticket_replay_has_exactly_one_winner(tmp_path):
+    storage = LocalPrivateStorage(tmp_path)
+    value = ticket(storage, storage.upload(b"synthetic"))
+    barrier = Barrier(2)
+    def redeem():
+        barrier.wait(timeout=5)
+        try:
+            storage.redeem(value, "owner")
+            return True
+        except UnsafeEvidence:
+            return False
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _: redeem(), range(2)))
+    assert sorted(results) == [False, True]

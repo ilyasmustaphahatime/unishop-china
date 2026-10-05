@@ -270,7 +270,7 @@ describe('profile editing and public privacy', () => {
     expect(alert).not.toHaveTextContent('raw internal');
   });
 
-  it('renders only safe public profile fields', async () => {
+  it.each([true, false])('renders only safe public profile fields with seller indicator %s', async (verified) => {
     const publicResponse = {
       public_handle: completeProfile.publicHandle,
       display_name: 'Public Person',
@@ -279,6 +279,7 @@ describe('profile editing and public privacy', () => {
       member_since: completeProfile.memberSince,
       email_verified: true,
       phone_verified: false,
+      seller_verified: verified,
     };
     vi.spyOn(apiClient, 'get').mockResolvedValue(response(publicResponse));
     renderWithProfile(<PublicProfilePage />, undefined, {
@@ -289,5 +290,6 @@ describe('profile editing and public privacy', () => {
     expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeInTheDocument();
     expect(screen.queryByText(authUser.email)).not.toBeInTheDocument();
     expect(document.querySelector('img')).toBeNull();
+    expect(Boolean(screen.queryByText('Seller verified'))).toBe(verified);
   });
 });

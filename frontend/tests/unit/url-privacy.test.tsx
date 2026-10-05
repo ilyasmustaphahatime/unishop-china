@@ -63,7 +63,7 @@ function publicPage() {
 it('loads a public handle directly and after a fresh mount without private state', async () => {
   const request = vi.spyOn(apiClient, 'get').mockResolvedValue({ data: {
     public_handle: 'user-k7m4', display_name: 'Public Person', bio: null, city: 'Qingdao',
-    member_since: '2026-01-01', email_verified: false, phone_verified: false,
+    member_since: '2026-01-01', email_verified: false, phone_verified: false, seller_verified: false,
   } });
   const first = publicPage();
   expect(await screen.findByText('Public Person')).toBeInTheDocument();

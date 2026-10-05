@@ -26,5 +26,6 @@ export const publicProfileApiSchema = z
     ...baseProfileFields,
     display_name: z.string(),
     city: z.enum(supportedCities),
+    seller_verified: z.boolean(),
   })
   .strict();

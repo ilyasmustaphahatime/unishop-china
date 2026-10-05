@@ -74,7 +74,7 @@ def test_guessed_handle_has_no_write_authority_or_internal_id_fallback(client, a
     path = "/api/v1/profiles/by-handle/" + handle
     public = client.get(path).json()
     assert set(public) == {"public_handle", "display_name", "bio", "city", "member_since",
-                           "email_verified", "phone_verified"}
+                           "email_verified", "phone_verified", "seller_verified"}
     assert client.get(path.upper().replace("/API/V1/PROFILES/BY-HANDLE/",
                                           "/api/v1/profiles/by-handle/")).json() == public
     assert client.patch(path, json={"bio": "attack"}).status_code == 405

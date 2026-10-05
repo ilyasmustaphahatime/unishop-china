@@ -112,3 +112,4 @@ class PublicProfileResponse(BaseModel):
     member_since: datetime
     email_verified: bool
     phone_verified: bool
+    seller_verified: bool

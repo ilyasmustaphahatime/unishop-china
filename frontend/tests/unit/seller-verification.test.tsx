@@ -19,6 +19,7 @@ const user = {
 };
 const draft: SellerVerification = {
   review_reference: 'a'.repeat(32), status: 'PENDING', handwritten_challenge: 'ABCDEF123456',
+  challenge_expires_at: '2099-01-01T00:00:00Z',
   rejection_reason: null, submitted_at: null, reviewed_at: null, created_at: '2026-01-01',
   evidence: [],
 };
@@ -69,6 +70,61 @@ describe('seller verification page', () => {
     expect(await screen.findByText('Use a simple JPEG or PNG filename.')).toBeInTheDocument();
     expect(upload).not.toHaveBeenCalled();
   });
+  it('binds handwritten uploads to the displayed current challenge', async () => {
+    const upload = vi.spyOn(api, 'uploadEvidence').mockResolvedValue(draft);
+    page();
+    await screen.findByText('ABCDEF123456');
+    const file = new File(['synthetic'], 'proof.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Handwritten code'), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload handwritten code' }));
+    await waitFor(() => expect(upload).toHaveBeenCalledWith('HANDWRITTEN_CODE', file, draft.handwritten_challenge));
+  });
+  it('blocks expired submission and renews the code with server-owned state', async () => {
+    const renewed = { ...draft, handwritten_challenge: '123456ABCDEF' };
+    const change = vi.spyOn(api, 'changeVerification').mockResolvedValue(renewed);
+    page({ ...draft, challenge_expires_at: '2000-01-01T00:00:00Z', evidence: [
+      { evidence_type: 'SELFIE', mime_type: 'image/png', size: 10 },
+      { evidence_type: 'WECHAT_PROOF', mime_type: 'image/png', size: 10 },
+      { evidence_type: 'HANDWRITTEN_CODE', mime_type: 'image/png', size: 10 },
+    ] });
+    expect(await screen.findByRole('alert')).toHaveTextContent('expired');
+    expect(screen.getByRole('button', { name: 'Submit for review' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Renew challenge' }));
+    await waitFor(() => expect(change).toHaveBeenCalledWith('renew_challenge'));
+    expect(await screen.findByText('123456ABCDEF')).toBeInTheDocument();
+    expect(screen.queryByText('Uploaded')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Submit for review' })).toBeDisabled();
+  });
+  it('submits complete evidence and renders the server review state', async () => {
+    const complete = { ...draft, evidence: [
+      { evidence_type: 'SELFIE' as const, mime_type: 'image/png' as const, size: 10 },
+      { evidence_type: 'WECHAT_PROOF' as const, mime_type: 'image/png' as const, size: 10 },
+      { evidence_type: 'HANDWRITTEN_CODE' as const, mime_type: 'image/png' as const, size: 10 },
+    ] };
+    const change = vi.spyOn(api, 'changeVerification').mockResolvedValue({ ...complete, status: 'UNDER_REVIEW' });
+    page(complete);
+    fireEvent.click(await screen.findByRole('button', { name: 'Submit for review' }));
+    await waitFor(() => expect(change).toHaveBeenCalledWith('submit'));
+    expect(await screen.findByText(/Submitted evidence cannot be changed/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Selfie')).not.toBeInTheDocument();
+  });
+  it('restores submitted state from the API on a fresh mount', async () => {
+    const first = page({ ...draft, status: 'UNDER_REVIEW' });
+    await screen.findByText(/Submitted evidence cannot be changed/);
+    first.unmount();
+    queryClient.clear();
+    render(<QueryClientProvider client={queryClient}><MemoryRouter>
+      <SellerVerificationPage /></MemoryRouter></QueryClientProvider>);
+    expect(await screen.findByText(/Submitted evidence cannot be changed/)).toBeInTheDocument();
+    expect(api.getVerification).toHaveBeenCalledTimes(2);
+  });
+  it('does not render server exception details on failure', async () => {
+    vi.spyOn(api, 'changeVerification').mockRejectedValue(new Error('synthetic-private-path'));
+    page(null);
+    fireEvent.click(await screen.findByRole('button', { name: 'Start verification' }));
+    expect(await screen.findByText(/Unable to continue/)).toBeInTheDocument();
+    expect(screen.queryByText('synthetic-private-path')).not.toBeInTheDocument();
+  });
   it.each(['UNDER_REVIEW', 'VERIFIED'] as const)('locks uploads when %s', async (status) => {
     page({ ...draft, status });
     await screen.findByRole('heading', { name: 'Seller verification' });
@@ -92,6 +148,10 @@ describe('seller verification page', () => {
 });
 
 describe('seller cache and contract security', () => {
+  it('requires a timezone-aware challenge deadline', () => {
+    expect(verificationSchema.safeParse(draft).success).toBe(true);
+    expect(verificationSchema.safeParse({ ...draft, challenge_expires_at: '2026-01-01' }).success).toBe(false);
+  });
   it('uses separate account keys and clears mutation-created private entries', () => {
     expect(verificationKey('a')).not.toEqual(verificationKey('b'));
     queryClient.setQueryData(verificationKey('a'), draft);

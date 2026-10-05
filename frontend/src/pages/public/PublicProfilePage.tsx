@@ -25,6 +25,7 @@ export default function PublicProfilePage() {
             <h1 className="text-3xl font-black tracking-tight">{data.displayName}</h1>
             <p className="mt-1 font-medium text-slate-500">{data.city}</p>
             <div className="mt-3 flex flex-wrap gap-2">
+              {data.sellerVerified && <Badge positive>Seller verified</Badge>}
               <Badge positive={data.emailVerified}>Email {data.emailVerified ? 'verified' : 'not verified'}</Badge>
               <Badge positive={data.phoneVerified}>Phone {data.phoneVerified ? 'verified' : 'not verified'}</Badge>
             </div>

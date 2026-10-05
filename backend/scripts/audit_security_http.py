@@ -47,7 +47,7 @@ def main() -> int:
     from app.core.config import settings
     from app.core.database import engine
     from app.common.enums import AccountStatus
-    from app.models import User, UserRole
+    from app.models import User, UserRole, SellerVerification, SellerVerificationAudit
     from app.common.enums import UserRoleType
     from io import BytesIO
     from PIL import Image
@@ -164,7 +164,7 @@ def main() -> int:
             public = second.get(public_path)
             check(public.status_code == 200 and set(public.json()) == {
                 "public_handle", "display_name", "bio", "city", "member_since",
-                "email_verified", "phone_verified",
+                "email_verified", "phone_verified", "seller_verified",
             }, "public-minimal-contract")
             check(public.json()["bio"] == "<img src=x onerror=alert(1)>", "plain-text-contract")
             for account_status in (AccountStatus.SUSPENDED, AccountStatus.BANNED, AccountStatus.DELETED):
@@ -179,7 +179,7 @@ def main() -> int:
             check(second.patch("/api/v1/profile/me", json={
                 "public_handle": public_handle, "bio": "Cross-user mutation",
             }).status_code == 422, "cross-user-mass-assignment-rejected")
-            stage = "password-reset"
+            stage = "seller-verification"
             seller = "/api/v1/seller-verification"
             started = first.post(seller, json={"action": "start"})
             check(started.status_code == 200, "seller-draft")
@@ -187,7 +187,10 @@ def main() -> int:
             buffer = BytesIO()
             Image.new("RGB", (16, 16), "blue").save(buffer, "PNG")
             for kind in ("SELFIE", "WECHAT_PROOF", "HANDWRITTEN_CODE"):
-                uploaded = first.post(seller + "/evidence", data={"evidence_type": kind},
+                fields = {"evidence_type": kind}
+                if kind == "HANDWRITTEN_CODE":
+                    fields["challenge"] = started.json()["handwritten_challenge"]
+                uploaded = first.post(seller + "/evidence", data=fields,
                                       files={"file": ("proof.png", buffer.getvalue(), "image/png")})
                 check(uploaded.status_code == 200, "seller-upload:" + kind)
             check(first.post(seller, json={"action": "submit"}).status_code == 200, "seller-submit")
@@ -196,21 +199,41 @@ def main() -> int:
                   "seller-evidence-owner-boundary")
             access = first.post(seller + "/evidence/access", json=access_body)
             check(access.status_code == 200, "seller-private-access-grant")
-            download = first.get(access.json()["url"])
+            download_headers = {"X-Evidence-Ticket": access.json()["ticket"]}
+            check(access.json()["url"] == seller + "/evidence/content", "seller-credential-free-url")
+            download = first.get(access.json()["url"], headers=download_headers)
             check(download.status_code == 200 and download.headers.get("cache-control") == "no-store",
                   "seller-private-download")
-            check(first.get(access.json()["url"]).status_code == 422, "seller-download-replay")
+            check(first.get(access.json()["url"], headers=download_headers).status_code == 422,
+                  "seller-download-replay")
             admin_path = "/api/v1/admin/seller-verifications"
             check(second.get(admin_path).status_code == 403, "seller-admin-boundary")
             with Session(engine) as session, session.begin():
                 synthetic_admin = session.scalar(select(User).where(User.email == emails[1]))
+                synthetic_admin_id = synthetic_admin.id
                 session.add(UserRole(user_id=synthetic_admin.id, role=UserRoleType.ADMIN))
             check(second.get(admin_path).status_code == 200, "seller-admin-queue")
+            access = second.post(seller + "/evidence/access", json=access_body)
+            check(access.status_code == 200, "seller-admin-evidence-grant")
+            check(second.get(access.json()["url"], headers={
+                "X-Evidence-Ticket": access.json()["ticket"],
+            }).status_code == 200, "seller-admin-evidence-read")
+            with Session(engine) as session:
+                events = list(session.scalars(select(SellerVerificationAudit).join(
+                    SellerVerification,
+                    SellerVerification.id == SellerVerificationAudit.verification_id,
+                ).where(SellerVerification.review_reference == reference,
+                        SellerVerificationAudit.event == "EVIDENCE_READ")))
+                check(len(events) == 2 and any(e.actor_id == synthetic_admin_id for e in events),
+                      "seller-evidence-read-audit")
             reviewed = second.post(admin_path + "/" + reference + "/approve", json={})
             check(reviewed.status_code == 200 and reviewed.json()["status"] == "VERIFIED", "seller-approval")
+            check(first.get(seller + "/me").json()["status"] == "VERIFIED", "seller-owner-result")
+            check(second.get(public_path).json()["seller_verified"] is True, "seller-public-safe-indicator")
             check(first.post(seller + "/evidence", data={"evidence_type": "SELFIE"},
                              files={"file": ("proof.png", buffer.getvalue(), "image/png")}).status_code == 409,
                   "seller-evidence-immutable-after-review")
+            stage = "password-reset"
             check(first.post("/api/v1/auth/password/forgot", json={
                 "identifier": emails[0],
             }).status_code == 202, "forgot")

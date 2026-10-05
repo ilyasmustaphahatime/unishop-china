@@ -15,6 +15,7 @@ Base URL: `/api/v1`
 | onboarding_completed | yes | no | no |
 | email_verified | yes | yes | no |
 | phone_verified | yes | yes | no |
+| seller_verified | no (use seller-verification/me) | yes, boolean only | no |
 | email / phone | no | no | no |
 | user_id / internal ID | no | no | no |
 | roles / account status | no | no | no |
@@ -42,6 +43,9 @@ Supported cities are Qingdao, Beijing, Shanghai, Shenzhen, Guangzhou, and Hangzh
 Requires an ACTIVE bearer-authenticated user and exactly `{}`. The server checks the committed display name and city. It returns 200 when complete or already complete, 409 when required data is absent, 422 for extra fields, and 429 when limited. Limits are 10 per user and 30 per peer per minute.
 
 ## `GET /profiles/by-handle/{handle}`
+
+Phase 7 adds `seller_verified`, true only for a VERIFIED DB attempt with currently verified
+phone/email. It is informational, never a listing permission. Other seller state/evidence is private.
 
 Public read using the stable, server-generated `public_handle`. Only completed profiles belonging to ACTIVE accounts are visible. Unknown, incomplete, suspended, banned, and deleted profiles all return generic 404. The response is schema-minimized and never contains email, phone, internal user/profile ID, legacy public UUID, role, account status, auth/session/reset data, or secrets. Limit: 120 per connection peer per minute.
 

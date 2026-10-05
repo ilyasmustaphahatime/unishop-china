@@ -1,11 +1,11 @@
 ﻿# UniShop China
 
-UniShop China is a full-stack marketplace starter for international students and foreigners living in China. Users browse by Chinese city, verified sellers can list products originating from different countries, and users can chat, save products, track informal deals, review, and report. UniShop China does **not** process payments; payment and delivery are arranged privately outside the platform. All users and listings operate within China.
+UniShop China is a full-stack marketplace project for international students and foreigners living in China. Authentication, profiles/onboarding, public handles and private seller verification are implemented. Products, browsing/search, chat, favorites, deals and reviews remain future work, not available features. UniShop China does **not** process payments; payment and delivery will be arranged privately outside the platform.
 
 ## Stack and structure
 
 - `frontend/`: React, TypeScript, Vite, Router, Axios, TanStack Query, Zustand, Tailwind.
-- `backend/`: FastAPI, SQLAlchemy, Alembic, Pydantic, secure JWT/session authentication, PyMySQL, and the Phase 6 profile API.
+- `backend/`: FastAPI, SQLAlchemy, Alembic, Pydantic, secure JWT/session authentication, PyMySQL, profiles and private seller verification.
 - `database/`: MySQL 8 bootstrap, seed placeholders, diagrams, ignored backups.
 - `documentation/`, `postman/`, `infrastructure/`, `scripts/`: engineering documentation and local tooling.
 
@@ -30,4 +30,7 @@ npm run dev
 
 Install MySQL 8 locally, create `unishop_china` with `utf8mb4`, and configure `backend/.env`; or start everything with `docker compose up --build`. Create migrations with `alembic revision --autogenerate -m "description"` and apply them with `alembic upgrade head`.
 
-Authentication through Phase 5E and profiles/onboarding through Phase 6 are implemented and tested. Later marketplace domains remain intentional placeholders and are not exposed as functional frontend routes.
+See [current project status](documentation/CURRENT_PROJECT_STATUS.md) and the
+[Phase 7 workflow and private-media contract](documentation/phases/PHASE_7_SELLER_VERIFICATION.md).
+Apply the additive challenge-expiry migration with `alembic upgrade head` before starting the new code.
+Production object storage and operational privacy controls are not configured; this is not a production release.

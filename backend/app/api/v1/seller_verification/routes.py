@@ -1,7 +1,6 @@
 from contextlib import contextmanager
-import hashlib
-import hmac
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
+import re
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Header
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
@@ -50,26 +49,35 @@ def get_mine(user=Depends(read_user), db: Session = Depends(get_db), service=Dep
     "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {
         "type": "object", "additionalProperties": False, "required": ["file", "evidence_type"],
         "properties": {"file": {"type": "string", "format": "binary"},
-                       "evidence_type": {"type": "string", "enum": [e.value for e in EvidenceType]}},
+                       "evidence_type": {"type": "string", "enum": [e.value for e in EvidenceType]},
+                       "challenge": {"type": "string", "pattern": "^[A-F0-9]{12}$",
+                                     "description": "Required only for HANDWRITTEN_CODE; binds the upload to the current challenge."}},
     }}}},
 })
 async def upload_evidence(request: Request, user=Depends(upload_user),
                           db: Session = Depends(get_db), service=Depends(get_seller_service)):
     with safe_operation():
         try:
-            async with request.form(max_files=1, max_fields=1, max_part_size=MAX_BYTES) as form:
-                if set(form) != {"file", "evidence_type"} or len(form.multi_items()) != 2:
+            async with request.form(max_files=1, max_fields=2, max_part_size=MAX_BYTES) as form:
+                kind = EvidenceType(form.get("evidence_type"))
+                expected = {"file", "evidence_type"}
+                challenge = None
+                if kind == EvidenceType.HANDWRITTEN_CODE:
+                    expected.add("challenge")
+                    challenge = form.get("challenge")
+                    if not isinstance(challenge, str) or not re.fullmatch(r"[A-F0-9]{12}", challenge):
+                        raise ValueError
+                if set(form) != expected or len(form.multi_items()) != len(expected):
                     raise ValueError
                 file = form["file"]
                 if not isinstance(file, UploadFile):
                     raise ValueError
-                kind = EvidenceType(form["evidence_type"])
                 data = await file.read(MAX_BYTES + 1)
                 filename, mime_type = file.filename or "", file.content_type or ""
         except Exception:
             raise HTTPException(422, "Provide one evidence type and one JPEG or PNG image.") from None
         image = await run_in_threadpool(sanitize_image, data, filename, mime_type)
-        return await run_in_threadpool(service.upload, db, user.id, kind, image)
+        return await run_in_threadpool(service.upload, db, user.id, kind, image, challenge)
 
 
 @router.post("/evidence/access", response_model=SignedEvidenceResponse)
@@ -77,23 +85,21 @@ def evidence_access(body: EvidenceAccessRequest, request: Request, user=Depends(
                     db: Session = Depends(get_db), service=Depends(get_seller_service)):
     with safe_operation():
         key, _, _ = service.authorized_evidence(db, user.id, body.review_reference, body.evidence_type)
-        return SignedEvidenceResponse(expires_in=60, url=service.storage.generate_signed_url(
-            key, actor_id=user.id, reference=body.review_reference,
-            evidence_type=body.evidence_type.value, prefix=request.app.state.settings.api_v1_prefix))
+        return SignedEvidenceResponse(
+            expires_in=60,
+            url=f"{request.app.state.settings.api_v1_prefix}/seller-verification/evidence/content",
+            ticket=service.storage.issue_download_ticket(
+                key, actor_id=user.id, reference=body.review_reference,
+                evidence_type=body.evidence_type.value))
 
 
 @router.get("/evidence/content", response_class=Response)
 def evidence_content(user=Depends(read_user), db: Session = Depends(get_db),
                      service=Depends(get_seller_service),
-                     ticket: str = Query(min_length=129, max_length=129, pattern=r"^[a-f0-9]{64}\.[a-f0-9]{64}$")):
+                     ticket: str = Header(alias="X-Evidence-Ticket", min_length=129, max_length=129,
+                                          pattern=r"^[a-f0-9]{64}\.[a-f0-9]{64}$")):
     with safe_operation():
-        key, reference, kind = service.storage.redeem(ticket, user.id)
-        actual_key, mime, digest = service.authorized_evidence(db, user.id, reference, EvidenceType(kind))
-        if actual_key != key:
-            raise VerificationError("Evidence not found.", 404)
-        data = service.storage.read(key)
-        if not hmac.compare_digest(hashlib.sha256(data).hexdigest(), digest):
-            raise VerificationError("Evidence unavailable.", 503)
+        data, mime = service.read_evidence(db, user.id, ticket)
         return Response(data, media_type=mime, headers={
             "Content-Disposition": 'attachment; filename="evidence.' + ("png" if mime == "image/png" else "jpg") + '"',
             "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'; sandbox",

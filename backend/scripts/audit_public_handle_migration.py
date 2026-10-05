@@ -133,10 +133,22 @@ def main() -> int:
                     owner = connection.scalar(text("SELECT id FROM users ORDER BY id LIMIT 1"))
                     connection.execute(text(
                         "INSERT INTO seller_verifications "
-                        "(id,user_id,review_reference,status,handwritten_challenge,created_at,updated_at) "
-                        "VALUES (:id,:owner,:reference,'PENDING','SYNTHETIC123',NOW(),NOW())"
+                        "(id,user_id,review_reference,status,handwritten_challenge,challenge_expires_at,created_at,updated_at) "
+                        "VALUES (:id,:owner,:reference,'PENDING','SYNTHETIC123',DATE_ADD(NOW(),INTERVAL 10 MINUTE),NOW(),NOW())"
                     ), {"id": str(uuid4()), "owner": owner, "reference": secrets.token_hex(16)})
                     assert connection.scalar(text("SELECT COUNT(*) FROM seller_verifications")) == 1
+                    seller_baseline = connection.execute(text(
+                        "SELECT id,user_id,review_reference,status,handwritten_challenge,created_at,updated_at "
+                        "FROM seller_verifications")).all()
+                alembic("downgrade", "b7c1d2e3f4a5")
+                alembic("upgrade", "head")
+                with app_engine.connect() as connection:
+                    assert connection.execute(text(
+                        "SELECT id,user_id,review_reference,status,handwritten_challenge,created_at,updated_at "
+                        "FROM seller_verifications")).all() == seller_baseline
+                    assert connection.scalar(text("SELECT COUNT(*) FROM seller_verifications "
+                                                  "WHERE challenge_expires_at IS NULL")) == 0
+                print(json.dumps({"challenge_expiry_cycle": "PASS", "seller_data_preserved": True}))
                 alembic("downgrade", "a61b2c3d4e5f")
                 preserved()
                 alembic("upgrade", "head")
@@ -153,6 +165,22 @@ def main() -> int:
             preserved()
             stage = "no drift"
             alembic("check")
+            if "--seller-verification" in sys.argv:
+                # This instance and every profile in it are owned by this script.
+                # Phase 6 downgrade intentionally drops ONLY its synthetic profiles.
+                stage = "phase 6 isolated downgrade"
+                alembic("downgrade", "d5f0c1e2a3b4")
+                with app_engine.connect() as connection:
+                    assert connection.execute(text("SELECT * FROM users ORDER BY id")).all() == baseline
+                    assert connection.scalar(text(
+                        "SELECT COUNT(*) FROM information_schema.tables "
+                        "WHERE table_schema=DATABASE() AND table_name='user_profiles'")) == 0
+                alembic("upgrade", "head")
+                alembic("check")
+                with app_engine.connect() as connection:
+                    assert connection.execute(text("SELECT * FROM users ORDER BY id")).all() == baseline
+                    assert connection.scalar(text("SELECT COUNT(*) FROM user_profiles")) == 0
+                print(json.dumps({"phase_6_cycle": "PASS", "authentication_data_preserved": True}))
             print(json.dumps({"isolated_mysql": "PASS", "backfill_rows": 3,
                               "upgrade": "PASS", "downgrade": "PASS", "upgrade_again": "PASS",
                               "preservation": True, "drift": False}))

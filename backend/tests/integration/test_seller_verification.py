@@ -63,8 +63,11 @@ def start(client, user):
 
 
 def upload(client, user, kind="SELFIE", **kwargs):
+    data = {"evidence_type": kind}
+    if kind == "HANDWRITTEN_CODE":
+        data["challenge"] = client.get(BASE + "/me", headers=headers(user)).json()["handwritten_challenge"]
     return client.post(BASE + "/evidence", headers=headers(user),
-                       data={"evidence_type": kind}, files={"file": kwargs.get("file", ("proof.png", image_bytes(), "image/png"))})
+                       data=data, files={"file": kwargs.get("file", ("proof.png", image_bytes(), "image/png"))})
 
 
 def submitted(client, user):
@@ -139,15 +142,16 @@ def test_admin_authorization_idor_and_signed_access(setup):
     assert client.post(BASE + "/evidence/access", json=body, headers=headers(other)).status_code == 404
     response = client.post(BASE + "/evidence/access", json=body, headers=headers(user))
     url = response.json()["url"]
+    ticket_header = {"X-Evidence-Ticket": response.json()["ticket"]}
     assert client.get(url).status_code == 401
-    assert client.get(url, headers=headers(other)).status_code == 422
-    downloaded = client.get(url, headers=headers(user))
+    assert client.get(url, headers={**headers(other), **ticket_header}).status_code == 422
+    downloaded = client.get(url, headers={**headers(user), **ticket_header})
     assert downloaded.status_code == 200
     assert downloaded.headers["cache-control"] == "no-store"
     assert downloaded.headers["referrer-policy"] == "no-referrer"
     assert downloaded.headers["x-content-type-options"] == "nosniff"
     assert downloaded.headers["content-disposition"].startswith("attachment")
-    assert client.get(url, headers=headers(user)).status_code == 422
+    assert client.get(url, headers={**headers(user), **ticket_header}).status_code == 422
     assert service.storage.read(next(iter(service.storage.root.iterdir())).name)
 
 
@@ -159,6 +163,10 @@ def test_admin_cannot_self_review(setup):
 
 @pytest.mark.parametrize("file", [
     ("payload.exe", b"MZ payload", "application/octet-stream"),
+    ("proof.jpg", b"MZ renamed executable", "image/jpeg"),
+    ("proof.jpg", b"\xff\xd8\xff\xe0truncated", "image/jpeg"),
+    ("proof.png", b"", "image/png"),
+    ("proof.png", b"<svg onload='alert(1)'/>", "image/png"),
     ("proof.png", b"not a PNG", "image/png"),
     ("proof.jpg", image_bytes(), "image/jpeg"),
     ("../proof.png", image_bytes(), "image/png"),
@@ -237,7 +245,8 @@ def test_replaced_evidence_invalidates_issued_download(setup):
         "review_reference": ref, "evidence_type": "SELFIE"}, headers=headers(user))
     assert access.status_code == 200
     assert upload(client, user).status_code == 200
-    assert client.get(access.json()["url"], headers=headers(user)).status_code == 404
+    assert client.get(access.json()["url"], headers={
+        **headers(user), "X-Evidence-Ticket": access.json()["ticket"]}).status_code == 404
 
 
 def test_review_transaction_rolls_back_on_audit_failure(setup, monkeypatch):
@@ -279,7 +288,8 @@ def test_revoked_admin_cannot_redeem_existing_evidence_grant(setup):
     role = db.scalar(select(UserRole).where(UserRole.user_id == admin.id, UserRole.role == UserRoleType.ADMIN))
     db.delete(role)
     db.flush()
-    assert client.get(granted.json()["url"], headers=headers(admin)).status_code == 404
+    assert client.get(granted.json()["url"], headers={
+        **headers(admin), "X-Evidence-Ticket": granted.json()["ticket"]}).status_code == 404
 
 
 def test_lowercase_bearer_upload_and_missing_auth(setup):
@@ -314,8 +324,9 @@ def test_phase7_openapi_contract_has_only_deliberate_private_parameters(setup):
     assert len(seller) == 8
     for path, _, op in seller:
         for parameter in op.get("parameters", []):
-            assert parameter["name"] in {"id", "offset", "ticket"}
-            if parameter["name"] == "ticket":
+            assert parameter["name"] in {"id", "offset", "X-Evidence-Ticket"}
+            if parameter["name"] == "X-Evidence-Ticket":
+                assert parameter["in"] == "header"
                 assert path == BASE + "/evidence/content"
     assert "multipart/form-data" in schema["paths"][BASE + "/evidence"]["post"]["requestBody"]["content"]
 

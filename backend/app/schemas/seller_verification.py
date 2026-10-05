@@ -7,7 +7,7 @@ from app.schemas.profile import _normalize_plain_text
 
 class StartOrSubmitRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    action: Literal["start", "submit"]
+    action: Literal["start", "submit", "renew_challenge"]
 
 
 class ReviewRequest(BaseModel):
@@ -32,15 +32,18 @@ class EvidenceAccessRequest(ReviewRequest):
 
 
 class EvidenceSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     evidence_type: EvidenceType
     mime_type: str
     size: int
 
 
 class VerificationResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     review_reference: str
     status: VerificationStatus
     handwritten_challenge: str
+    challenge_expires_at: datetime
     rejection_reason: str | None
     submitted_at: datetime | None
     reviewed_at: datetime | None
@@ -49,5 +52,7 @@ class VerificationResponse(BaseModel):
 
 
 class SignedEvidenceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     url: str
+    ticket: str
     expires_in: int

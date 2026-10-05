@@ -4,12 +4,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import wraps
 
+from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.common.enums import AccountStatus
 from app.models.profile import SUPPORTED_PROFILE_CITIES, UserProfile
 from app.models.user import User
+from app.models.seller_verification import SellerVerification, VerificationStatus
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.profile import ProfileUpdateRequest
@@ -72,6 +74,7 @@ class PublicProfileResult:
     member_since: datetime
     email_verified: bool
     phone_verified: bool
+    seller_verified: bool
 
 
 class ProfileService:
@@ -142,6 +145,12 @@ class ProfileService:
             member_since=user.created_at,
             email_verified=user.email_verified,
             phone_verified=user.phone_verified,
+            seller_verified=bool(user.email_verified and user.phone_verified and session.scalar(
+                select(select(SellerVerification.id).where(
+                    SellerVerification.user_id == user.id,
+                    SellerVerification.status == VerificationStatus.VERIFIED,
+                ).exists())
+            )),
         )
 
     def _active_user_for_update(self, session: Session, user_id: str) -> User:

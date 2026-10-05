@@ -4,6 +4,17 @@ Implemented 2026-09-25 on feature/authentication, baseline
 `5f068e8bf8fc54eaa8f4ed917a69e0d1baeccdd3`. No Phase 8 work, staging, commit or push.
 The user explicitly confirmed the draft → upload → submit workflow.
 
+Completion/hardening update: 2026-10-04; final regression rerun: 2026-10-05. The current follow-up migration is
+`c7d8e9f0a1b2`; the already-applied initial Phase 7 revision was not rewritten.
+Private download credentials now use headers only, successful reads require a committed
+audit row, seller peer limits run before JSON parsing, handwritten challenges expire and
+can be renewed in drafts, and public profiles expose only `seller_verified` as seller state.
+See the [completion gate, updated 2026-10-05](PHASE_7_COMPLETION_GATE_2026_10_04.md):
+**LOCAL PHASE 7 PASSED: YES; PRODUCTION READY: NO.** Frontend security patches are now installed
+and verified. The unpatched Tailwind 3 / braces advisory remains a production/security blocker
+for a separate migration task; no Tailwind 4 migration was performed. Private production storage
+and environment-blocked browser/container verification also prevent production readiness.
+
 ## Scope and state machine
 
 Only seller verification infrastructure and its authenticated user page are implemented.
@@ -22,14 +33,24 @@ Future marketplace authorization must independently check verification and accou
   starting/uploading/submitting and again for the applicant during review.
 - An administrator may not review their own application.
 
-The per-attempt random handwritten challenge is shown only in authenticated JSON/UI text.
-The reviewer must compare the handwritten image with that challenge and assess identity/proof.
-There is no OCR, automated identity match, biometric/liveness claim or challenge-expiry promise.
+The per-attempt 48-bit random handwritten challenge is shown only in authenticated JSON/UI text.
+It expires after SELLER_CODE_EXPIRY_MINUTES (default 10, allowed 5–60); the server rejects
+submission at/after expiry. A pending draft may POST action=renew_challenge. This atomically
+rotates the challenge, removes old HANDWRITTEN_CODE metadata and records CHALLENGE_RENEWED;
+only after commit is that old private file deleted. SELFIE and WECHAT_PROOF remain.
+Handwritten uploads include the displayed challenge in the multipart body and reject stale
+values after renewal. Submitted/terminal attempts cannot renew. A submission made before
+expiry stays reviewable later. The reviewer must compare the image against the saved challenge.
+The challenge remains readable in the private DB because both applicant and manual reviewer
+need its text; hashing alone would prevent that workflow. It is not a login credential.
+There is no OCR, automated identity match or biometric/liveness claim. Reusing a photo with
+a new claimed code cannot pass a diligent human comparison, but the software does not read pixels as text.
 These images are sensitive personal evidence; do not use real personal documents in development.
 
 ## Database and migration
 
-New head: `b7c1d2e3f4a5`, parent `a61b2c3d4e5f`.
+Initial revision: `b7c1d2e3f4a5`, parent `a61b2c3d4e5f`.
+Current head: `c7d8e9f0a1b2`, adding challenge_expires_at without deleting prior attempts.
 Adds seller_verifications, seller_evidence and seller_verification_audit.
 Existing authentication/profile tables are not rewritten.
 
@@ -45,7 +66,9 @@ Evidence has a unique verification/type pair, metadata constraints and a random 
 
 User-row serialization, current locking reads, transactions and unique constraints protect
 creation/upload/submit/review. Review locks users in deterministic order.
-Audit rows for START, SUBMISSION, UPLOAD, APPROVAL and REJECTION commit atomically with changes.
+Audit rows for START, CHALLENGE_RENEWED, SUBMISSION, UPLOAD, APPROVAL and REJECTION commit atomically with changes.
+EVIDENCE_READ commits before image bytes leave the service; failed storage, integrity, audit
+insertion or commit returns no image and leaves no success audit. Actor/target come from locked DB state.
 Operational logs contain event labels only, not IDs, reasons, files, credentials or challenge values.
 Database/storage atomicity is best-effort across two systems: rollback compensates new file writes;
 post-commit replacement deletes the old file. Cleanup failure emits a fixed safe alert.
@@ -56,11 +79,11 @@ All endpoints require bearer authentication. Cookie-only requests do not authori
 
 | Method | Path | Body / result |
 |---|---|---|
-| POST | /api/v1/seller-verification | Strict JSON action=start or action=submit; returns current safe state |
+| POST | /api/v1/seller-verification | Strict JSON action=start, submit or renew_challenge; returns current safe state |
 | GET | /api/v1/seller-verification/me | Own latest attempt or null |
-| POST | /api/v1/seller-verification/evidence | Multipart: exactly file + evidence_type |
+| POST | /api/v1/seller-verification/evidence | Multipart: file + evidence_type; HANDWRITTEN_CODE additionally requires challenge |
 | POST | /api/v1/seller-verification/evidence/access | JSON review_reference + evidence_type; owner/admin only |
-| GET | /api/v1/seller-verification/evidence/content | Signed ticket query + same actor's bearer token; one-use attachment |
+| GET | /api/v1/seller-verification/evidence/content | X-Evidence-Ticket header + same actor's bearer token; one-use audited attachment |
 | GET | /api/v1/admin/seller-verifications | Admin queue, 50 per page; bounded offset |
 | POST | /api/v1/admin/seller-verifications/{id}/approve | Admin; strict empty JSON object |
 | POST | /api/v1/admin/seller-verifications/{id}/reject | Admin; strict rejection_reason, 3–500 sanitized characters |
@@ -75,6 +98,8 @@ Per minute limits use the existing process-local architecture:
 submission 5/user and 15/peer; uploads 12/user and 36/peer; admin 30/user and 90/peer;
 reads/download grants 60/user and 180/peer. Upload ingress has a separate 36/peer limit,
 four concurrent slots and a 30-second body timeout.
+Seller/admin peer ingress budgets execute before body parsing, including invalid JSON,
+missing fields, wrong content types and anonymous traffic. Forwarded headers do not select the key.
 
 ## Evidence and storage boundaries
 
@@ -90,7 +115,7 @@ chunked requests. Extra/duplicate fields or file parts are rejected. Filesystem 
 random; traversal, symlinks and junctions are rejected. Repository-local storage overrides
 must stay under backend/private_uploads, never frontend/public or application source.
 
-StorageProvider defines upload, delete, read, generate_signed_url and redeem.
+StorageProvider defines upload, delete, read, issue_download_ticket and redeem.
 LocalPrivateStorage is development-only; default path:
 `backend/private_uploads/seller-evidence`.
 Optional environment override: SELLER_PRIVATE_STORAGE_DIR (private absolute path).
@@ -102,21 +127,27 @@ A private S3/object-store adapter can implement this contract and be supplied th
 injection, with durable shared grant storage. No cloud integration/credentials were added.
 Do not expose object-store keys or raw vendor presigned URLs containing those keys.
 
-## Explicit URL-privacy exception for authorized private retrieval
+## Header-only authorized private retrieval
 
-Ordinary verification responses have no evidence URLs. Only the access endpoint issues a
-60-second signed temporary API URL after authorization. Its ticket contains random nonce + HMAC,
+Ordinary verification responses have no evidence URLs. Only the access endpoint returns a
+fixed credential-free API URL plus a separate 60-second ticket in a no-store JSON response.
+Send that ticket only in X-Evidence-Ticket, never in a URL. It contains random nonce + HMAC,
 not user/document IDs, paths, keys or personal information. Grant metadata remains server-side.
 The token is bound to the authenticated actor, one-use, and authorization is rechecked at retrieval.
 Replacement invalidates an older grant by checking the current storage key; hash verification
 detects unexpected on-disk changes. This capability is not a public link or navigation destination.
 
-This is a narrow exception to Phase 6.1's no-sensitive-navigation policy, specifically required
-for private signed evidence retrieval. Never render the URL as a share link, navigate to it,
-store it in browser history/storage, or log/copy it. Use authenticated programmatic retrieval.
+There is no URL-privacy exception. Query-only credentials are rejected. Never place the
+ticket in navigation, browser persistence, analytics or logs. Use authenticated programmatic retrieval.
 Uvicorn's access filter suppresses this route; NGINX omits query strings and suppresses this
 location's access/error logs. External proxies/APM must apply equivalent redaction before deployment.
 Downloads are attachments with nosniff, sandbox CSP, no-store and no-referrer.
+The fixed URL alone grants no access. CORS permits the ticket header only to configured frontend origins.
+
+Public profile responses expose only `seller_verified: boolean`, derived from a VERIFIED DB
+attempt and current email/phone eligibility. Inactive or incomplete profiles remain hidden.
+No evidence, review reference, rejection history, challenge, reviewer or private timestamp is public.
+Approval still does not assign the SELLER role or authorize future marketplace operations.
 
 ## Frontend
 
@@ -131,7 +162,7 @@ Session changes remount the form and clear selected-file state. Logout removes s
 entries even if created by a mutation before a query observer existed.
 No new localStorage/sessionStorage persistence or token handling architecture.
 
-## Verification evidence
+## Original 2026-09-25 verification evidence (historical)
 
 - Full backend suite: 843 passed, 0 failed, 0 skipped.
 - Targeted Phase 7 backend regressions: 52 cases.
@@ -157,7 +188,7 @@ Reproduce from backend:
 .\.venv\Scripts\python.exe -m alembic current
 .\.venv\Scripts\python.exe -m alembic check
 .\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe -m ruff check app tests scripts
+.\.venv\Scripts\python.exe -m ruff check --no-cache app tests scripts alembic
 .\.venv\Scripts\python.exe -m compileall -q app tests scripts alembic
 .\.venv\Scripts\python.exe -m pip check
 .\.venv\Scripts\python.exe -m pip_audit

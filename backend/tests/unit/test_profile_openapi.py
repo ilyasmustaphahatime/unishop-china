@@ -37,6 +37,7 @@ def test_public_profile_openapi_schema_has_no_private_fields() -> None:
         "member_since",
         "email_verified",
         "phone_verified",
+        "seller_verified",
     }
     assert not {
         "id",

@@ -73,8 +73,8 @@ class StorageProvider(ABC):
     @abstractmethod
     def read(self, key: str) -> bytes: ...
     @abstractmethod
-    def generate_signed_url(self, key: str, *, actor_id: str, reference: str,
-                            evidence_type: str, prefix: str) -> str: ...
+    def issue_download_ticket(self, key: str, *, actor_id: str, reference: str,
+                              evidence_type: str) -> str: ...
     @abstractmethod
     def redeem(self, ticket: str, actor_id: str) -> tuple[str, str, str]: ...
 
@@ -128,8 +128,8 @@ class LocalPrivateStorage(StorageProvider):
     def delete(self, key: str) -> None:
         self._path(key).unlink(missing_ok=True)
 
-    def generate_signed_url(self, key: str, *, actor_id: str, reference: str,
-                            evidence_type: str, prefix: str) -> str:
+    def issue_download_ticket(self, key: str, *, actor_id: str, reference: str,
+                              evidence_type: str) -> str:
         with self.lock:
             self.tickets = {k: v for k, v in self.tickets.items() if v[0] > self.clock()}
             if len(self.tickets) >= 1000:
@@ -137,7 +137,7 @@ class LocalPrivateStorage(StorageProvider):
             nonce = secrets.token_hex(32)
             signature = hmac.new(self.secret, nonce.encode(), hashlib.sha256).hexdigest()
             self.tickets[nonce] = (self.clock() + 60, actor_id, key, reference, evidence_type)
-            return f"{prefix}/seller-verification/evidence/content?ticket={nonce}.{signature}"
+            return f"{nonce}.{signature}"
 
     def redeem(self, ticket: str, actor_id: str) -> tuple[str, str, str]:
         if re.fullmatch(r"[a-f0-9]{64}\.[a-f0-9]{64}", ticket) is None:

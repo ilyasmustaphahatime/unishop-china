@@ -116,7 +116,7 @@ def create_app(
         allow_origins=list(allowed_frontend_origins(config)),
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],
+        allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Evidence-Ticket"],
     )
     application.include_router(api_router, prefix=config.api_v1_prefix)
     if environment == "development" and config.enable_fake_sms_dev_inbox:

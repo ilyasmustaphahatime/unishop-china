@@ -34,6 +34,7 @@ export type PublicProfile = Pick<
 > & {
   displayName: string;
   city: SupportedCity;
+  sellerVerified: boolean;
 };
 
 export type UpdateProfileInput = {

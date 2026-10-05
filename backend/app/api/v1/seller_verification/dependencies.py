@@ -59,4 +59,5 @@ def get_seller_service(request: Request):
     path = config.seller_private_storage_dir.resolve()
     if path.is_relative_to(BACKEND_DIR.parent) and not path.is_relative_to(BACKEND_DIR / "private_uploads"):
         raise HTTPException(503, "Seller evidence storage must be private.")
-    return SellerVerificationService(local_storage(config.seller_private_storage_dir))
+    return SellerVerificationService(local_storage(config.seller_private_storage_dir),
+                                     challenge_lifetime_minutes=config.seller_code_expiry_minutes)

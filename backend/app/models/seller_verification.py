@@ -1,11 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum as PythonEnum
 import secrets
 
 from sqlalchemy import CHAR, CheckConstraint, Computed, DateTime, Enum, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
-from app.models.base import UUIDTimestampMixin, UUIDCreatedAtMixin
+from app.models.base import UUIDTimestampMixin, UUIDCreatedAtMixin, utc_now
 
 
 class VerificationStatus(str, PythonEnum):
@@ -41,6 +41,8 @@ class SellerVerification(UUIDTimestampMixin, Base):
     active_slot: Mapped[int | None] = mapped_column(
         Computed("CASE WHEN status <> 'REJECTED' THEN 1 ELSE NULL END", persisted=True))
     handwritten_challenge: Mapped[str] = mapped_column(String(12), default=lambda: secrets.token_hex(6).upper())
+    challenge_expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: utc_now() + timedelta(minutes=10))
     rejection_reason: Mapped[str | None] = mapped_column(String(500))
     reviewed_by: Mapped[str | None] = mapped_column(CHAR(36), ForeignKey("users.id", ondelete="SET NULL"))
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

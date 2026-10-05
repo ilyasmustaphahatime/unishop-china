@@ -5,6 +5,7 @@ export const verificationSchema = z.object({
   review_reference: z.string().regex(/^[a-f0-9]{32}$/),
   status: z.enum(['PENDING', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED']),
   handwritten_challenge: z.string().regex(/^[A-F0-9]{12}$/),
+  challenge_expires_at: z.iso.datetime({ offset: true }),
   rejection_reason: z.string().nullable(),
   submitted_at: z.string().nullable(),
   reviewed_at: z.string().nullable(),

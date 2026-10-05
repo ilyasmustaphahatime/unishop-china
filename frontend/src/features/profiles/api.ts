@@ -50,5 +50,6 @@ export async function getPublicProfile(publicHandle: string): Promise<PublicProf
     memberSince: data.member_since,
     emailVerified: data.email_verified,
     phoneVerified: data.phone_verified,
+    sellerVerified: data.seller_verified,
   };
 }

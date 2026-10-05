@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { useAuthStore } from '../../stores/authStore';
 import { useVerification, useVerificationMutation } from '../../features/sellerVerification/hooks';
@@ -16,15 +16,21 @@ function VerificationForm() {
   const mutation = useVerificationMutation();
   const [files, setFiles] = useState<Partial<Record<EvidenceType, File>>>({});
   const [message, setMessage] = useState('');
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
   const eligible = Boolean(user?.emailVerified && user?.phoneVerified);
   if (query.isPending) return <p role="status">Loading seller verification…</p>;
   if (query.isError) return <div role="alert">Verification could not be loaded.
     <button type="button" onClick={() => void query.refetch()}>Try again</button></div>;
   const data = query.data;
   const pending = data?.status === 'PENDING';
+  const expired = Boolean(data && Date.parse(data.challenge_expires_at) <= now);
   const complete = evidenceTypes.every((kind) => data?.evidence.some((e) => e.evidence_type === kind));
 
-  async function change(action: 'start' | 'submit') {
+  async function change(action: 'start' | 'submit' | 'renew_challenge') {
     setMessage('');
     try { await mutation.mutateAsync({ action }); setFiles({}); }
     catch { setMessage('Unable to continue. Check your verification status and try again.'); }
@@ -37,7 +43,8 @@ function VerificationForm() {
     if (error) { setMessage(error); return; }
     setMessage('');
     try {
-      await mutation.mutateAsync({ action: 'upload', kind, file });
+      await mutation.mutateAsync({ action: 'upload', kind, file,
+        challenge: kind === 'HANDWRITTEN_CODE' ? data?.handwritten_challenge : undefined });
       setFiles((previous) => ({ ...previous, [kind]: undefined }));
       setMessage('Evidence uploaded privately.');
     } catch { setMessage('Upload failed. Use a valid JPEG or PNG image and try again.'); }
@@ -53,9 +60,14 @@ function VerificationForm() {
     {data?.status === 'REJECTED' && <p>Review feedback: {data.rejection_reason}</p>}
     {(!data || data.status === 'REJECTED') && <button className={button} disabled={!eligible || mutation.isPending}
       onClick={() => void change('start')}>Start verification</button>}
-    {pending && <>
+    {pending && <div key={data.handwritten_challenge}>
       <p>Write this request code on paper and include it in your handwritten-code image:
         <strong className="ml-2 font-mono">{data.handwritten_challenge}</strong>.</p>
+      <p>Code expires at {new Date(data.challenge_expires_at).toLocaleTimeString()}.</p>
+      {expired && <p role="alert">This code has expired. Renew it and upload a new handwritten-code image.</p>}
+      <button className={button} disabled={!eligible || mutation.isPending}
+        onClick={() => void change('renew_challenge')}>Renew challenge</button>
+      <p>Renewing removes the previous handwritten-code image. Other evidence is kept.</p>
       <p>Upload one clear JPEG or PNG for each requirement, at most 5 MiB each.
         You can replace images until you submit.</p>
       {evidenceTypes.map((kind) => <form key={kind} onSubmit={(event) => void upload(event, kind)}
@@ -67,9 +79,9 @@ function VerificationForm() {
         <button className={button} disabled={!eligible || mutation.isPending || !files[kind]}>
           Upload {labels[kind].toLowerCase()}</button>
       </form>)}
-      <button className={button} disabled={!eligible || !complete || mutation.isPending}
+      <button className={button} disabled={!eligible || !complete || expired || mutation.isPending}
         onClick={() => void change('submit')}>Submit for review</button>
-    </>}
+    </div>}
     {data?.status === 'UNDER_REVIEW' && <p>Your request is with our review team. Submitted evidence cannot be changed.</p>}
     {data?.status === 'VERIFIED' && <p>Your seller verification is approved. Selling features are not available yet.</p>}
   </section>;

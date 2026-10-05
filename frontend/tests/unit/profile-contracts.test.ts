@@ -12,6 +12,11 @@ const base = {
 };
 
 describe('profile API contracts', () => {
+  it('requires a boolean seller indicator without exposing verification details', () => {
+    expect(publicProfileApiSchema.parse({ ...base, seller_verified: true }).seller_verified).toBe(true);
+    expect(publicProfileApiSchema.safeParse({ ...base, seller_verified: 'VERIFIED' }).success).toBe(false);
+    expect(publicProfileApiSchema.safeParse({ ...base, seller_verified: true, evidence: [] }).success).toBe(false);
+  });
   it('accepts MySQL-backed timestamp strings without weakening field strictness', () => {
     expect(
       myProfileApiSchema.parse({
@@ -26,7 +31,7 @@ describe('profile API contracts', () => {
   it.each(['email', 'phone_number', 'user_id', 'account_status', 'roles', 'password_hash'])(
     'rejects leaked public field %s',
     (field) => {
-      expect(publicProfileApiSchema.safeParse({ ...base, [field]: 'leaked' }).success).toBe(false);
+      expect(publicProfileApiSchema.safeParse({ ...base, seller_verified: false, [field]: 'leaked' }).success).toBe(false);
     },
   );
 });

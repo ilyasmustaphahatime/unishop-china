@@ -48,10 +48,10 @@ def race(first, second):
 
 
 def ready(service, owner):
-    call(lambda db: service.start_or_submit(db, owner, "start"))
+    draft = call(lambda db: service.start_or_submit(db, owner, "start"))
     image = sanitize_image(image_bytes(), "proof.png", "image/png")
     for kind in EvidenceType:
-        call(lambda db: service.upload(db, owner, kind, image))
+        call(lambda db: service.upload(db, owner, kind, image, draft.handwritten_challenge))
     return call(lambda db: service.start_or_submit(db, owner, "submit"))
 
 
@@ -79,6 +79,33 @@ def test_concurrent_approve_reject_has_one_terminal_decision(world):
         assert count == 1
 
 
+def test_concurrent_approve_approve_has_one_terminal_decision(world):
+    service, owner, admin = world
+    ref = ready(service, owner).review_reference
+    outcomes = race(lambda db: service.review(db, admin, ref, None),
+                    lambda db: service.review(db, admin, ref, None))
+    assert outcomes.count(409) == 1
+    with Session(engine) as db:
+        assert db.scalar(select(func.count()).select_from(SellerVerificationAudit).join(
+            SellerVerification, SellerVerification.id == SellerVerificationAudit.verification_id).where(
+                SellerVerification.user_id == owner, SellerVerificationAudit.event == "APPROVAL")) == 1
+
+
+def test_concurrent_submit_submit_has_one_submission(world):
+    service, owner, _ = world
+    draft = call(lambda db: service.start_or_submit(db, owner, "start"))
+    image = sanitize_image(image_bytes(), "proof.png", "image/png")
+    for kind in EvidenceType:
+        call(lambda db: service.upload(db, owner, kind, image, draft.handwritten_challenge))
+    outcomes = race(lambda db: service.start_or_submit(db, owner, "submit"),
+                    lambda db: service.start_or_submit(db, owner, "submit"))
+    assert outcomes.count(409) == 1
+    with Session(engine) as db:
+        assert db.scalar(select(func.count()).select_from(SellerVerificationAudit).join(
+            SellerVerification, SellerVerification.id == SellerVerificationAudit.verification_id).where(
+                SellerVerification.user_id == owner, SellerVerificationAudit.event == "SUBMISSION")) == 1
+
+
 def test_concurrent_upload_replacement_keeps_one_row_and_file(world):
     service, owner, _ = world
     call(lambda db: service.start_or_submit(db, owner, "start"))
@@ -95,12 +122,41 @@ def test_concurrent_upload_replacement_keeps_one_row_and_file(world):
 
 def test_concurrent_submit_blocks_late_evidence_changes(world):
     service, owner, _ = world
-    call(lambda db: service.start_or_submit(db, owner, "start"))
+    draft = call(lambda db: service.start_or_submit(db, owner, "start"))
     image = sanitize_image(image_bytes(), "proof.png", "image/png")
     for kind in EvidenceType:
-        call(lambda db: service.upload(db, owner, kind, image))
+        call(lambda db: service.upload(db, owner, kind, image, draft.handwritten_challenge))
     outcomes = race(lambda db: service.start_or_submit(db, owner, "submit"),
                     lambda db: service.upload(db, owner, EvidenceType.SELFIE, image))
     assert not isinstance(outcomes[0], int)
     assert outcomes[1] == 409 or outcomes[1].status.value == "PENDING"
     assert call(lambda db: service.own(db, owner)).status.value == "UNDER_REVIEW"
+
+
+def test_challenge_renewal_racing_old_upload_cannot_restore_old_evidence(world):
+    service, owner, _ = world
+    draft = call(lambda db: service.start_or_submit(db, owner, "start"))
+    image = sanitize_image(image_bytes(), "proof.png", "image/png")
+    outcomes = race(lambda db: service.start_or_submit(db, owner, "renew_challenge"),
+                    lambda db: service.upload(db, owner, EvidenceType.HANDWRITTEN_CODE,
+                                              image, draft.handwritten_challenge))
+    assert not isinstance(outcomes[0], int)
+    current = call(lambda db: service.own(db, owner))
+    assert current.handwritten_challenge != draft.handwritten_challenge
+    assert current.evidence == []
+
+
+def test_challenge_renewal_racing_submission_has_one_valid_transition(world):
+    service, owner, _ = world
+    draft = call(lambda db: service.start_or_submit(db, owner, "start"))
+    image = sanitize_image(image_bytes(), "proof.png", "image/png")
+    for kind in EvidenceType:
+        call(lambda db: service.upload(db, owner, kind, image, draft.handwritten_challenge))
+    outcomes = race(lambda db: service.start_or_submit(db, owner, "renew_challenge"),
+                    lambda db: service.start_or_submit(db, owner, "submit"))
+    assert outcomes.count(409) == 1
+    current = call(lambda db: service.own(db, owner))
+    if current.status.value == "UNDER_REVIEW":
+        assert current.handwritten_challenge == draft.handwritten_challenge and len(current.evidence) == 3
+    else:
+        assert current.status.value == "PENDING" and len(current.evidence) == 2
