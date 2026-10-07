@@ -68,8 +68,8 @@ def test_concurrent_updates_leave_one_valid_complete_row() -> None:
     try:
         with_session(lambda session: service.get_or_create_own(session, user_id=user_id))
         requests = [
-            ProfileUpdateRequest(display_name="First Writer", city="Beijing"),
-            ProfileUpdateRequest(display_name="Second Writer", city="Shanghai"),
+            ProfileUpdateRequest(display_name="First Writer", city="beijing"),
+            ProfileUpdateRequest(display_name="Second Writer", city="shanghai"),
         ]
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = list(
@@ -102,7 +102,7 @@ def test_concurrent_onboarding_is_idempotent() -> None:
             lambda session: service.update_own(
                 session,
                 user_id=user_id,
-                request=ProfileUpdateRequest(display_name="Ready User", city="Qingdao"),
+                request=ProfileUpdateRequest(display_name="Ready User", city="qingdao"),
             )
         )
         with ThreadPoolExecutor(max_workers=2) as executor:
@@ -133,7 +133,7 @@ def test_update_racing_onboarding_never_leaves_invalid_completion() -> None:
             lambda session: service.update_own(
                 session,
                 user_id=user_id,
-                request=ProfileUpdateRequest(display_name="Initially Ready", city="Shenzhen"),
+                request=ProfileUpdateRequest(display_name="Initially Ready", city="shenzhen"),
             )
         )
 
@@ -185,7 +185,7 @@ def test_profile_update_rolls_back_after_controlled_failure() -> None:
             lambda session: service.update_own(
                 session,
                 user_id=user_id,
-                request=ProfileUpdateRequest(display_name="Original Name", city="Guangzhou"),
+                request=ProfileUpdateRequest(display_name="Original Name", city="guangzhou"),
             )
         )
         failing = ProfileService(profile_repository=FailingProfileRepository())

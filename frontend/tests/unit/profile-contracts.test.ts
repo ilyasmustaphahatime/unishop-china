@@ -21,6 +21,8 @@ describe('profile API contracts', () => {
     expect(
       myProfileApiSchema.parse({
         ...base,
+        city_slug: 'qingdao',
+        city_active: true,
         onboarding_completed: true,
         created_at: '2026-09-04T00:00:00',
         updated_at: '2026-09-04T00:00:00',

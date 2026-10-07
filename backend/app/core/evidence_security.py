@@ -3,7 +3,7 @@ import asyncio
 import logging
 from fastapi.responses import JSONResponse
 from app.core.rate_limit import InMemoryRateLimiter
-from app.services.storage_service import MAX_BYTES
+from app.common.evidence_limits import MAX_BYTES
 
 
 class EvidenceAccessLogFilter(logging.Filter):

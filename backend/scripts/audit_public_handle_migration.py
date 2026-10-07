@@ -84,13 +84,19 @@ def main() -> int:
             env["DATABASE_URL"] = url.render_as_string(hide_password=False)
             env["APP_ENV"] = "development"
 
-            def alembic(*arguments):
+            def alembic(*arguments, expect_failure=False):
                 completed = subprocess.run(
                     [sys.executable, "-m", "alembic", *arguments], cwd=BACKEND,
-                    env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60,
+                    env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, timeout=60,
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 )
-                if completed.returncode:
+                if (completed.returncode != 0) != expect_failure:
+                    # Only disposable-schema diagnostics; never print connection URLs,
+                    # SQL parameters or the runtime-only provisioning credentials.
+                    for line in completed.stderr.splitlines():
+                        if line.startswith(("sqlalchemy.exc.", "RuntimeError:")):
+                            print(line.split("[SQL:", 1)[0].replace(password, "[redacted]")
+                                  .replace(root_password, "[redacted]")[:400])
                     raise RuntimeError("Isolated Alembic operation failed")
 
             stage = "baseline migration"
@@ -105,10 +111,10 @@ def main() -> int:
                     ), {"id": user_id, "email": f"migration-{index}@example.test"})
                     connection.execute(text(
                         "INSERT INTO user_profiles "
-                        "(id,user_id,public_id,display_name,created_at,updated_at) "
-                        "VALUES (:id,:user_id,:public_id,:display_name,NOW(),NOW())"
+                        "(id,user_id,public_id,display_name,city,created_at,updated_at) "
+                        "VALUES (:id,:user_id,:public_id,:display_name,:city,NOW(),NOW())"
                     ), {"id": str(uuid4()), "user_id": user_id, "public_id": str(uuid4()),
-                        "display_name": display_name})
+                        "display_name": display_name, "city": (None, "Qingdao", "Hangzhou")[index]})
                 baseline = connection.execute(text("SELECT * FROM users ORDER BY id")).all()
                 profiles = connection.execute(text("SELECT * FROM user_profiles ORDER BY id")).all()
                 columns = list(profiles[0]._mapping)
@@ -127,6 +133,31 @@ def main() -> int:
                 handles = list(connection.scalars(text("SELECT public_handle FROM user_profiles")))
                 assert len(handles) == len(set(handles)) == 3
                 assert all(len(h) == 25 and h.startswith("user-") for h in handles)
+            if "--catalog" in sys.argv:
+                stage = "catalog isolated backfill and round-trip"
+                with app_engine.connect() as connection:
+                    assert connection.scalar(text("SELECT COUNT(*) FROM cities")) == 6
+                    assert connection.scalar(text("SELECT COUNT(*) FROM user_profiles p JOIN cities c "
+                                                   "ON c.id=p.city_id WHERE BINARY p.city=BINARY c.name_en")) == 2
+                alembic("downgrade", "c7d8e9f0a1b2")
+                preserved()
+                # Simulate unknown legacy data only inside this disposable server.
+                # The upgrade must refuse BEFORE creating any Phase 8 table.
+                with app_engine.begin() as connection:
+                    connection.execute(text("ALTER TABLE user_profiles ALTER CHECK ck_user_profiles_supported_city NOT ENFORCED"))
+                    connection.execute(text("UPDATE user_profiles SET city='Unmapped Synthetic' WHERE city='Qingdao'"))
+                alembic("upgrade", "head", expect_failure=True)
+                with app_engine.begin() as connection:
+                    assert connection.scalar(text("SELECT COUNT(*) FROM information_schema.tables "
+                        "WHERE table_schema=DATABASE() AND table_name='cities'")) == 0
+                    connection.execute(text("UPDATE user_profiles SET city='Qingdao' WHERE city='Unmapped Synthetic'"))
+                    connection.execute(text("ALTER TABLE user_profiles ALTER CHECK ck_user_profiles_supported_city ENFORCED"))
+                alembic("upgrade", "head")
+                preserved()
+                alembic("check")
+                print(json.dumps({"catalog_cycle": "PASS", "seed_cities": 6,
+                                  "mapped_profiles": 2, "unknown_city_refused_before_ddl": True,
+                                  "existing_profile_data_preserved": True}))
             if "--seller-verification" in sys.argv:
                 stage = "seller verification isolated cycle"
                 with app_engine.begin() as connection:

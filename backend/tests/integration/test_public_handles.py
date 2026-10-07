@@ -65,7 +65,7 @@ def test_handle_is_immutable_in_model_and_api(client, active_user):
 
 def test_guessed_handle_has_no_write_authority_or_internal_id_fallback(client, active_user):
     profile = client.patch("/api/v1/profile/me",
-                           json={"display_name": "Public Person", "city": "Qingdao"}).json()
+                           json={"display_name": "Public Person", "city": "qingdao"}).json()
     client.post("/api/v1/profile/onboarding/complete", json={})
     handle = profile["public_handle"]
     with Session(engine) as session:
@@ -112,6 +112,8 @@ def test_hidden_states_and_unknown_handle_have_identical_missing_response(client
             user.account_status = state
             profile = session.scalar(select(UserProfile).where(UserProfile.user_id == active_user.id))
             profile.display_name = "Hidden Person"
+            from app.repositories.catalog_repository import CityRepository
+            profile.city_id = CityRepository().get(session, "qingdao").id
             profile.city = "Qingdao"
             profile.onboarding_completed = True
         response = client.get("/api/v1/profiles/by-handle/" + handle)

@@ -1,9 +1,10 @@
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy.orm import Session
+
+from app.core.transactions import commit_request_transaction
 
 from app.common.datetime_utils import as_utc
 from app.common.enums import AccountStatus
@@ -90,13 +91,4 @@ class PasswordChangeService:
 
         return PasswordChangeResult()
 
-    @staticmethod
-    @contextmanager
-    def _transaction(session: Session) -> Iterator[None]:
-        if session.in_transaction():
-            with session.begin_nested():
-                yield
-            session.commit()
-            return
-        with session.begin():
-            yield
+    _transaction = staticmethod(commit_request_transaction)

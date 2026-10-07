@@ -8,6 +8,7 @@ from app.common.datetime_utils import as_utc
 from app.common.enums import AccountStatus
 from app.models import SellerVerification, SellerEvidence, SellerVerificationAudit, UserProfile
 from app.models.base import utc_now
+from app.repositories.catalog_repository import CityRepository
 from app.models.seller_verification import EvidenceType, VerificationStatus
 from tests.integration.test_seller_verification import (
     ADMIN, BASE, headers, image_bytes, setup as setup, start, submitted, upload,
@@ -88,6 +89,7 @@ def test_submitted_challenge_cannot_be_renewed_even_after_expiry(setup, monkeypa
 def test_public_profile_has_only_boolean_seller_indicator(setup, status):
     client, db, owner, _, admin, _ = setup
     profile = UserProfile(user_id=owner.id, display_name="Synthetic Public Seller", city="Qingdao",
+                          city_id=CityRepository().get(db, "qingdao").id,
                           onboarding_completed=True)
     db.add(profile)
     db.flush()

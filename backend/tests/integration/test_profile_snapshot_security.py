@@ -24,7 +24,7 @@ def test_own_profile_reads_latest_committed_row_after_authentication_snapshot(ex
             stale.scalar(select(UserProfile).where(UserProfile.user_id == user_id))
             latest = with_session(lambda session: service.update_own(
                 session, user_id=user_id,
-                request=ProfileUpdateRequest(display_name="Committed Name", city="Qingdao")))
+                request=ProfileUpdateRequest(display_name="Committed Name", city="qingdao")))
             result = service.get_or_create_own(stale, user_id=user_id)
             assert result.public_handle == latest.public_handle
             assert result.display_name == latest.display_name
@@ -39,7 +39,7 @@ def test_stale_snapshot_cannot_complete_onboarding_after_required_field_is_clear
     try:
         with_session(lambda session: service.update_own(
             session, user_id=user_id,
-            request=ProfileUpdateRequest(display_name="Original Name", city="Qingdao")))
+            request=ProfileUpdateRequest(display_name="Original Name", city="qingdao")))
         with Session(engine) as stale:
             assert stale.scalar(select(User.id).where(User.id == user_id)) == user_id
             stale.scalar(select(UserProfile).where(UserProfile.user_id == user_id))

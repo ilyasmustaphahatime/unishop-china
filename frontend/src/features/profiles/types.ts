@@ -1,19 +1,10 @@
-export const supportedCities = [
-  'Qingdao',
-  'Beijing',
-  'Shanghai',
-  'Shenzhen',
-  'Guangzhou',
-  'Hangzhou',
-] as const;
-
-export type SupportedCity = (typeof supportedCities)[number];
-
 export type MyProfile = {
   publicHandle: string;
   displayName: string | null;
   bio: string | null;
-  city: SupportedCity | null;
+  city: string | null;
+  citySlug: string | null;
+  cityActive: boolean;
   onboardingCompleted: boolean;
   memberSince: string;
   createdAt: string;
@@ -33,12 +24,12 @@ export type PublicProfile = Pick<
   | 'phoneVerified'
 > & {
   displayName: string;
-  city: SupportedCity;
+  city: string;
   sellerVerified: boolean;
 };
 
 export type UpdateProfileInput = {
   displayName?: string | null;
   bio?: string | null;
-  city?: SupportedCity | null;
+  city?: string | null;
 };

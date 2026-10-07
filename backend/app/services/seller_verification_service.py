@@ -1,19 +1,18 @@
-from contextlib import contextmanager
 from datetime import timedelta
 import hashlib
 import hmac
 import logging
 import secrets
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.common.enums import AccountStatus, UserRoleType
+from app.core.authorization import AuthorizationError, lock_active_user, require_db_admin
+from app.core.transactions import transaction
 from app.common.datetime_utils import as_utc
-from app.models import User, UserRole
+from app.models import User
 from app.models.base import utc_now
 from app.models.seller_verification import (
-    SellerVerification, SellerEvidence, SellerVerificationAudit, VerificationStatus, EvidenceType,
+    SellerVerification, SellerEvidence, VerificationStatus, EvidenceType,
 )
 from app.repositories.seller_verification_repository import SellerVerificationRepository
 from app.schemas.seller_verification import VerificationResponse, EvidenceSummary
@@ -35,43 +34,28 @@ class SellerVerificationService:
         self.challenge_lifetime = timedelta(minutes=challenge_lifetime_minutes)
         self.now = now_provider
 
-    @staticmethod
-    @contextmanager
-    def transaction(db: Session):
-        try:
-            if db.in_transaction():
-                with db.begin_nested():
-                    yield
-                db.commit()
-            else:
-                with db.begin():
-                    yield
-        except Exception:
-            db.rollback()
-            raise
+    transaction = staticmethod(transaction)
 
     @staticmethod
     def lock_user(db: Session, user_id: str, *, eligible=False) -> User:
-        user = db.scalar(select(User).where(User.id == user_id).with_for_update()
-                         .execution_options(populate_existing=True))
-        if user is None or user.account_status != AccountStatus.ACTIVE:
-            raise VerificationError("Account unavailable.", 401)
-        if eligible and (not user.email_verified or not user.phone_verified):
-            raise VerificationError("Verify both email and phone before continuing.", 403)
-        return user
+        try:
+            return lock_active_user(db, user_id, eligible=eligible)
+        except AuthorizationError as exc:
+            raise VerificationError(str(exc), exc.status) from None
 
     @staticmethod
     def admin(db: Session, actor_id: str):
-        role = db.scalar(select(UserRole.id).where(
-            UserRole.user_id == actor_id, UserRole.role == UserRoleType.ADMIN).with_for_update())
-        if role is None:
-            raise VerificationError("Administrator access required.", 403)
+        try:
+            require_db_admin(db, actor_id)
+        except AuthorizationError as exc:
+            raise VerificationError(str(exc), exc.status) from None
 
     @staticmethod
     def audit(db: Session, row: SellerVerification, actor_id: str, event: str):
-        db.add(SellerVerificationAudit(verification_id=row.id, actor_id=actor_id, event=event))
+        SellerVerificationRepository().record_audit(db, verification_id=row.id, actor_id=actor_id, event=event)
 
-    def response(self, db: Session, row: SellerVerification) -> VerificationResponse:
+    @staticmethod
+    def response(row: SellerVerification, evidence: list[SellerEvidence]) -> VerificationResponse:
         return VerificationResponse(
             review_reference=row.review_reference, status=row.status,
             handwritten_challenge=row.handwritten_challenge,
@@ -79,13 +63,13 @@ class SellerVerificationService:
             rejection_reason=row.rejection_reason, submitted_at=row.submitted_at,
             reviewed_at=row.reviewed_at, created_at=row.created_at,
             evidence=[EvidenceSummary(evidence_type=e.evidence_type, mime_type=e.mime_type, size=e.size)
-                      for e in self.repo.evidence(db, row.id)])
+                      for e in evidence])
 
     def own(self, db: Session, actor_id: str):
         with self.transaction(db):
             self.lock_user(db, actor_id)
             row = self.repo.latest(db, actor_id)
-            return self.response(db, row) if row else None
+            return self.response(row, self.repo.evidence(db, row.id)) if row else None
 
     def start_or_submit(self, db: Session, actor_id: str, action: str):
         old_key = None
@@ -123,7 +107,7 @@ class SellerVerificationService:
             else:
                 raise VerificationError("Invalid verification action.", 422)
             db.flush()
-            result = self.response(db, row)
+            result = self.response(row, self.repo.evidence(db, row.id))
         if old_key:
             try:
                 self.storage.delete(old_key)
@@ -161,7 +145,7 @@ class SellerVerificationService:
                                           file_hash=image.file_hash, mime_type=image.mime_type, size=len(image.data)))
                 self.audit(db, row, actor_id, "UPLOAD")
                 db.flush()
-                result = self.response(db, row)
+                result = self.response(row, self.repo.evidence(db, row.id))
         except Exception:
             if key:
                 try:
@@ -180,8 +164,7 @@ class SellerVerificationService:
     def review(self, db: Session, actor_id: str, reference: str, reason: str | None):
         with self.transaction(db):
             # Determine owner without trusting the client; then lock all users in a fixed order.
-            owner = db.scalar(select(SellerVerification.user_id).where(
-                SellerVerification.review_reference == reference))
+            owner = self.repo.owner_by_reference(db, reference)
             if owner is None:
                 raise VerificationError("Verification not found.", 404)
             for user_id in sorted({owner, actor_id}):
@@ -201,7 +184,7 @@ class SellerVerificationService:
             # Verification is separate from role provisioning/listing permissions.
             self.audit(db, row, actor_id, "REJECTION" if reason is not None else "APPROVAL")
             db.flush()
-            result = self.response(db, row)
+            result = self.response(row, self.repo.evidence(db, row.id))
         logger.info("seller_verification_event=%s", "rejection" if reason is not None else "approval")
         return result
 
@@ -209,16 +192,19 @@ class SellerVerificationService:
         with self.transaction(db):
             self.lock_user(db, actor_id)
             self.admin(db, actor_id)
-            rows = list(db.scalars(select(SellerVerification).where(
-                SellerVerification.status == VerificationStatus.UNDER_REVIEW)
-                .order_by(SellerVerification.submitted_at, SellerVerification.id)
-                .offset(offset).limit(50).with_for_update().execution_options(populate_existing=True)))
-            return [self.response(db, row) for row in rows]
+            rows = self.repo.pending_for_review(db, offset)
+            evidence = self.repo.evidence_for_requests(db, [row.id for row in rows])
+            return [self.response(row, evidence.get(row.id, [])) for row in rows]
 
-    def authorized_evidence(self, db: Session, actor_id: str, reference: str, kind: EvidenceType):
+    def issue_evidence_ticket(self, db: Session, actor_id: str, reference: str, kind: EvidenceType) -> str:
+        """Keep authorization and private storage metadata out of the HTTP layer."""
         with self.transaction(db):
             _, evidence = self._locked_evidence(db, actor_id, reference, kind)
-            return evidence.storage_key, evidence.mime_type, evidence.file_hash
+            key = evidence.storage_key
+        # Only issue after the authorization transaction has completed. Redemption
+        # independently rechecks authority and the evidence key before any bytes.
+        return self.storage.issue_download_ticket(key, actor_id=actor_id, reference=reference,
+                                                  evidence_type=kind.value)
 
     def _locked_evidence(self, db: Session, actor_id: str, reference: str, kind: EvidenceType):
         self.lock_user(db, actor_id)

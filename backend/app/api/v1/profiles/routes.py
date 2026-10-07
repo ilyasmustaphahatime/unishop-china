@@ -21,6 +21,7 @@ from app.schemas.profile import (
     PublicProfileResponse,
 )
 from app.services.auth_service import SafeAuthenticatedUser
+from app.services.catalog_service import CatalogError
 from app.services.profile_service import (
     OnboardingIncompleteError,
     ProfileService,
@@ -59,6 +60,8 @@ def update_own_profile(
             user_id=current_user.id,
             request=request,
         )
+    except CatalogError as exc:
+        raise HTTPException(exc.status, str(exc)) from None
     except ProfileUnavailableError as exc:
         raise _unavailable_error() from exc
     except Exception as exc:

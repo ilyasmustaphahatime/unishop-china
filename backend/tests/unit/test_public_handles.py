@@ -57,10 +57,17 @@ def test_all_openapi_variants_have_only_public_handle_path_parameters():
             for parameter in operation.get("parameters", []):
                 assert parameter["in"] != "query"
                 if parameter["in"] == "path":
-                    assert parameter["name"] == "handle"
-                    assert path == "/api/v1/profiles/by-handle/{handle}"
-            assert not any(word in path for word in ("seller", "products", "chat", "admin"))
-    assert len(operation_ids) == len(set(operation_ids)) == 27
+                    if path.startswith(("/api/v1/cities/", "/api/v1/categories/",
+                                        "/api/v1/admin/cities/", "/api/v1/admin/categories/")):
+                        assert parameter["name"] == "slug"
+                    else:
+                        assert parameter["name"] == "handle"
+                        assert path == "/api/v1/profiles/by-handle/{handle}"
+            assert not any(word in path for word in ("seller", "products", "chat"))
+            if "/admin/" in path:
+                assert path.startswith(("/api/v1/admin/cities", "/api/v1/admin/categories"))
+                assert operation["security"]
+    assert len(operation_ids) == len(set(operation_ids)) == 41
     assert "/api/v1/profiles/{public_id}" not in schema["paths"]
     for kind in ("sms", "password-reset"):
         assert "post" in schema["paths"][f"/api/v1/dev/fake-{kind}/latest"]

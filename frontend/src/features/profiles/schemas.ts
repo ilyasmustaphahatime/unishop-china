@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { supportedCities } from './types';
+import { catalogSlugSchema } from '../catalog/slugs';
 
 const directionControls = new Set([0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069]);
 
@@ -23,7 +23,7 @@ export const profileFormSchema = z.object({
     .trim()
     .max(300, 'Bio must contain at most 300 characters.')
     .refine((value) => !hasUnsafeControl(value, true), 'Bio contains unsupported characters.'),
-  city: z.enum(supportedCities, { error: 'Choose a supported city.' }),
+  city: catalogSlugSchema,
 });
 
 export type ProfileFormValues = z.infer<typeof profileFormSchema>;

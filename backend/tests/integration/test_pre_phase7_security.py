@@ -15,6 +15,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.repositories.catalog_repository import CityRepository
 from app.core.database import engine
 from app.core.exceptions import RequestVerificationError
 from app.core.rate_limit import InMemoryRateLimiter
@@ -200,7 +201,8 @@ def test_account_state_matrix_uses_current_database_authority(owned_user, accoun
         user = session.get(User, user_id)
         user.account_status = account_status
         session.add(UserProfile(user_id=user_id, public_handle=public_handle, display_name="Audit User",
-                                city="Qingdao", onboarding_completed=True))
+                                city="Qingdao", city_id=CityRepository().get(session, "qingdao").id,
+                                onboarding_completed=True))
     active = account_status is AccountStatus.ACTIVE
     with TestClient(create_app(settings), raise_server_exceptions=False) as client:
         login = client.post("/api/v1/auth/login", json={"identifier": email, "password": password})
@@ -408,7 +410,8 @@ def test_profile_creation_and_completion_rollback_on_flush_failure(owned_user, o
     user_id, _, _ = owned_user
     if operation == "complete":
         with Session(engine) as session, session.begin():
-            session.add(UserProfile(user_id=user_id, display_name="Ready User", city="Qingdao"))
+            session.add(UserProfile(user_id=user_id, display_name="Ready User", city="Qingdao",
+                                    city_id=CityRepository().get(session, "qingdao").id))
 
     def fail_write(session, _context, _instances):
         for row in session.new.union(session.dirty):

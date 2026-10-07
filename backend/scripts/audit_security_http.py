@@ -30,6 +30,7 @@ def snapshot(engine):
             "users", "user_roles", "phone_verification_codes", "refresh_tokens",
             "password_reset_codes", "email_verification_codes", "user_profiles",
             "seller_verifications", "seller_evidence", "seller_verification_audit",
+            "cities", "categories", "admin_catalog_audit", "catalog_write_lock",
         ):
             table = Table(name, metadata, autoload_with=connection)
             rows = connection.execute(select(table).order_by(table.c.id)).all()
@@ -51,6 +52,7 @@ def main() -> int:
     from app.common.enums import UserRoleType
     from io import BytesIO
     from PIL import Image
+    from scripts.catalog_http_checks import assert_catalog_namespace_unused, run_catalog_checks, cleanup_catalog_synthetic
 
     if settings.app_env.strip().lower() != "development" or engine.url.host not in {
         "127.0.0.1", "localhost", "::1",
@@ -59,6 +61,7 @@ def main() -> int:
         return 1
     baseline = snapshot(engine)
     marker = uuid4().hex
+    assert_catalog_namespace_unused(engine, marker)
     emails = [f"pre7-http-{marker}-{i}@example.com" for i in range(2)]
     passwords = [secrets.token_urlsafe(32) + "Aa1" for _ in range(3)]
     phone = "+86138" + "".join(str(secrets.randbelow(10)) for _ in range(8))
@@ -156,7 +159,7 @@ def main() -> int:
             check(first.post("/api/v1/profile/onboarding/complete", json={}).status_code == 409,
                   "incomplete-onboarding-rejected")
             check(first.patch("/api/v1/profile/me", json={
-                "display_name": "Audit Member", "city": "Qingdao",
+                "display_name": "Audit Member", "city": "qingdao",
                 "bio": "<img src=x onerror=alert(1)>",
             }).status_code == 200, "update-profile")
             check(first.post("/api/v1/profile/onboarding/complete", json={}).status_code == 200,
@@ -233,6 +236,8 @@ def main() -> int:
             check(first.post(seller + "/evidence", data={"evidence_type": "SELFIE"},
                              files={"file": ("proof.png", buffer.getvalue(), "image/png")}).status_code == 409,
                   "seller-evidence-immutable-after-review")
+            stage = "catalog-foundation"
+            run_catalog_checks(first, second, check, engine, marker, synthetic_admin_id)
             stage = "password-reset"
             check(first.post("/api/v1/auth/password/forgot", json={
                 "identifier": emails[0],
@@ -287,6 +292,7 @@ def main() -> int:
             process.wait(timeout=5)
         with Session(engine) as session, session.begin():
             session.execute(delete(User).where(User.email.in_(emails)))
+            cleanup_catalog_synthetic(session, marker)
         private_storage.cleanup()
         preserved = snapshot(engine) == baseline
         print(json.dumps({"checks_passed": passed, "preservation": preserved,

@@ -6,12 +6,12 @@ import Alert from '../common/Alert';
 import Button from '../common/Button';
 import FormField from '../common/FormField';
 import Input from '../common/Input';
-import Select from '../common/Select';
+import CitySelect from './CitySelect';
 import Textarea from '../common/Textarea';
 import { profileErrorMessage } from '../../features/profiles/errors';
 import { useUpdateProfile } from '../../features/profiles/hooks';
 import { profileFormSchema, type ProfileFormValues } from '../../features/profiles/schemas';
-import { supportedCities, type MyProfile } from '../../features/profiles/types';
+import type { MyProfile } from '../../features/profiles/types';
 
 export default function ProfileForm({ profile }: { profile: MyProfile }) {
   const mutation = useUpdateProfile();
@@ -27,7 +27,7 @@ export default function ProfileForm({ profile }: { profile: MyProfile }) {
     defaultValues: {
       displayName: profile.displayName ?? '',
       bio: profile.bio ?? '',
-      city: profile.city ?? undefined,
+      city: profile.citySlug ?? '',
     },
   });
 
@@ -35,7 +35,7 @@ export default function ProfileForm({ profile }: { profile: MyProfile }) {
     reset({
       displayName: profile.displayName ?? '',
       bio: profile.bio ?? '',
-      city: profile.city ?? undefined,
+      city: profile.citySlug ?? '',
     });
   }, [profile, reset]);
 
@@ -44,7 +44,8 @@ export default function ProfileForm({ profile }: { profile: MyProfile }) {
       await mutation.mutateAsync({
         displayName: values.displayName,
         bio: values.bio || null,
-        city: values.city,
+        // An unchanged historical city need not be reassigned when editing a bio.
+        ...(values.city !== profile.citySlug ? { city: values.city } : {}),
       });
       navigate('/profile', { replace: true, state: { profileUpdated: true } });
     } catch {
@@ -53,6 +54,7 @@ export default function ProfileForm({ profile }: { profile: MyProfile }) {
   }
 
   const bioLength = useWatch({ control, name: 'bio' })?.length ?? 0;
+  const selectedCity = useWatch({ control, name: 'city' }) ?? '';
   return (
     <form className="space-y-5" onSubmit={handleSubmit(submit)} noValidate>
       {mutation.isError && <Alert>{profileErrorMessage(mutation.error)}</Alert>}
@@ -81,15 +83,7 @@ export default function ProfileForm({ profile }: { profile: MyProfile }) {
         />
       </FormField>
       <FormField id="city" label="City" error={errors.city?.message}>
-        <Select
-          id="city"
-          aria-describedby={errors.city ? 'city-error' : undefined}
-          aria-invalid={Boolean(errors.city)}
-          {...register('city')}
-        >
-          <option value="">Choose your city</option>
-          {supportedCities.map((city) => <option key={city} value={city}>{city}</option>)}
-        </Select>
+        <CitySelect id="city" registration={register('city')} value={selectedCity} currentSlug={profile.citySlug} currentName={profile.city} />
       </FormField>
       <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
         <Button variant="secondary" onClick={() => navigate('/profile')}>Cancel</Button>

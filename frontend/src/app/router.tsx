@@ -10,6 +10,7 @@ import ProtectedRoute from '../routes/ProtectedRoute';
 const pages = import.meta.glob([
   '../pages/public/HomePage.tsx',
   '../pages/public/PublicProfilePage.tsx',
+  '../pages/public/CategoriesPage.tsx',
   '../pages/public/SafetyPage.tsx',
   '../pages/public/TermsPage.tsx',
   '../pages/public/PrivacyPage.tsx',
@@ -55,6 +56,7 @@ function mapRoutes(routes: Array<[string, string]>): RouteObject[] {
 const publicRoutes = mapRoutes([
   ['/', 'public/HomePage'],
   ['/u/:handle', 'public/PublicProfilePage'],
+  ['/categories', 'public/CategoriesPage'],
   ['/safety', 'public/SafetyPage'],
   ['/terms', 'public/TermsPage'],
   ['/privacy', 'public/PrivacyPage'],

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas.seller_verification import VerificationResponse, ReviewRequest, RejectRequest
 from app.api.v1.seller_verification.dependencies import require_admin, get_seller_service
-from app.api.v1.seller_verification.routes import safe_operation
+from app.api.v1.seller_verification.errors import safe_operation
 
 router = APIRouter(tags=["seller-verification-admin"])
 

@@ -3,7 +3,7 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.api.v1.auth.dependencies import get_current_user
-from app.api.v1.profiles.dependencies import _enforce_authenticated_limit
+from app.api.rate_limits import enforce_authenticated_limit
 from app.common.enums import UserRoleType
 from app.core.database import get_db
 from app.core.config import BACKEND_DIR
@@ -21,16 +21,15 @@ limiters = {name: (InMemoryRateLimiter(max_requests=count * 3, window_seconds=60
 def limited(name):
     def dependency(request: Request, user: SafeAuthenticatedUser = Depends(get_current_user)):
         ip_limiter, user_limiter = limiters[name]
-        try:
-            _enforce_authenticated_limit(request, user, ip_limiter=ip_limiter, user_limiter=user_limiter,
-                                         namespace="seller-" + name)
-        except HTTPException as exc:
-            if exc.status_code == 429:
-                raise HTTPException(429, "Too many verification requests. Please try again later.",
-                                    headers=exc.headers) from None
-            raise
+        enforce_authenticated_limit(request, user.id, ip_limiter=ip_limiter, user_limiter=user_limiter,
+                                    namespace="seller-" + name, on_rejected=_raise_rate_limit)
         return user
     return dependency
+
+
+def _raise_rate_limit(retry_after: int | None):
+    raise HTTPException(429, "Too many verification requests. Please try again later.",
+                        headers={"Retry-After": str(retry_after or 1)})
 
 
 submission_user = limited("submission")

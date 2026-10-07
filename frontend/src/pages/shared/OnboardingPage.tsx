@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { Navigate, useNavigate } from 'react-router';
 import Alert from '../../components/common/Alert';
 import Badge from '../../components/common/Badge';
@@ -9,7 +9,7 @@ import Card from '../../components/common/Card';
 import FormField from '../../components/common/FormField';
 import Input from '../../components/common/Input';
 import ProgressSteps from '../../components/common/ProgressSteps';
-import Select from '../../components/common/Select';
+import CitySelect from '../../components/profiles/CitySelect';
 import Spinner from '../../components/common/Spinner';
 import Textarea from '../../components/common/Textarea';
 import { profileErrorMessage } from '../../features/profiles/errors';
@@ -19,7 +19,6 @@ import {
   useUpdateProfile,
 } from '../../features/profiles/hooks';
 import { profileFormSchema, type ProfileFormValues } from '../../features/profiles/schemas';
-import { supportedCities } from '../../features/profiles/types';
 
 const TOTAL_STEPS = 5;
 
@@ -35,15 +34,16 @@ export default function OnboardingPage() {
     resolver: zodResolver(profileFormSchema),
     defaultValues: { displayName: '', bio: '', city: undefined },
   });
+  const selectedCity = useWatch({ control: form.control, name: 'city' }) ?? '';
 
   useEffect(() => {
     if (!profile.data || initialized.current) return;
     form.reset({
       displayName: profile.data.displayName ?? '',
       bio: profile.data.bio ?? '',
-      city: profile.data.city ?? undefined,
+      city: profile.data.citySlug ?? '',
     });
-    setStep(profile.data.city && profile.data.displayName ? 4 : profile.data.displayName ? 3 : 1);
+    setStep(profile.data.cityActive && profile.data.displayName ? 4 : profile.data.displayName ? 3 : 1);
     initialized.current = true;
   }, [form, profile.data]);
 
@@ -126,12 +126,9 @@ export default function OnboardingPage() {
           )}
           {step === 3 && (
             <>
-              <p className="text-sm leading-6 text-slate-600">Your city helps people understand where marketplace exchanges can happen. A broader city system will arrive in a later phase.</p>
+              <p className="text-sm leading-6 text-slate-600">Choose an active city from the current UniShop directory.</p>
               <FormField id="city" label="Current city" error={form.formState.errors.city?.message}>
-                <Select id="city" {...form.register('city')}>
-                  <option value="">Choose your city</option>
-                  {supportedCities.map((city) => <option key={city} value={city}>{city}</option>)}
-                </Select>
+                <CitySelect id="city" registration={form.register('city')} value={selectedCity} currentSlug={profile.data?.citySlug} currentName={profile.data?.city} />
               </FormField>
               <div className="flex justify-between gap-3">
                 <Button variant="secondary" onClick={() => setStep(2)}>Back</Button>

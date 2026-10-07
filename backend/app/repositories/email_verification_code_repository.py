@@ -46,7 +46,7 @@ class EmailVerificationCodeRepository:
             .limit(1)
         )
         if for_update:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
         return session.scalar(statement)
 
     def get_latest_active_for_user(
@@ -70,7 +70,7 @@ class EmailVerificationCodeRepository:
             .limit(1)
         )
         if for_update:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
         return session.scalar(statement)
 
     def count_created_since(

@@ -11,6 +11,8 @@ Base URL: `/api/v1`
 | display_name | yes | yes | yes |
 | bio | yes | yes | yes |
 | city | yes | yes | yes |
+| city_slug | yes | no | via the city request field only |
+| city_active | yes | no | no |
 | member_since | yes | yes | no |
 | onboarding_completed | yes | no | no |
 | email_verified | yes | yes | no |
@@ -32,15 +34,37 @@ Requires an ACTIVE bearer-authenticated user. The strict body accepts any subset
 {
   "display_name": "Lin Wei",
   "bio": "International student in Qingdao.",
-  "city": "Qingdao"
+  "city": "qingdao"
 }
 ```
 
-Supported cities are Qingdao, Beijing, Shanghai, Shenzhen, Guangzhou, and Hangzhou. Unknown or privileged fields return a sanitized 422. A valid update returns 200. Limits are 30 per authenticated user and 60 per connection peer per minute; 429 includes `Retry-After`.
+Phase 8: `city` in a write request is a canonical public slug from `GET /cities`,
+not an English display label or internal ID. The server resolves an active database
+city while holding its row lock until the profile transaction commits. Unknown or
+inactive slugs, invalid syntax and privileged fields return a sanitized 422. Set
+`city` to `null` to clear it (and invalidate onboarding completion). Omit it when
+editing other fields without changing the saved city.
+
+Own responses still return the display label in `city`, plus nullable `city_slug`
+and boolean `city_active`. Public profile responses retain only the display label.
+There is no client-side six-city allowlist; the six initial cities are migration
+seed data, not application authority. A retired city remains visible on existing
+profiles. Name/bio-only edits preserve it, but explicitly assigning an inactive
+slug is rejected, including reassigning the same slug.
+
+This is an intentional write-contract change from the Phase 6 label payload;
+deploy the frontend and backend together. A valid update returns 200. Limits are
+30 per authenticated user and 60 per connection peer per minute; 429 includes
+`Retry-After`. See [catalog contracts and administration](catalog-api.md).
 
 ## `POST /profile/onboarding/complete`
 
-Requires an ACTIVE bearer-authenticated user and exactly `{}`. The server checks the committed display name and city. It returns 200 when complete or already complete, 409 when required data is absent, 422 for extra fields, and 429 when limited. Limits are 10 per user and 30 per peer per minute.
+Requires an ACTIVE bearer-authenticated user and exactly `{}`. First completion
+requires the committed display name and an active referenced city. Previously
+completed onboarding remains complete when an admin retires that city, and repeat
+completion stays idempotent. Returns 200 when complete or already complete, 409
+when required data or an active city for first completion is absent, 422 for extra
+fields, and 429 when limited. Limits are 10 per user and 30 per peer per minute.
 
 ## `GET /profiles/by-handle/{handle}`
 

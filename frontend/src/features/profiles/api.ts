@@ -9,6 +9,8 @@ function mapMyProfile(data: ReturnType<typeof myProfileApiSchema.parse>): MyProf
     displayName: data.display_name,
     bio: data.bio,
     city: data.city,
+    citySlug: data.city_slug,
+    cityActive: data.city_active,
     onboardingCompleted: data.onboarding_completed,
     memberSince: data.member_since,
     createdAt: data.created_at,

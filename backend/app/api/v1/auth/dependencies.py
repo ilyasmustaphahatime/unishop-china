@@ -2,6 +2,8 @@ from fastapi import Depends, HTTPException, Request, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.api.rate_limits import enforce_authenticated_limit
+
 from app.core.config import Settings, settings
 from app.core.database import get_db
 from app.core.exceptions import RequestVerificationError, TokenValidationError
@@ -644,22 +646,10 @@ def _enforce_email_verification_rate_limit(
     user_limiter: InMemoryRateLimiter,
     namespace: str,
 ) -> None:
-    client_host = request.client.host if request.client is not None else "unknown"
-    ip_decision = ip_limiter.consume(client_host)
-    if not ip_decision.allowed:
-        _raise_email_verification_rate_limit(ip_decision.retry_after_seconds)
-
-    config = getattr(request.app.state, "settings", settings)
-    if config.jwt_secret_key is None:
-        raise RuntimeError("JWT_SECRET_KEY is not configured.")
-    user_key = hash_rate_limit_value(
-        current_user.id,
-        config.jwt_secret_key,
-        namespace=namespace,
+    enforce_authenticated_limit(
+        request, current_user.id, ip_limiter=ip_limiter, user_limiter=user_limiter,
+        namespace=namespace, on_rejected=_raise_email_verification_rate_limit,
     )
-    user_decision = user_limiter.consume(user_key)
-    if not user_decision.allowed:
-        _raise_email_verification_rate_limit(user_decision.retry_after_seconds)
 
 
 def _raise_email_verification_rate_limit(retry_after_seconds: int | None) -> None:
@@ -680,22 +670,10 @@ def enforce_password_change_rate_limit(
     ip_limiter: InMemoryRateLimiter = Depends(get_password_change_ip_rate_limiter),
     user_limiter: InMemoryRateLimiter = Depends(get_password_change_user_rate_limiter),
 ) -> SafeAuthenticatedUser:
-    client_host = request.client.host if request.client is not None else "unknown"
-    ip_decision = ip_limiter.consume(client_host)
-    if not ip_decision.allowed:
-        _raise_password_change_rate_limit(ip_decision.retry_after_seconds)
-
-    config = getattr(request.app.state, "settings", settings)
-    if config.jwt_secret_key is None:
-        raise RuntimeError("JWT_SECRET_KEY is not configured.")
-    user_key = hash_rate_limit_value(
-        current_user.id,
-        config.jwt_secret_key,
-        namespace="password-change:user",
+    enforce_authenticated_limit(
+        request, current_user.id, ip_limiter=ip_limiter, user_limiter=user_limiter,
+        namespace="password-change:user", on_rejected=_raise_password_change_rate_limit,
     )
-    user_decision = user_limiter.consume(user_key)
-    if not user_decision.allowed:
-        _raise_password_change_rate_limit(user_decision.retry_after_seconds)
     return current_user
 
 

@@ -1,17 +1,15 @@
-from collections.abc import Iterator
-from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
-from functools import wraps
 
-from sqlalchemy import select
-from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.common.enums import AccountStatus
-from app.models.profile import SUPPORTED_PROFILE_CITIES, UserProfile
+from app.models.profile import UserProfile
+from app.core.transactions import retry_deadlock, transaction
+from app.repositories.catalog_repository import CityRepository
+from app.services.catalog_service import CityService
 from app.models.user import User
-from app.models.seller_verification import SellerVerification, VerificationStatus
+from app.repositories.seller_verification_repository import SellerVerificationRepository
 from app.repositories.profile_repository import ProfileRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.profile import ProfileUpdateRequest
@@ -25,38 +23,14 @@ class OnboardingIncompleteError(Exception):
     """Required server-side profile fields are missing."""
 
 
-def _retry_profile_deadlock(operation):
-    """Retry only whole transactions that InnoDB has already rolled back.
-
-    A failed savepoint cleanup can wrap the original 1213 error in a 1305 error;
-    inspect the cause chain without logging SQL or parameter values.
-    """
-    @wraps(operation)
-    def run(self, session: Session, *args, **kwargs):
-        for attempt in range(3):
-            try:
-                return operation(self, session, *args, **kwargs)
-            except DBAPIError as error:
-                current: BaseException | None = error
-                seen: set[int] = set()
-                deadlock = False
-                while current is not None and id(current) not in seen:
-                    seen.add(id(current))
-                    if isinstance(current, DBAPIError):
-                        deadlock |= getattr(current.orig, "args", (None,))[0] == 1213
-                    current = current.__cause__ or current.__context__
-                if not deadlock or attempt == 2:
-                    raise
-                session.rollback()
-    return run
-
-
 @dataclass(frozen=True, slots=True)
 class OwnProfileResult:
     public_handle: str
     display_name: str | None
     bio: str | None
     city: str | None
+    city_slug: str | None
+    city_active: bool
     onboarding_completed: bool
     member_since: datetime
     created_at: datetime
@@ -89,14 +63,14 @@ class ProfileService:
         self.profile_repository = profile_repository or ProfileRepository()
         self.user_repository = user_repository or UserRepository()
 
-    @_retry_profile_deadlock
+    @retry_deadlock
     def get_or_create_own(self, session: Session, *, user_id: str) -> OwnProfileResult:
         with self._transaction(session):
             user = self._active_user_for_update(session, user_id)
             profile = self._profile_for_update_or_create(session, user.id)
-            return self._own_result(profile, user)
+            return self._own_result(session, profile, user)
 
-    @_retry_profile_deadlock
+    @retry_deadlock
     def update_own(
         self,
         session: Session,
@@ -107,14 +81,18 @@ class ProfileService:
         with self._transaction(session):
             user = self._active_user_for_update(session, user_id)
             profile = self._profile_for_update_or_create(session, user.id)
-            values = {field: getattr(request, field) for field in request.model_fields_set}
+            values = {field: getattr(request, field) for field in request.model_fields_set - {"city"}}
+            if "city" in request.model_fields_set:
+                city = CityService().resolve_profile_city(session, request.city) if request.city is not None else None
+                profile.city_id = city.id if city else None
+                profile.city = city.name_en if city else None
             self.profile_repository.update_fields(profile, values=values)
             if not self._has_required_onboarding_fields(profile):
                 profile.onboarding_completed = False
             session.flush()
-            return self._own_result(profile, user)
+            return self._own_result(session, profile, user)
 
-    @_retry_profile_deadlock
+    @retry_deadlock
     def complete_onboarding(
         self,
         session: Session,
@@ -126,31 +104,33 @@ class ProfileService:
             profile = self._profile_for_update_or_create(session, user.id)
             if not self._has_required_onboarding_fields(profile):
                 raise OnboardingIncompleteError
+            # Already-complete profiles stay complete when an admin retires a city.
+            # First completion, however, requires a current active reference.
+            city = CityRepository().by_id(session, profile.city_id, lock=True)
+            if not profile.onboarding_completed and (city is None or not city.is_active):
+                raise OnboardingIncompleteError
             profile.onboarding_completed = True
             session.flush()
-            return self._own_result(profile, user)
+            return self._own_result(session, profile, user)
 
     def get_public(self, session: Session, *, public_handle: str) -> PublicProfileResult | None:
         row = self.profile_repository.get_active_public(session, public_handle)
         if row is None:
             return None
         profile, user = row
-        if profile.display_name is None or profile.city is None:
+        city = CityRepository().by_id(session, profile.city_id) if profile.city_id else None
+        if profile.display_name is None or city is None:
             return None
         return PublicProfileResult(
             public_handle=profile.public_handle,
             display_name=profile.display_name,
             bio=profile.bio,
-            city=profile.city,
+            city=city.name_en,
             member_since=user.created_at,
             email_verified=user.email_verified,
             phone_verified=user.phone_verified,
-            seller_verified=bool(user.email_verified and user.phone_verified and session.scalar(
-                select(select(SellerVerification.id).where(
-                    SellerVerification.user_id == user.id,
-                    SellerVerification.status == VerificationStatus.VERIFIED,
-                ).exists())
-            )),
+            seller_verified=bool(user.email_verified and user.phone_verified
+                                 and SellerVerificationRepository().has_verified_attempt(session, user.id)),
         )
 
     def _active_user_for_update(self, session: Session, user_id: str) -> User:
@@ -176,16 +156,19 @@ class ProfileService:
         return (
             profile.display_name is not None
             and 2 <= len(profile.display_name) <= 50
-            and profile.city in SUPPORTED_PROFILE_CITIES
+            and profile.city_id is not None
         )
 
     @staticmethod
-    def _own_result(profile: UserProfile, user: User) -> OwnProfileResult:
+    def _own_result(session: Session, profile: UserProfile, user: User) -> OwnProfileResult:
+        city = CityRepository().by_id(session, profile.city_id, lock=True) if profile.city_id else None
         return OwnProfileResult(
             public_handle=profile.public_handle,
             display_name=profile.display_name,
             bio=profile.bio,
-            city=profile.city,
+            city=city.name_en if city else None,
+            city_slug=city.slug if city else None,
+            city_active=bool(city and city.is_active),
             onboarding_completed=profile.onboarding_completed,
             member_since=user.created_at,
             created_at=profile.created_at,
@@ -194,13 +177,4 @@ class ProfileService:
             phone_verified=user.phone_verified,
         )
 
-    @staticmethod
-    @contextmanager
-    def _transaction(session: Session) -> Iterator[None]:
-        if session.in_transaction():
-            with session.begin_nested():
-                yield
-            session.commit()
-            return
-        with session.begin():
-            yield
+    _transaction = staticmethod(transaction)

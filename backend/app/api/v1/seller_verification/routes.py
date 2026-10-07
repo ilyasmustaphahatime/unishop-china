@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 import re
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Header
 from sqlalchemy.orm import Session
@@ -9,27 +8,14 @@ from app.models.seller_verification import EvidenceType
 from app.schemas.seller_verification import (
     StartOrSubmitRequest, VerificationResponse, EvidenceAccessRequest, SignedEvidenceResponse,
 )
-from app.services.seller_verification_service import VerificationError
-from app.services.storage_service import UnsafeEvidence, sanitize_image, MAX_BYTES
+from app.api.v1.seller_verification.errors import safe_operation
+from app.services.storage_service import sanitize_image
+from app.common.evidence_limits import MAX_BYTES
 from app.api.v1.seller_verification.dependencies import (
     get_seller_service, submission_user, upload_user, read_user,
 )
 
 router = APIRouter(tags=["seller-verification"])
-
-
-@contextmanager
-def safe_operation():
-    try:
-        yield
-    except VerificationError as exc:
-        raise HTTPException(exc.status, str(exc)) from None
-    except UnsafeEvidence:
-        raise HTTPException(422, "Invalid evidence or expired access.") from None
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(503, "Verification operation unavailable. Please retry.") from None
 
 
 @router.post("", response_model=VerificationResponse)
@@ -84,13 +70,11 @@ async def upload_evidence(request: Request, user=Depends(upload_user),
 def evidence_access(body: EvidenceAccessRequest, request: Request, user=Depends(read_user),
                     db: Session = Depends(get_db), service=Depends(get_seller_service)):
     with safe_operation():
-        key, _, _ = service.authorized_evidence(db, user.id, body.review_reference, body.evidence_type)
+        ticket = service.issue_evidence_ticket(db, user.id, body.review_reference, body.evidence_type)
         return SignedEvidenceResponse(
             expires_in=60,
             url=f"{request.app.state.settings.api_v1_prefix}/seller-verification/evidence/content",
-            ticket=service.storage.issue_download_ticket(
-                key, actor_id=user.id, reference=body.review_reference,
-                evidence_type=body.evidence_type.value))
+            ticket=ticket)
 
 
 @router.get("/evidence/content", response_class=Response)

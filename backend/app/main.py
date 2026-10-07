@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.core.evidence_security import EvidenceUploadBoundary, install_evidence_log_filter
+from app.core.catalog_security import CatalogRequestBoundary
 from app.api.v1.dev.fake_sms_routes import create_development_fake_sms_router
 from app.api.v1.dev.fake_password_reset_routes import (
     create_development_fake_password_reset_router,
@@ -109,6 +110,7 @@ def create_app(
     application.state.settings = config
     install_evidence_log_filter()
     application.add_middleware(EvidenceUploadBoundary, prefix=config.api_v1_prefix)
+    application.add_middleware(CatalogRequestBoundary, prefix=config.api_v1_prefix)
     application.state.fake_password_reset_store = fake_password_reset_store
     application.state.fake_email_verification_store = fake_email_verification_store
     application.add_middleware(

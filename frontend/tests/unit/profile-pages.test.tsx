@@ -10,6 +10,7 @@ import OnboardingPage from '../../src/pages/shared/OnboardingPage';
 import ProfilePage from '../../src/pages/shared/ProfilePage';
 import PublicProfilePage from '../../src/pages/public/PublicProfilePage';
 import { profileKeys } from '../../src/features/profiles/hooks';
+import { cityKeys } from '../../src/features/cities/hooks';
 import type { MyProfile } from '../../src/features/profiles/types';
 import { apiClient } from '../../src/services/apiClient';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -30,6 +31,8 @@ const incompleteProfile: MyProfile = {
   displayName: null,
   bio: null,
   city: null,
+  citySlug: null,
+  cityActive: false,
   onboardingCompleted: false,
   memberSince: '2026-01-01T00:00:00Z',
   createdAt: '2026-09-04T00:00:00Z',
@@ -42,6 +45,8 @@ const completeProfile: MyProfile = {
   displayName: 'Profile Person',
   bio: null,
   city: 'Qingdao',
+  citySlug: 'qingdao',
+  cityActive: true,
   onboardingCompleted: true,
 };
 
@@ -51,6 +56,8 @@ function apiProfile(profile: MyProfile) {
     display_name: profile.displayName,
     bio: profile.bio,
     city: profile.city,
+    city_slug: profile.citySlug,
+    city_active: profile.cityActive,
     onboarding_completed: profile.onboardingCompleted,
     member_since: profile.memberSince,
     created_at: profile.createdAt,
@@ -79,6 +86,8 @@ function renderWithProfile(
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   if (profile) client.setQueryData(profileKeys.my(userId), profile);
+  client.setQueryData(cityKeys.list, [{ slug: 'qingdao', name_en: 'Qingdao', name_zh: '青岛',
+    province_en: 'Shandong', province_zh: '山东', country_code: 'CN' }]);
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[route]}>
@@ -103,12 +112,14 @@ describe('onboarding experience', () => {
     useAuthStore.getState().setAuthenticated('memory-only-token', authUser);
     let current = incompleteProfile;
     const patch = vi.spyOn(apiClient, 'patch').mockImplementation(async (_url, payload) => {
-      const values = payload as { display_name?: string; bio?: string | null; city?: 'Qingdao' };
+      const values = payload as { display_name?: string; bio?: string | null; city?: 'qingdao' };
       current = {
         ...current,
         displayName: values.display_name ?? current.displayName,
         bio: values.bio === undefined ? current.bio : values.bio,
-        city: values.city ?? current.city,
+        city: values.city ? 'Qingdao' : current.city,
+        citySlug: values.city ?? current.citySlug,
+        cityActive: values.city ? true : current.cityActive,
       };
       return response(apiProfile(current));
     });
@@ -125,7 +136,7 @@ describe('onboarding experience', () => {
     await user.type(screen.getByLabelText('Bio (optional)'), 'Student in China');
     await user.click(screen.getByRole('button', { name: 'Save and continue' }));
     expect(await screen.findByRole('heading', { name: 'Choose your city' })).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText('Current city'), 'Qingdao');
+    await user.selectOptions(screen.getByLabelText('Current city'), 'qingdao');
     await user.click(screen.getByRole('button', { name: 'Save and continue' }));
     expect(await screen.findByRole('heading', { name: 'Review your profile status' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Finish setup' }));
@@ -135,7 +146,7 @@ describe('onboarding experience', () => {
       display_name: 'Lin Wei',
       bio: 'Student in China',
     });
-    expect(patch).toHaveBeenNthCalledWith(2, '/profile/me', { city: 'Qingdao' });
+    expect(patch).toHaveBeenNthCalledWith(2, '/profile/me', { city: 'qingdao' });
     expect(post).toHaveBeenCalledWith('/profile/onboarding/complete', {});
     expect(localStorage).toHaveLength(0);
     expect(sessionStorage).toHaveLength(0);

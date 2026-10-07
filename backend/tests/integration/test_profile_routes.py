@@ -21,6 +21,7 @@ from app.core.config import settings
 from app.core.database import engine
 from app.main import create_app
 from app.models import User, UserProfile
+from app.repositories.catalog_repository import CityRepository
 from app.services.auth_service import SafeAuthenticatedUser
 
 
@@ -109,7 +110,7 @@ def test_update_and_idempotent_server_authoritative_onboarding(client: TestClien
         json={
             "display_name": "  \u5f20 \u4f1f  ",
             "bio": "  Student in Qingdao  ",
-            "city": "Qingdao",
+            "city": "qingdao",
         },
     )
     assert updated.status_code == 200
@@ -199,7 +200,7 @@ def test_xss_payload_remains_inert_plain_text_in_api(client: TestClient) -> None
     payload = {
         "display_name": "<script>alert(1)</script>",
         "bio": "<img src=x onerror=alert(1)>",
-        "city": "Shanghai",
+        "city": "shanghai",
     }
     response = client.patch("/api/v1/profile/me", json=payload)
 
@@ -228,6 +229,7 @@ def test_user_a_cannot_update_user_b(
                 public_id=public_id,
                 display_name="Other User",
                 city="Beijing",
+                city_id=CityRepository().get(session, "beijing").id,
             )
         )
     try:
@@ -261,7 +263,7 @@ def test_public_profile_is_safe_and_hidden_until_complete(
 
     client.patch(
         "/api/v1/profile/me",
-        json={"display_name": "Public Person", "bio": "Hello", "city": "Hangzhou"},
+        json={"display_name": "Public Person", "bio": "Hello", "city": "hangzhou"},
     )
     client.post("/api/v1/profile/onboarding/complete", json={})
     response = client.get(f"/api/v1/profiles/by-handle/{profile['public_handle']}")

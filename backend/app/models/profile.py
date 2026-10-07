@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, String, UniqueConstraint, text
+from sqlalchemy import Boolean, CHAR, CheckConstraint, ForeignKey, Index, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.common.public_handles import generate_public_handle, normalize_public_handle
@@ -10,16 +10,6 @@ from app.models.base import UUIDTimestampMixin, generate_uuid
 
 if TYPE_CHECKING:
     from app.models.user import User
-
-
-SUPPORTED_PROFILE_CITIES = (
-    "Qingdao",
-    "Beijing",
-    "Shanghai",
-    "Shenzhen",
-    "Guangzhou",
-    "Hangzhou",
-)
 
 
 class UserProfile(UUIDTimestampMixin, Base):
@@ -48,10 +38,10 @@ class UserProfile(UUIDTimestampMixin, Base):
             name="ck_user_profiles_bio_length",
         ),
         CheckConstraint(
-            "city IS NULL OR city IN "
-            "('Qingdao','Beijing','Shanghai','Shenzhen','Guangzhou','Hangzhou')",
-            name="ck_user_profiles_supported_city",
+            "(city IS NULL AND city_id IS NULL) OR (city IS NOT NULL AND city_id IS NOT NULL)",
+            name="ck_user_profiles_city_reference",
         ),
+        Index("ix_user_profiles_city", "city_id"),
     )
 
     user_id: Mapped[str] = mapped_column(
@@ -68,7 +58,9 @@ class UserProfile(UUIDTimestampMixin, Base):
         String(30), default=generate_public_handle, nullable=False, active_history=True,
     )
     bio: Mapped[str | None] = mapped_column(String(300))
-    city: Mapped[str | None] = mapped_column(String(32))
+    # Retained label supports safe rollback/history; city_id is authoritative.
+    city: Mapped[str | None] = mapped_column(String(80))
+    city_id: Mapped[str | None] = mapped_column(CHAR(36), ForeignKey("cities.id", name="fk_user_profiles_city", ondelete="RESTRICT"))
     onboarding_completed: Mapped[bool] = mapped_column(
         Boolean,
         default=False,

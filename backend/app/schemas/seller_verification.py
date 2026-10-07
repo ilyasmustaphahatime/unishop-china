@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.models.seller_verification import EvidenceType, VerificationStatus
-from app.schemas.profile import _normalize_plain_text
+from app.common.plain_text import normalize_plain_text
 
 
 class StartOrSubmitRequest(BaseModel):
@@ -20,7 +20,7 @@ class RejectRequest(ReviewRequest):
     @field_validator("rejection_reason")
     @classmethod
     def validate_reason(cls, value: str) -> str:
-        value = _normalize_plain_text(value, field_name="Reason", maximum=500, allow_newlines=False)
+        value = normalize_plain_text(value, field_name="Reason", maximum=500, allow_newlines=False)
         if len(value) < 3:
             raise ValueError("A reason is required.")
         return value

@@ -14,8 +14,7 @@ import warnings
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-MAX_BYTES = 5 * 1024 * 1024
-MAX_PIXELS = 12_000_000
+from app.common.evidence_limits import MAX_BYTES, MAX_PIXELS
 
 
 class UnsafeEvidence(ValueError):

@@ -14,7 +14,7 @@ def test_profile_text_is_trimmed_normalized_and_unicode_safe() -> None:
     request = ProfileUpdateRequest(
         display_name="  Jose\u0301 Li  ",
         bio="  International student in Qingdao.  ",
-        city="Qingdao",
+        city="qingdao",
     )
 
     assert request.display_name == "Jos\u00e9 Li"

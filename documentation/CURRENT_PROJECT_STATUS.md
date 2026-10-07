@@ -1,5 +1,73 @@
 # UniShop China Current Project Status
 
+## Phase 1-8 architecture review (2026-10-07)
+
+**LOCAL ARCHITECTURE/REGRESSION REVIEW PASSED: YES. PRODUCTION READY: NO.**
+Phase 9 may begin as a separately requested development task; it was not implemented.
+
+- Backend: **1,006 passed**, including 23 new architecture/security regression cases;
+  one upstream Starlette/httpx TestClient deprecation warning. Frontend: **211 passed**
+  in 15 files; TypeScript, ESLint and production build passed.
+- Three repeated 33-case race gates passed (auth/refresh, profiles, seller and catalog).
+  Real MySQL/Uvicorn: **79 checks passed**, synthetic cleanup complete, process stopped.
+  Ordered counts/SHA-256 fingerprints across **all 14 tables are unchanged**.
+- Python compile, Ruff, pip check and pip-audit passed. Alembic current/sole head
+  remains `e8f0a1b2c3d4`, no drift; isolated upgrade/downgrade/upgrade passed.
+- OpenAPI is identical before/after in local (45), all-fake development (49) and
+  production-configured (43) operations; no duplicate operation IDs/Phase 9 endpoints.
+- Narrow fixes: refresh cached state in locked auth reads; recover Sessions after
+  owned-auth commit failure; batch seller queue evidence; move shared rate/text/size
+  rules and seller error mapping to neutral boundaries; keep ticket issuance inside
+  the authorized seller service. No schema, dependency or frontend-code changes.
+- Full npm audit: existing **5 High / 2 Moderate dependency nodes** from braces and
+  postcss-selector-parser; production-only audit: zero. Installed 326 package versions
+  match the lockfile. Normal HTTPS and trusted system CAs were used. Tailwind stays 3.
+- Browser runtime remains unverified/environment-blocked; Docker/NGINX commands are
+  unavailable. Private production storage, multi-worker controls and operations remain
+  release blockers. This is not OWASP certification or a production approval.
+- Original 62 Phase 8 files preserved. Audit changes are separately attributed in the
+  [31-section report and full manifests](architecture/PHASE_1_TO_8_ARCHITECTURE_REVIEW.md).
+  No staging, commit or push; HEAD remains `0a79e9b`.
+
+The Phase 8 completion section below records its earlier 983-test handoff, not the
+latest 1,006-test architecture gate. Older dated sections remain historical evidence.
+
+## Current Phase 8 completion (2026-10-07)
+
+Cities, two-level categories, profile city references, and the minimal backend admin
+foundation are implemented. **LOCAL PHASE 8 PASSED: YES. PRODUCTION READY: NO.**
+Phase 9 development may begin separately; no Phase 9 functionality was added here.
+
+- MySQL/Alembic current and sole head: `e8f0a1b2c3d4`, through additive revisions
+  `d8e9f0a1b2c3` and `e8f0a1b2c3d4`; no drift. Isolated migration round-trip passed.
+- Backend: 983 tests passed; Phase 8: 100 tests; complete eight-case concurrency suite
+  passed three repetitions. Frontend: 211 tests, TypeScript, ESLint and build passed.
+- Real MySQL/Uvicorn: 79 checks passed; exact synthetic cleanup and existing data
+  fingerprints preserved. All ten original tables are unchanged; six cities and one
+  catalog write-lock row are the intentional new data.
+- Profile writes now send a canonical city slug (`city: "qingdao"`), not a display
+  label. Responses retain the city display name; own profiles add `city_slug` and
+  `city_active`. Historical retired cities remain visible and do not undo completed
+  onboarding. The frontend and API changed together.
+- Admin writes recheck ACTIVE status and the current database ADMIN role under locks.
+  Every successful catalog mutation and its minimal audit record commit together.
+- Python compile, Ruff, pip check and pip-audit passed. Frontend lockfile/install
+  consistency passed for 326 installed packages. Only `source-map-js` was narrowly
+  patched (1.2.1 to 1.2.2), using system-trusted CAs and normal HTTPS verification.
+- Fresh full npm audit still reports **5 High and 2 Moderate dependency nodes** from
+  two existing build-graph root advisories: braces and postcss-selector-parser.
+  Production-only npm audit has zero findings. Tailwind remains **3.4.19**; no Tailwind 4
+  migration or cross-major selector-parser override was attempted. Both unresolved
+  advisories remain production/security blockers, not accepted risk.
+- Browser and Docker/NGINX runtime verification remain **ENVIRONMENT BLOCKED**.
+  Private production object storage and broader production operations remain unready.
+- No staging, commit or push. Starting/final HEAD: `0a79e9b`.
+
+See the [24-section completion report and complete changed-file manifest](phases/PHASE_8_CITIES_CATEGORIES_ADMIN_FOUNDATION.md),
+[catalog API](api/catalog-api.md), and [updated profile API](api/profile-api.md).
+Everything below is historical evidence; older heads, dependency counts and
+"Phase 8 has not started" statements describe their dated audit only.
+
 ## Authentication phases
 
 ### Current Phase 7 follow-up (final regression 2026-10-05)
