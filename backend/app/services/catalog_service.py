@@ -98,6 +98,9 @@ class CityService:
             return self.response(row, admin=True)
 
     def resolve_profile_city(self, db, slug):
+        return self.resolve_active(db, slug)
+
+    def resolve_active(self, db, slug):
         # Hold this row lock through the profile transaction. Deactivation and a
         # new assignment must serialize on authoritative current state.
         row = self.repo.get(db, slug, lock=True)
@@ -109,6 +112,18 @@ class CityService:
 class CategoryService:
     def __init__(self):
         self.repo = CategoryRepository()
+
+    @staticmethod
+    def is_publicly_active(row, parent):
+        return bool(row.is_active and (row.parent_id is None or
+                    (parent is not None and parent.is_active and parent.level == 1)))
+
+    def resolve_active(self, db, slug):
+        row = self.repo.get(db, slug)
+        parent = self.repo.by_id(db, row.parent_id) if row and row.parent_id else None
+        if row is None or not self.is_publicly_active(row, parent):
+            raise CatalogError("Choose an active category.", 422)
+        return row
 
     @staticmethod
     def response(row, rows, *, admin=False):

@@ -17,9 +17,11 @@ from app.models import (
     UserRole,
     SellerVerification, SellerEvidence, SellerVerificationAudit,
     City, Category, CatalogWriteLock, AdminCatalogAudit,
+    ProductListing,
 )
 
 TRACKED_TEST_TABLES = (
+    ProductListing,
     City, Category, CatalogWriteLock, AdminCatalogAudit,
     SellerVerification, SellerEvidence, SellerVerificationAudit,
     User,

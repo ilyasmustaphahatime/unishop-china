@@ -1,5 +1,69 @@
 # UniShop China Current Project Status
 
+## Phase 9 final adversarial double-check (2026-10-09)
+
+**LOCAL PHASE 9 PASSED: YES. READY TO COMMIT: YES. PRODUCTION READY: NO.**
+Phase 10 may begin only after human review/commit and a separate request; it was
+not started. All implementation and double-check changes remain unstaged.
+
+- Backend **1,191 passed**; frontend **274 passed** in 18 files. Focused security
+  **434 passed**, including **185 Phase 9 cases**. No full-suite skips/failures.
+- All-project concurrency selector: **61 cases, three green runs**; real
+  MySQL/Uvicorn: **97 checks**, exact synthetic cleanup and server shutdown.
+- Two test-first UI repairs: synchronous single-flight form submission and
+  condition/last-updated time in the owner list. No backend production changes,
+  dependency changes, historical migration edits or Phase 10/11 implementation.
+- Alembic sole/current head `f9a1b2c3d4e5`, no drift. Disposable empty base-to-head
+  upgrade, actual listing schema comparison, and required Phase 9-to-8-to-9 cycle
+  pass. An EXTRA full-history rollback to base found inherited MySQL 1553 in
+  `c91e4a7b2d6f` (index dropped before supporting FK); unchanged/out of this scope.
+- All **15 development-table counts and ordered fingerprints unchanged**;
+  product_listings remains empty. Secret/PII scan finds no runtime-value exposure.
+- Python compile, Ruff, pip check/audit, TypeScript, ESLint, build pass. OpenAPI
+  local/dev/production inventories remain **53/57/51**, listing contracts unchanged.
+- All **326 installed frontend versions** match lockfile; Tailwind **3.4.19**.
+  Fresh full npm audit retains **5 High / 2 Moderate nodes** from braces and
+  postcss-selector-parser; production-only audit zero. Normal HTTPS/system CAs;
+  no install/version-pin changes or TLS bypass.
+- Browser and Docker/NGINX runtime verification remain **ENVIRONMENT BLOCKED**.
+  Build advisories, private production storage, distributed controls, deployment
+  and operational validation, and target MySQL 8 remain production blockers.
+- HEAD remains `9cd29f8`. Staged **0**, tracked modifications **39**, untracked
+  **16**, deleted **0**. No commit/push.
+
+See the [28-section report, invariant/test map and separate double-check manifest](phases/PHASE_9_FINAL_ADVERSARIAL_AUDIT.md).
+Older dated sections below are historical handoffs, not current test/finding claims.
+
+## Phase 9 Product Listings Core (2026-10-09)
+
+**LOCAL PHASE 9 PASSED: YES. READY FOR PHASE 10 DEVELOPMENT: YES. PRODUCTION READY: NO.**
+Only listing core was implemented; Phase 10/11 functionality was not started.
+
+- Baseline: clean `feature/authentication`, HEAD/tracking remote `9cd29f8`.
+- Backend: **1,170 passed** (baseline 1,006; 164 Phase 9 cases). Frontend:
+  **267 passed** (baseline 211; 56 Phase 9 cases), TypeScript/ESLint/build clean.
+- Migration `f9a1b2c3d4e5` over `e8f0a1b2c3d4`: sole current/head, no drift,
+  disposable MySQL upgrade/downgrade/upgrade and prior-phase cycles passed.
+- Three repeated combined 35-case concurrency gates passed, including 13 new
+  listing races. Real MySQL/Uvicorn: **97 checks**, exact synthetic cleanup,
+  process stopped. All 14 earlier table fingerprints unchanged; product_listings empty.
+- Exactly eight new operations; local/dev/prod OpenAPI counts 53/57/51, no duplicate
+  IDs. Earlier operation/schema contracts unchanged. Four listing pages implemented.
+- Current DB seller approval/onboarding/verification controls create/edit/publish;
+  ACTIVE owners retain read/pause/archive after eligibility loss. Public detail is
+  minimal, request-time visibility filtered; all listing URLs use immutable opaque slugs.
+- Compile, Ruff (no-cache), pip check/audit pass. No dependency/version changes.
+  All 326 installed frontend versions match lockfile; Tailwind stays 3.4.19.
+  npm audit retains **5 High / 2 Moderate nodes** from two inherited build advisories;
+  npm audit --omit=dev reports zero. No TLS/certificate bypass or insecure registry.
+- Browser and Docker/NGINX runtime gates remain **ENVIRONMENT BLOCKED**. Production
+  private storage, multi-worker coordination, deployment TLS/proxy/secrets/providers,
+  operations/backup validation and target MySQL 8 verification remain release blockers.
+- No staging/commit/push. HEAD remains `9cd29f8`; all changes are attributable to
+  this Phase 9 task. Full [27-section report and changed-file manifest](phases/PHASE_9_PRODUCT_LISTINGS.md).
+
+Older dated sections below remain historical, not current test/head claims.
+
 ## Phase 1-8 architecture review (2026-10-07)
 
 **LOCAL ARCHITECTURE/REGRESSION REVIEW PASSED: YES. PRODUCTION READY: NO.**

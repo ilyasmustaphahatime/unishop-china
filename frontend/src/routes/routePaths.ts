@@ -10,6 +10,7 @@ const navigationPaths = new Set([
   '/', '/profile', '/profile/edit', '/onboarding', '/login', '/sign-up',
   '/verify-phone', '/forgot-password', '/reset-password', '/safety', '/terms', '/privacy',
   '/seller/verification',
+  '/sell/new', '/seller/listings',
 ]);
 
 function allowedPath(value: unknown): string | null {
@@ -18,6 +19,7 @@ function allowedPath(value: unknown): string | null {
   if (typeof path !== 'string') return null;
   // No query/fragment is used by current routes. Never forward arbitrary URL state.
   if (navigationPaths.has(path)) return path;
+  if (/^\/p\/item-[0-9a-f]{24}$/.test(path) || /^\/seller\/listings\/item-[0-9a-f]{24}\/edit$/.test(path)) return path;
   if (path.startsWith('/u/')) {
     const handle = normalizePublicHandle(path.slice(3));
     if (handle) return `/u/${handle}`;

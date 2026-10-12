@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Response, status
 
 from app.api.v1.auth.routes import router as auth_router
+from app.api.v1.products.routes import router as products_router, seller_router as seller_products_router
 from app.api.v1.catalog.routes import router as catalog_router, admin_router as catalog_admin_router
 from app.api.v1.profiles.routes import public_router as public_profiles_router
 from app.api.v1.profiles.routes import router as profiles_router
@@ -9,6 +10,8 @@ from app.api.v1.seller_verification.routes import router as seller_router
 from app.api.v1.admin.seller_verification_routes import router as seller_admin_router
 
 router = APIRouter()
+router.include_router(products_router, prefix="/products")
+router.include_router(seller_products_router, prefix="/seller/products")
 router.include_router(catalog_router)
 router.include_router(catalog_admin_router, prefix="/admin")
 router.include_router(auth_router, prefix="/auth")

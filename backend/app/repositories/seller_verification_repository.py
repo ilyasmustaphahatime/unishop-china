@@ -18,10 +18,14 @@ class SellerVerificationRepository:
             .offset(offset).limit(50).with_for_update().execution_options(populate_existing=True)))
 
     def has_verified_attempt(self, db: Session, user_id: str) -> bool:
-        return bool(db.scalar(select(select(SellerVerification.id).where(
+        return bool(db.scalar(select(self.verified_predicate(user_id))))
+
+    @staticmethod
+    def verified_predicate(user_id):
+        return select(SellerVerification.id).where(
             SellerVerification.user_id == user_id,
             SellerVerification.status == VerificationStatus.VERIFIED,
-        ).exists())))
+        ).exists()
 
     def record_audit(self, db: Session, *, verification_id: str, actor_id: str, event: str) -> None:
         # Flush/commit belongs to the caller's service transaction, never this writer.

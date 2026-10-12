@@ -153,11 +153,23 @@ class ProfileService:
 
     @staticmethod
     def _has_required_onboarding_fields(profile: UserProfile) -> bool:
+        return ProfileService.required_onboarding_fields_valid(profile.display_name, profile.city_id)
+
+    @staticmethod
+    def required_onboarding_fields_valid(display_name: str | None, city_id: str | None) -> bool:
+        """Shared pure rule for locked profiles and minimal public projections."""
         return (
-            profile.display_name is not None
-            and 2 <= len(profile.display_name) <= 50
-            and profile.city_id is not None
+            display_name is not None
+            and 2 <= len(display_name) <= 50
+            and city_id is not None
         )
+
+    def get_completed_for_update(self, session: Session, user_id: str) -> UserProfile:
+        """Reuse onboarding rules after the caller has locked the active user."""
+        profile = self.profile_repository.get_by_user_id(session, user_id, for_update=True)
+        if profile is None or not profile.onboarding_completed or not self._has_required_onboarding_fields(profile):
+            raise OnboardingIncompleteError
+        return profile
 
     @staticmethod
     def _own_result(session: Session, profile: UserProfile, user: User) -> OwnProfileResult:

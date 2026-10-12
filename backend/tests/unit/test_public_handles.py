@@ -38,7 +38,7 @@ def test_generation_is_public_random_and_has_no_identity_input():
     assert all(len(h) == 25 and normalize_public_handle(h) == h for h in handles)
 
 
-def test_all_openapi_variants_have_only_public_handle_path_parameters():
+def test_openapi_has_only_public_identifiers_and_bounded_owner_pagination():
     config = settings.model_copy(update={
         "app_env": "development", "sms_enabled": True, "sms_provider": "fake",
         "enable_fake_sms_dev_inbox": True,
@@ -55,19 +55,28 @@ def test_all_openapi_variants_have_only_public_handle_path_parameters():
                 continue
             operation_ids.append(operation["operationId"])
             for parameter in operation.get("parameters", []):
-                assert parameter["in"] != "query"
+                if parameter["in"] == "query":
+                    assert path == "/api/v1/seller/products" and method == "get"
+                    assert parameter["name"] in {"limit", "offset"}
+                    assert "maximum" in parameter["schema"] and "minimum" in parameter["schema"]
                 if parameter["in"] == "path":
                     if path.startswith(("/api/v1/cities/", "/api/v1/categories/",
-                                        "/api/v1/admin/cities/", "/api/v1/admin/categories/")):
+                                        "/api/v1/admin/cities/", "/api/v1/admin/categories/",
+                                        "/api/v1/products/", "/api/v1/seller/products/")):
                         assert parameter["name"] == "slug"
+                        if "/products/" in path:
+                            assert parameter["schema"]["pattern"] == "^item-[0-9a-f]{24}$"
                     else:
                         assert parameter["name"] == "handle"
                         assert path == "/api/v1/profiles/by-handle/{handle}"
-            assert not any(word in path for word in ("seller", "products", "chat"))
+            assert not any(word in path for word in ("/chat", "/images", "/deals", "/orders", "/favorites"))
+            if path.startswith("/api/v1/seller/products"):
+                assert operation["security"]
             if "/admin/" in path:
                 assert path.startswith(("/api/v1/admin/cities", "/api/v1/admin/categories"))
                 assert operation["security"]
-    assert len(operation_ids) == len(set(operation_ids)) == 41
+    assert len(operation_ids) == len(set(operation_ids)) == 49
+    assert "/api/v1/products" not in schema["paths"]
     assert "/api/v1/profiles/{public_id}" not in schema["paths"]
     for kind in ("sms", "password-reset"):
         assert "post" in schema["paths"][f"/api/v1/dev/fake-{kind}/latest"]

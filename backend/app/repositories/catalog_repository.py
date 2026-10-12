@@ -28,6 +28,10 @@ class CityRepository:
 
 
 class CategoryRepository:
+    def by_id(self, db: Session, category_id: str) -> Category | None:
+        return db.scalar(select(Category).where(Category.id == category_id).with_for_update()
+                         .execution_options(populate_existing=True))
+
     def get(self, db: Session, slug: str) -> Category | None:
         return db.scalar(select(Category).where(Category.slug == slug).with_for_update()
                          .execution_options(populate_existing=True))

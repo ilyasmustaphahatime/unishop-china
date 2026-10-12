@@ -10,6 +10,7 @@ import ProtectedRoute from '../routes/ProtectedRoute';
 const pages = import.meta.glob([
   '../pages/public/HomePage.tsx',
   '../pages/public/PublicProfilePage.tsx',
+  '../pages/public/ProductDetailsPage.tsx',
   '../pages/public/CategoriesPage.tsx',
   '../pages/public/SafetyPage.tsx',
   '../pages/public/TermsPage.tsx',
@@ -24,6 +25,9 @@ const pages = import.meta.glob([
   '../pages/shared/ProfilePage.tsx',
   '../pages/shared/EditProfilePage.tsx',
   '../pages/seller/SellerVerificationPage.tsx',
+  '../pages/seller/AddProductPage.tsx',
+  '../pages/seller/EditProductPage.tsx',
+  '../pages/seller/SellerProductsPage.tsx',
 ]);
 const localPhoneVerificationPage = import.meta.env.DEV
   ? () => import('../pages/dev/LocalPhoneVerificationPage')
@@ -56,6 +60,7 @@ function mapRoutes(routes: Array<[string, string]>): RouteObject[] {
 const publicRoutes = mapRoutes([
   ['/', 'public/HomePage'],
   ['/u/:handle', 'public/PublicProfilePage'],
+  ['/p/:slug', 'public/ProductDetailsPage'],
   ['/categories', 'public/CategoriesPage'],
   ['/safety', 'public/SafetyPage'],
   ['/terms', 'public/TermsPage'],
@@ -72,6 +77,7 @@ const profileRoutes = mapRoutes([
   ['/profile', 'shared/ProfilePage'],
   ['/profile/edit', 'shared/EditProfilePage'],
   ['/seller/verification', 'seller/SellerVerificationPage'],
+  ['/sell/new', 'seller/AddProductPage'],
 ]);
 
 type RouterFlags = {
@@ -104,6 +110,10 @@ export function buildRouteObjects({
           element: <AuthenticatedLayout />,
           children: [
             { path: '/onboarding', element: page('shared/OnboardingPage') },
+            ...mapRoutes([
+              ['/seller/listings', 'seller/SellerProductsPage'],
+              ['/seller/listings/:slug/edit', 'seller/EditProductPage'],
+            ]),
             { element: <ProfileGate />, children: profileRoutes },
           ],
         },

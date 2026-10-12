@@ -1,8 +1,8 @@
 """Catalog peer budgets run before FastAPI attempts to parse attacker-controlled JSON."""
-import asyncio
 from fastapi.responses import JSONResponse
 
 from app.core.rate_limit import InMemoryRateLimiter
+from app.core.http_input import bounded_json_body
 
 
 class CatalogRequestBoundary:
@@ -58,15 +58,4 @@ class CatalogRequestBoundary:
 
 async def bounded_catalog_body(receive):
     """Bound actual bytes, including chunked/lying Content-Length requests."""
-    body = bytearray()
-    async with asyncio.timeout(15):
-        while True:
-            message = await receive()
-            if message["type"] == "http.disconnect":
-                raise ConnectionError
-            chunk = message.get("body", b"")
-            if len(body) + len(chunk) > 16 * 1024:
-                raise ValueError("Catalog body limit exceeded.")
-            body.extend(chunk)
-            if not message.get("more_body", False):
-                return bytes(body)
+    return await bounded_json_body(receive, maximum_bytes=16 * 1024)

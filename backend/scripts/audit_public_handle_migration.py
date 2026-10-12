@@ -15,7 +15,7 @@ import tempfile
 import time
 from uuid import uuid4
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
 
 BACKEND = Path(__file__).resolve().parents[1]
@@ -99,6 +99,36 @@ def main() -> int:
                                   .replace(root_password, "[redacted]")[:400])
                     raise RuntimeError("Isolated Alembic operation failed")
 
+            if "--products" in sys.argv:
+                stage = "empty base-to-head product migration"
+                alembic("upgrade", "head")
+                alembic("check")
+                app_engine = create_engine(url, pool_pre_ping=True)
+                schema = inspect(app_engine)
+                columns = {column["name"]: column for column in schema.get_columns("product_listings")}
+                assert set(columns) == {"id", "seller_user_id", "public_slug", "title", "description", "price",
+                                        "currency", "condition", "status", "city_id", "category_id", "published_at",
+                                        "created_at", "updated_at"}
+                assert columns["price"]["type"].precision == 12 and columns["price"]["type"].scale == 2
+                assert columns["public_slug"]["type"].collation == "ascii_bin"
+                assert schema.get_pk_constraint("product_listings")["constrained_columns"] == ["id"]
+                foreign_keys = schema.get_foreign_keys("product_listings")
+                assert {(fk["constrained_columns"][0], fk["referred_table"], fk["referred_columns"][0],
+                         fk["options"].get("ondelete")) for fk in foreign_keys} == {
+                    ("seller_user_id", "users", "id", "RESTRICT"), ("city_id", "cities", "id", "RESTRICT"),
+                    ("category_id", "categories", "id", "RESTRICT")}
+                assert len(schema.get_check_constraints("product_listings")) == 8
+                assert {tuple(key["column_names"]) for key in schema.get_unique_constraints("product_listings")} == {("public_slug",)}
+                print(json.dumps({"empty_base_to_head": "PASS", "actual_product_schema": "PASS"}))
+                app_engine.dispose()
+                # The empty-chain and legacy-backfill cases need independent schemas.
+                # This reset is restricted to this process's freshly initialized datadir.
+                # Full historical rollback to base is not the Phase 9 rollback gate.
+                with root_engine.begin() as connection:
+                    assert root_engine.url.port == port and process.poll() is None
+                    assert Path(connection.scalar(text("SELECT @@datadir"))).resolve() == data.resolve()
+                    connection.execute(text("DROP DATABASE unishop_china"))
+                    connection.execute(text("CREATE DATABASE unishop_china"))
             stage = "baseline migration"
             alembic("upgrade", "f6a1b2c3d4e5")
             app_engine = create_engine(url, pool_pre_ping=True)
@@ -133,6 +163,27 @@ def main() -> int:
                 handles = list(connection.scalars(text("SELECT public_handle FROM user_profiles")))
                 assert len(handles) == len(set(handles)) == 3
                 assert all(len(h) == 25 and h.startswith("user-") for h in handles)
+            if "--products" in sys.argv:
+                stage = "product isolated round-trip"
+                with app_engine.connect() as connection:
+                    tables = list(connection.scalars(text("SHOW TABLES")))
+                    previous = {name: connection.execute(text("SELECT * FROM `" + name + "` ORDER BY id")).all()
+                                for name in tables if name not in {"alembic_version", "product_listings"}}
+                    assert connection.scalar(text("SELECT COUNT(*) FROM product_listings")) == 0
+                    assert connection.scalar(text("SELECT COUNT(*) FROM information_schema.table_constraints "
+                        "WHERE table_schema=DATABASE() AND table_name='product_listings' AND constraint_type='CHECK'")) == 8
+                alembic("downgrade", "e8f0a1b2c3d4")
+                with app_engine.connect() as connection:
+                    assert "product_listings" not in list(connection.scalars(text("SHOW TABLES")))
+                    for name, rows in previous.items():
+                        assert connection.execute(text("SELECT * FROM `" + name + "` ORDER BY id")).all() == rows
+                alembic("upgrade", "head")
+                alembic("check")
+                with app_engine.connect() as connection:
+                    assert connection.scalar(text("SELECT COUNT(*) FROM product_listings")) == 0
+                    for name, rows in previous.items():
+                        assert connection.execute(text("SELECT * FROM `" + name + "` ORDER BY id")).all() == rows
+                print(json.dumps({"product_cycle": "PASS", "prior_tables_preserved": True, "drift": False}))
             if "--catalog" in sys.argv:
                 stage = "catalog isolated backfill and round-trip"
                 with app_engine.connect() as connection:

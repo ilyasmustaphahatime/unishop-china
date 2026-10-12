@@ -17,9 +17,11 @@ export default function AuthenticatedLayout() {
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-red-600 text-sm text-white" aria-hidden="true">中</span>
             UniShop China
           </Link>
-          <div className="order-3 flex w-full gap-1 border-t border-slate-100 pt-2 sm:order-none sm:w-auto sm:border-0 sm:pt-0">
+          <div className="order-3 flex w-full flex-wrap gap-1 border-t border-slate-100 pt-2 sm:order-none sm:w-auto sm:border-0 sm:pt-0">
             <NavLink className={linkClass} to="/profile" end>My profile</NavLink>
             <NavLink className={linkClass} to="/profile/edit">Edit profile</NavLink>
+            <NavLink className={linkClass} to="/seller/listings">My listings</NavLink>
+            <NavLink className={linkClass} to="/sell/new">New listing</NavLink>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Avatar name={user?.email ?? user?.phoneNumber ?? null} size="sm" />

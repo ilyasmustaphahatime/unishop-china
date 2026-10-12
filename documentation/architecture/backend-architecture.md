@@ -1,13 +1,13 @@
 ﻿# backend architecture
 
-Verified 2026-10-07 through Phase 8. This is a modular monolith, not a completed
+Verified through Phase 9 on 2026-10-09. This is a modular monolith, not a completed
 marketplace or a production release.
 
 ## Request and dependency direction
 
 ```text
 main.create_app: configuration, CORS, ingress limits, safe errors, private headers
-  -> mounted API routers: auth, profiles, seller verification, catalog/admin
+  -> mounted API routers: auth, profiles, seller verification, catalog/admin, products/seller-products
     -> dependencies: Bearer identity, peer/user budgets, Origin and CSRF
       -> strict Pydantic request contracts
         -> domain services: authorization, invariants, transaction ownership
@@ -27,7 +27,7 @@ Auth owns registration, phone/email verification, login, JWTs, refresh families,
 password reset/change and logout. Profiles owns one own profile, onboarding,
 immutable handles and minimal public projections. Seller owns private draft,
 three-image submission, independent admin review and rejection retry; approval
-does not grant roles or listing permissions. Catalog owns cities/two-level
+does not grant roles; listing authority separately checks current approval. Catalog owns cities/two-level
 categories and activation/hierarchy/capacity rules. Admin is authority-gated access
 to seller/catalog operations, not another persistence domain or a dashboard.
 
@@ -55,3 +55,29 @@ side effects are not retried. Seller/catalog audit inserts share the mutation
 transaction. Evidence bytes are returned only after EVIDENCE_READ audit commits.
 
 See [the full review and invariant/test map](PHASE_1_TO_8_ARCHITECTURE_REVIEW.md).
+
+## Phase 9 listing boundary
+
+ProductListing owns immutable seller identity/slug, plain text, Decimal price,
+fixed CNY, four lifecycle states and catalog FKs. Thin routes call ProductService
+for current eligibility, BOLA, transitions and transactions. ProductRepository owns
+bounded joined projections/current reads and eight savepoint collision retries
+limited to the named unique-slug constraint. No media or transaction domain.
+ProfileService exposes completed-onboarding rules. Shared authorization checks
+approved seller state separately from Phase 7 request eligibility and JWT roles.
+
+Lock order: user -> seller verification (eligible operations) -> profile (eligible
+operations) -> owned listing -> existing catalog DB mutex -> city/category
+references. Creation has no existing listing to lock. The catalog mutex serializes
+assignment/publication and hierarchy changes; bounded owner reads acquire it before
+locking joined references. Current locked reads refresh identities and bypass old
+REPEATABLE READ snapshots. Public detail is one visibility statement selecting
+safe profile labels/eligibility flags, not email, phone, passwords, or evidence.
+Existing transaction/1213 retry conventions are reused. No process mutex, Redis,
+queue, external-side-effect retry, or generic product audit system was introduced.
+
+The conservative catalog mutex is a throughput tradeoff for this small catalog;
+benchmark before scaling. Partial edits serialize; conflicting same-field edits are
+last-writer-wins, not an invented version/ETag framework. A shared actual-byte/time
+JSON reader preserves Phase 8 bounds and supports Phase 9 pre-parse budgets.
+See [Phase 9 evidence](../phases/PHASE_9_PRODUCT_LISTINGS.md).

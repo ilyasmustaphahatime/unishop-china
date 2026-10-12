@@ -35,15 +35,16 @@ describe('development-only fake SMS route', () => {
   });
 });
 
-describe('Phase 6 route inventory', () => {
-  it('exposes profile routes without future marketplace feature routes', () => {
+describe('Phase 9 route inventory', () => {
+  it('exposes profiles and listing core without future marketplace features', () => {
     const paths = collectPaths(
       buildRouteObjects({ isDevelopment: false, fakeSmsPageEnabled: false }),
     );
 
     expect(paths).toEqual(expect.arrayContaining(['/onboarding', '/profile', '/profile/edit', '/u/:handle']));
     expect(paths).not.toContain('/users/:publicId');
-    expect(paths.filter((path) => path.includes(':'))).toEqual(['/u/:handle']);
+    expect(paths.filter((path) => path.includes(':'))).toEqual(['/u/:handle', '/p/:slug', '/seller/listings/:slug/edit']);
+    expect(paths).toEqual(expect.arrayContaining(['/sell/new', '/seller/listings']));
     expect(paths).not.toEqual(
       expect.arrayContaining([
         '/seller/products',
