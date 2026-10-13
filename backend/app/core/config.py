@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     seller_private_storage_dir: Path = BACKEND_DIR / "private_uploads" / "seller-evidence"
     seller_code_expiry_minutes: int = Field(default=10, ge=5, le=60)
+    product_image_storage_dir: Path = BACKEND_DIR / "private_storage"
+    product_image_storage_provider: str = "local"
 
     mysql_host: str = "127.0.0.1"
     mysql_port: int = 3306

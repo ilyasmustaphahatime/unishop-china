@@ -4,6 +4,10 @@ Architecture, workflow, API, security, phase, and design records live in this di
 
 Current implementation:
 
+- [Current status](CURRENT_PROJECT_STATUS.md)
+- [Phase 10 product images gate and changed-file manifest](phases/PHASE_10_PRODUCT_IMAGES_STORAGE.md)
+- [Listing API](api/product-api.md) and [image API](api/product-images-api.md)
+- [Image storage threat model](security/image-storage-security.md)
 - [Phase 7 seller verification](phases/PHASE_7_SELLER_VERIFICATION.md)
 - [Phase 7 threat model](security/PHASE_7_SELLER_VERIFICATION_THREAT_MODEL.md)
 

@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 from app.api.v1.products.dependencies import listing_user, safe_product_operation
 from app.common.product_slugs import ProductSlug
@@ -13,9 +13,9 @@ seller_router = APIRouter(tags=["seller-products"])
 
 
 @router.get("/{slug}", response_model=PublicProduct)
-def public_product(slug: ProductSlug, db: Session = Depends(get_db)):
+def public_product(slug: ProductSlug, request: Request, db: Session = Depends(get_db)):
     with safe_product_operation():
-        return ProductService().get_public(db, slug)
+        return ProductService(api_prefix=request.app.state.settings.api_v1_prefix).get_public(db, slug)
 
 
 @seller_router.post("", response_model=OwnProduct, status_code=201)

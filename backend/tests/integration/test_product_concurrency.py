@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.common.enums import AccountStatus, UserRoleType
 from app.core.authorization import AuthorizationError, lock_active_user
 from app.core.database import engine
-from app.models import ProductListing, User, UserRole, Category, City, AdminCatalogAudit, SellerVerification, UserProfile
+from app.models import ProductListing, ProductImage, User, UserRole, Category, City, AdminCatalogAudit, SellerVerification, UserProfile
 from app.models.seller_verification import VerificationStatus
 from app.schemas.product import ProductCreate, ProductUpdate
 from app.services.catalog_service import CityService, CategoryService, CatalogError
@@ -32,6 +32,8 @@ def world():
         yield prefix, users, request
     finally:
         with Session(engine) as db, db.begin():
+            db.execute(delete(ProductImage).where(ProductImage.product_listing_id.in_(
+                select(ProductListing.id).where(ProductListing.seller_user_id.in_(users)))))
             db.execute(delete(ProductListing).where(ProductListing.seller_user_id.in_(users)))
             db.execute(delete(AdminCatalogAudit).where(AdminCatalogAudit.actor_id.in_(users)))
             db.execute(delete(User).where(User.id.in_(users)))

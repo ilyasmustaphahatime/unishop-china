@@ -63,19 +63,25 @@ def test_openapi_has_only_public_identifiers_and_bounded_owner_pagination():
                     if path.startswith(("/api/v1/cities/", "/api/v1/categories/",
                                         "/api/v1/admin/cities/", "/api/v1/admin/categories/",
                                         "/api/v1/products/", "/api/v1/seller/products/")):
-                        assert parameter["name"] == "slug"
-                        if "/products/" in path:
+                        assert parameter["name"] in ({"slug", "image_ref"} if "/images/" in path else {"slug"})
+                        if parameter["name"] == "image_ref":
+                            assert parameter["schema"]["pattern"] == "^img-[0-9a-f]{32}$"
+                        elif "/products/" in path:
                             assert parameter["schema"]["pattern"] == "^item-[0-9a-f]{24}$"
                     else:
                         assert parameter["name"] == "handle"
                         assert path == "/api/v1/profiles/by-handle/{handle}"
-            assert not any(word in path for word in ("/chat", "/images", "/deals", "/orders", "/favorites"))
+            assert not any(word in path for word in ("/chat", "/deals", "/orders", "/favorites"))
+            if "/images" in path:
+                assert path in {"/api/v1/products/{slug}/images/{image_ref}",
+                    "/api/v1/seller/products/{slug}/images", "/api/v1/seller/products/{slug}/images/order",
+                    "/api/v1/seller/products/{slug}/images/{image_ref}"}
             if path.startswith("/api/v1/seller/products"):
                 assert operation["security"]
             if "/admin/" in path:
                 assert path.startswith(("/api/v1/admin/cities", "/api/v1/admin/categories"))
                 assert operation["security"]
-    assert len(operation_ids) == len(set(operation_ids)) == 49
+    assert len(operation_ids) == len(set(operation_ids)) == 55
     assert "/api/v1/products" not in schema["paths"]
     assert "/api/v1/profiles/{public_id}" not in schema["paths"]
     for kind in ("sms", "password-reset"):

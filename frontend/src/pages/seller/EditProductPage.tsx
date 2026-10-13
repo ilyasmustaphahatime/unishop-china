@@ -5,6 +5,7 @@ import Card from '../../components/common/Card';
 import Spinner from '../../components/common/Spinner';
 import ProductForm from '../../components/products/ProductForm';
 import ProductStatusBadge from '../../components/products/ProductStatusBadge';
+import ProductImageManager from '../../components/products/ProductImageManager';
 import { productErrorMessage } from '../../features/products/api';
 import { useMyProduct, useProductMutation } from '../../features/products/hooks';
 import { productSlugSchema } from '../../features/products/schemas';
@@ -33,5 +34,6 @@ export default function EditProductPage() {
     </div>
     <p className="mb-4 text-sm text-slate-600">Archive is terminal. Publish and edit require current seller eligibility; pause and archive do not.</p>
     <Card className="p-6"><ProductForm key={product.updated_at} product={product} /></Card>
+    <ProductImageManager key={product.public_slug} product={product} />
   </section>;
 }

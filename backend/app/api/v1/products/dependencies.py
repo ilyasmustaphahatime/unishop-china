@@ -13,7 +13,7 @@ product_write_limiter = InMemoryRateLimiter(max_requests=30, window_seconds=60, 
 
 
 def listing_user(request: Request, user=Depends(get_current_user)):
-    write = request.method in {"POST", "PATCH"}
+    write = request.method in {"POST", "PATCH", "DELETE"}
     enforce_authenticated_limit(request, user.id, ip_limiter=product_peer_limiter,
         user_limiter=product_write_limiter if write else product_read_limiter,
         namespace="product-write:user" if write else "product-read:user", on_rejected=_reject)

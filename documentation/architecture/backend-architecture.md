@@ -1,6 +1,6 @@
 ﻿# backend architecture
 
-Verified through Phase 9 on 2026-10-09. This is a modular monolith, not a completed
+Verified through Phase 10 on 2026-10-12. This is a modular monolith, not a completed
 marketplace or a production release.
 
 ## Request and dependency direction
@@ -80,4 +80,27 @@ The conservative catalog mutex is a throughput tradeoff for this small catalog;
 benchmark before scaling. Partial edits serialize; conflicting same-field edits are
 last-writer-wins, not an invented version/ETag framework. A shared actual-byte/time
 JSON reader preserves Phase 8 bounds and supports Phase 9 pre-parse budgets.
-See [Phase 9 evidence](../phases/PHASE_9_PRODUCT_LISTINGS.md).
+See [historical Phase 9 evidence](../phases/PHASE_9_PRODUCT_LISTINGS.md).
+
+## Phase 10 product media boundary
+
+Six thin image routes -> dependencies/strict DTOs -> ProductImageService ->
+ProductImageRepository and a narrow ProductImageStorage adapter. No duplicate
+product authority: image services reuse current Phase 9 eligibility/ownership and
+the same public visibility query. Media is never encoded into a listing PATCH or
+stored in MySQL. Opaque refs are independent of private random object keys.
+
+Upload preflights locked current authority/parent/quota, bounded-reads and sanitizes,
+then saves bytes once. Final pure-DB metadata transaction reacquires/rechecks these
+rules; only that DB work retries deadlocks. Failed commit compensates the new file.
+Reorder and metadata deletion serialize on the parent and resequence through
+reserved positions 8..15 before committing contiguous 0..7. Delete metadata commits
+before physical cleanup; failure is an invisible orphan, not rollback-to-public.
+
+Pre-parse actual-byte/time/spool and peer concurrency boundaries protect multipart;
+authentication/user budgets precede parsing; decoder concurrency is bounded.
+Local storage uses containment/link guards, exclusive temporary writes/fsync and
+exclusive hard-link publication. It is separate from seller evidence, ignored and
+never static-served; production local adapter is disabled. Report-only audit is
+explicitly not a reconciler/cleanup job. Real MySQL races and failure-injection
+tests verify these boundaries; see [Phase 10 gate](../phases/PHASE_10_PRODUCT_IMAGES_STORAGE.md).

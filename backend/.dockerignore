@@ -35,6 +35,7 @@ documentation/
 # Runtime/private data must be mounted or provisioned at runtime.
 uploads/
 private_uploads/
+private_storage/
 
 # Local editor and operating-system artifacts.
 .idea/

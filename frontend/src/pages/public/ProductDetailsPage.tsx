@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router';
 import Alert from '../../components/common/Alert';
 import Card from '../../components/common/Card';
 import Spinner from '../../components/common/Spinner';
+import PublicProductGallery from '../../components/products/PublicProductGallery';
 import { usePublicProduct } from '../../features/products/hooks';
 import { productErrorMessage } from '../../features/products/api';
 import { productSlugSchema } from '../../features/products/schemas';
@@ -17,6 +18,7 @@ export default function ProductDetailsPage() {
     <Card className="p-6 sm:p-8">
       <p className="text-sm font-semibold text-slate-500">{p.city.name_en} · {p.category.name_en}</p>
       <h1 className="mt-3 break-words text-3xl font-black">{p.title}</h1>
+      <PublicProductGallery slug={p.public_slug} images={p.images} />
       <p className="mt-4 text-2xl font-bold text-red-700">{p.price} CNY</p>
       <p className="mt-2 text-slate-600">Condition: {p.condition.replace('_', ' ')}</p>
       <p className="mt-6 whitespace-pre-wrap break-words leading-7">{p.description}</p>

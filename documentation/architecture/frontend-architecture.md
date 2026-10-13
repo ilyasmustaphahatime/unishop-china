@@ -51,4 +51,27 @@ after failed refetch. This is request-time visibility, not a real-time subscript
 Forms keep decimal prices as strings, PATCH only changed fields, and load catalog
 selectors from Phase 8. Historical retired references remain unless explicitly
 replaced. No raw HTML, Zustand product state, browser-storage drafts, credentials
-in links, gallery/upload, or media endpoint. Lifecycle errors refetch current state.
+in links. Gallery/upload was intentionally absent in Phase 9. Lifecycle errors refetch current state.
+
+## Phase 10 image boundary (2026-10-12)
+
+`features/productImages` owns strict image contracts, API transport and hooks;
+three components own manager/private preview/public gallery UI. Central bearer,
+refresh and session-version fencing are reused. Private query keys include identity
+and version, with private metadata/zero retention/no retries. Logout eviction also
+covers cold mutation-seeded product keys that lack query metadata. Blob URLs are
+created in effects, attached to image elements and removed/revoked on replacement,
+unmount, logout or account switch. Stale API/mutation results cannot restore them.
+
+Manager uses one-file FormData with a generic filename, synchronous busy guard,
+complete-ref reorder and server-authoritative returned images. Archived listings
+retain preview/delete, not upload/reorder. Mutations invalidate image metadata and
+owner lists, not the owner detail form, preserving unsaved listing edits. Public
+gallery derives canonical trusted API paths from validated slug/ref, never trusts
+arbitrary returned storage URLs, and has a zero-image/missing-file fallback.
+
+304 tests/19 files, TypeScript, ESLint and production build pass. Real Chrome uses
+fresh synthetic profile/accounts, temporary Vite + Uvicorn/MySQL/storage and 21 UI
+assertions including refresh-cookie bootstrap, mobile width, visibility/cover/
+archive/delete and account isolation. It does not certify every browser or a
+production deployment. No dependency changes, Tailwind migration or Phase 11 code.

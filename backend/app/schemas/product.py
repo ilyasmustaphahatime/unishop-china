@@ -9,6 +9,7 @@ from app.common.plain_text import normalize_plain_text
 from app.common.product_slugs import ProductSlug
 from app.models.product import ProductCondition, ProductStatus
 from app.schemas.catalog import PublicCategory, PublicCity, StrictBody
+from app.schemas.product_image import PublicProductImage
 
 
 def title_text(value: str) -> str:
@@ -90,6 +91,7 @@ class PublicSeller(StrictBody):
 class PublicProduct(ProductFields):
     status: Literal["PUBLISHED"]
     seller: PublicSeller
+    images: list[PublicProductImage] = Field(default_factory=list, max_length=8)
 
 
 class OwnProductList(StrictBody):

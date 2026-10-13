@@ -1,4 +1,4 @@
-# Product Listings Core API — Phase 9
+# Product Listings Core API — Phases 9-10
 
 All paths are relative to `/api/v1`. Listing navigation uses immutable opaque
 `item-` plus 24 lowercase hex characters: never an internal UUID, title, identity,
@@ -73,7 +73,9 @@ category and parent. Unknown, draft, paused, archived, and now-ineligible listin
 all return `{"detail":"Listing not found."}` with 404, never hidden-state details.
 
 Public fields: `public_slug`, `title`, `description`, `price`, `currency`, `condition`,
-`status` (PUBLISHED), `city`, `category`, `published_at`, `seller`. City/category reuse
+`status` (PUBLISHED), `city`, `category`, `published_at`, `seller`, `images`. Images
+are ordered safe `ref`, `position`, `url` projections, maximum eight; empty is valid.
+See [product image API](product-images-api.md). City/category reuse
 public catalog contracts. Seller has only `public_handle`, `display_name`,
 `seller_verified: true`. No IDs, PII, roles, private evidence or session metadata.
 Own responses omit seller and add status, `city_active`, `category_active`,
@@ -90,5 +92,6 @@ writes 90/min. Authenticated reads 60/user/min, writes 30/user/min, common peer
 Actual body bound 32 KiB and input-time bound 15 seconds; JSON media type required.
 Products/owner responses, including errors, use no-store and no-referrer.
 
-No images, uploads, storage URLs, browsing/search, favorites, chat, deals, orders,
-payment, moderation, or admin product dashboard are implemented here.
+Phase 10 adds six image operations, not writable media fields on listing PATCH.
+No browsing/search, favorites, chat, deals, orders, payment, moderation, or admin
+product dashboard is implemented here.

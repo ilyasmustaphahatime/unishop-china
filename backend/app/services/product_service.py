@@ -8,6 +8,8 @@ from app.models.base import utc_now
 from app.models.product import ProductStatus
 from app.repositories.catalog_repository import CatalogAuditRepository
 from app.repositories.product_repository import ProductRepository
+from app.repositories.product_image_repository import ProductImageRepository
+from app.schemas.product_image import PublicProductImage
 from app.schemas.product import OwnProduct, OwnProductList, ProductCreate, PublicProduct, PublicSeller
 from app.services.catalog_service import CategoryService, CityService
 from app.services.profile_service import OnboardingIncompleteError, ProfileService
@@ -20,8 +22,9 @@ class ProductError(Exception):
 
 
 class ProductService:
-    def __init__(self, repository=None):
+    def __init__(self, repository=None, *, api_prefix="/api/v1"):
         self.repo = repository or ProductRepository()
+        self.api_prefix = api_prefix
 
     @staticmethod
     def eligible(db, user_id):
@@ -132,7 +135,7 @@ class ProductService:
             db.flush()
             return self.own_response(self.repo.owned_view(db, user_id, slug))
 
-    def get_public(self, db, slug):
+    def public_view(self, db, slug):
         view = self.repo.public_candidate(db, slug)
         if view is None:
             raise ProductError("Listing not found.", 404)
@@ -142,5 +145,14 @@ class ProductService:
                    and city.is_active and CategoryService.is_publicly_active(category, parent))
         if not visible:
             raise ProductError("Listing not found.", 404)
+        return view
+
+    def get_public(self, db, slug):
+        view = self.public_view(db, slug)
+        handle, display = view[7:9]
+        images = [PublicProductImage(ref=image.public_ref, position=image.position,
+            url=f"{self.api_prefix}/products/{slug}/images/{image.public_ref}")
+            for image in ProductImageRepository().list_for_product(db, view[0].id)]
         return PublicProduct(**self.fields(view), status="PUBLISHED",
-                             seller=PublicSeller(public_handle=handle, display_name=display, seller_verified=True))
+                             seller=PublicSeller(public_handle=handle, display_name=display, seller_verified=True),
+                             images=images)

@@ -3,6 +3,7 @@ import { citySchema } from '../cities/schemas';
 import { categorySchema } from '../categories/schemas';
 import { catalogSlugSchema } from '../catalog/slugs';
 import { publicHandleSchema } from '../profiles/handles';
+import { publicProductImageListSchema } from '../productImages/schemas';
 
 export const productSlugSchema = z.string().regex(/^item-[0-9a-f]{24}$/);
 export const conditionSchema = z.enum(['new', 'like_new', 'good', 'fair']);
@@ -53,4 +54,6 @@ export const publicProductSchema = z.object({
   ...productFields, status: z.literal('PUBLISHED'),
   seller: z.object({ public_handle: publicHandleSchema, display_name: z.string().min(2).max(100),
     seller_verified: z.literal(true) }).strict(),
-}).strict();
+  images: publicProductImageListSchema.default([]),
+}).strict().refine((product) => product.images.every((image) =>
+  image.url.endsWith('/products/' + product.public_slug + '/images/' + image.ref)));

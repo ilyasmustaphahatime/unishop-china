@@ -77,7 +77,8 @@ def test_complete_lifecycle_price_slug_and_safe_projections(world):
     public = client.get(PUBLIC + slug)
     assert public.status_code == 200 and public.headers["cache-control"] == "no-store"
     assert set(public.json()) == {"public_slug", "title", "description", "price", "currency", "condition",
-                                 "city", "category", "published_at", "status", "seller"}
+                                 "city", "category", "published_at", "status", "seller", "images"}
+    assert public.json()["images"] == []  # Phase 9 zero-image publishing remains valid.
     assert set(public.json()["seller"]) == {"public_handle", "display_name", "seller_verified"}
     assert public.json()["seller"]["seller_verified"] is True
     for secret in (owner.id, owner.email, owner.password_hash, "storage_key", "challenge", "review_reference"):
@@ -345,7 +346,9 @@ def test_byte_limit_content_type_and_scope_boundaries(world):
     slug = create(world)["public_slug"]
     assert client.delete(OWN + "/" + slug, headers=headers(owner)).status_code == 405
     assert client.get(PUBLIC + "item-%61" + "a" * 23).status_code == 404
-    for suffix in ("images", "upload", "favorites", "chat", "deal", "search"):
+    assert client.post(OWN + "/" + slug + "/images", json={}).status_code == 401
+    assert client.post(OWN + "/" + slug + "/images", json={}, headers=headers(owner)).status_code == 415
+    for suffix in ("upload", "favorites", "chat", "deal", "search"):
         assert client.post(OWN + "/" + slug + "/" + suffix, json={}).status_code == 404
 
 

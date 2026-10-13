@@ -41,6 +41,7 @@ function mockCatalogs(listing = product) {
   return vi.spyOn(apiClient, 'get').mockImplementation(async (path) => {
     if (path === '/cities') return response({ items: [city] });
     if (path === '/categories') return response({ items: [{ ...category, children: [] }] });
+    if (String(path).endsWith('/images')) return response([]);
     return response(listing);
   });
 }

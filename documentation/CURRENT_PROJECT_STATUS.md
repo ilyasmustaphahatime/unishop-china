@@ -1,5 +1,83 @@
 # UniShop China Current Project Status
 
+## Phase 10 final adversarial audit (2026-10-13)
+
+**LOCAL PHASE 10 PASSED: YES. READY TO COMMIT: YES. PRODUCTION READY: NO.**
+Phase 11 may begin after human review/commit and a separate request; not implemented.
+
+- Six reproduced review findings fixed: 1 High, 3 Medium, 2 Low; 0 Critical.
+- Final fresh backend 1,388 passed, image-focused 197, security-focused 733;
+  44 additional cases, no removed/weakened assertions. Concurrency 89 x 3 green.
+- Frontend 304 tests, TypeScript, ESLint and production build pass; no dependency
+  update/Tailwind migration. Python compile/import/Ruff --no-cache/pip check/audit pass.
+- Real MySQL/Uvicorn/storage 155 checks; real Chrome 27 UI + 50 setup checks.
+  Living preview at logout; held authorized image completes after B login without
+  restoring pixels/Blob URLs. Exact synthetic DB/media cleanup on RED and GREEN runs.
+- Resume preserved all 83 starting paths; only two audit/test files and these three
+  requested documentation files changed. Added completed-file disconnect regression;
+  app code/dependencies/additive migration unchanged, no reset/rebuild/overwrite.
+- All 16 ordered development-table fingerprints unchanged, default media empty,
+  report-only audit clean; sole/current a10b2c3d4e5f, no drift, isolated cycles pass.
+  No development downgrade/historical migration edits; new migration EOF-only cleanup.
+- Original 65-file implementation preserved; final manifest 70 Phase 10 files,
+  including 29 review-specific files (11 EOF-only), 38 tracked / 32 untracked.
+  All changes unstaged; 13 unrelated artifacts SHA-256 unchanged. HEAD remains 204d85f.
+- Scoped NGINX cap corrected to 10 MiB + 64 KiB; runtime ENVIRONMENT BLOCKED.
+  Target MySQL 8 not available; runtime verified only on MySQL 9.4.0.
+- Full npm audit still 5 High / 2 Moderate affected build nodes from braces and
+  selector-parser; production-only audit zero. Private production storage, distributed
+  controls/capacity, TLS/providers/secrets/recovery and deployment remain blockers.
+
+See the [30-section independent audit](phases/PHASE_10_FINAL_ADVERSARIAL_AUDIT.md)
+for every finding, exact gates, original/review manifests and accepted limitations.
+Earlier dated implementation/phase sections below are historical, not current claims.
+No staging, commit, push or Phase 11 work was performed.
+
+## Phase 10 Product Images and Storage (2026-10-12)
+
+**LOCAL PHASE 10 PASSED: YES. READY FOR PHASE 11 DEVELOPMENT: YES. PRODUCTION READY: NO.**
+Phase 11 was not implemented. No staging, commit or push was performed.
+
+- Baseline: clean `feature/authentication`, HEAD/tracking `204d85f`.
+- Backend **1,344 passed** (1,191 baseline; 153 new image/security/race cases).
+  Focused cross-domain security **689 passed**. Frontend **304 passed** in 19 files
+  (274 baseline; 30 new cases), TypeScript, ESLint and production build passed.
+- All-project concurrency: **78 cases x 3 green runs**, including 13 image races;
+  real MySQL/Uvicorn/storage **145 checks**. Separate real Chrome: **21 UI checks**
+  after 50 setup checks, fresh profile and temporary Vite/Uvicorn/media. Exact
+  synthetic DB and physical-media cleanup; all owned servers stopped.
+- Six image operations, 0-8 immutable sanitized JPEG/PNG/static WebP photos,
+  request-time public visibility, authenticated Blob previews and cover/order/delete.
+  Current eligibility/owner locks, actual-byte/pixel/intake/decode bounds, DB/storage
+  compensation, report-only orphan/missing audit and version-fenced cache cleanup.
+- Additive migration `a10b2c3d4e5f` over `f9a1b2c3d4e5`, sole current/head, no drift.
+  Disposable base-to-head and 10-to-9-to-10 plus prior scoped cycles passed.
+  All **15 existing-table counts/fingerprints unchanged**, product_images empty.
+  Historical full rollback-to-base limitation remains unchanged/not certified.
+- Compile, Ruff --no-cache, pip check/audit passed. OpenAPI **59/63/57** operations
+  for local/all-fake development/production; exactly six new image operations.
+- All 326 installed frontend packages match the lockfile. No dependency/lockfile
+  changes, Tailwind stays 3.4.19. Full npm audit retains **5 High / 2 Moderate nodes**
+  from braces/selector-parser; production-only audit zero. No insecure TLS settings.
+- Production object/evidence storage, distributed controls, target MySQL 8,
+  providers/TLS/secrets/recovery and Docker/NGINX runtime remain release blockers.
+  Current proxy 6m upload limit needs deliberate deployment configuration for
+  the 10 MiB + 64 KiB envelope. Headless Chrome passed, not all-browser certification.
+- All Phase 10 changes remain unstaged. Thirteen unrelated human PDF/build/render
+  artifacts are preserved byte-for-byte and excluded from the Phase 10 manifest.
+
+See the [28-section gate and every changed file/reason](phases/PHASE_10_PRODUCT_IMAGES_STORAGE.md),
+[image API](api/product-images-api.md) and [threat model](security/image-storage-security.md).
+Earlier dated sections below are historical, not current head/test/runtime claims.
+
+Continuation on 2026-10-12 resumed the existing 64-file Phase 10 implementation
+without replacing any application/frontend/test code or the additive migration.
+All gates above were freshly rerun, including 78 concurrency cases three times.
+The brief's singular `api/product-image-api.md` entry point was added as a link to
+the existing complete API document. Final Phase 10 manifest: 65 files (37 tracked
+modifications, 28 new); 13 unrelated artifacts remain unchanged. No development
+downgrade, staging, commit, push, dependency change or unnecessary refactor.
+
 ## Phase 9 final adversarial double-check (2026-10-09)
 
 **LOCAL PHASE 9 PASSED: YES. READY TO COMMIT: YES. PRODUCTION READY: NO.**

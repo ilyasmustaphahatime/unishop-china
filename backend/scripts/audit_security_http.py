@@ -5,6 +5,7 @@ Never contacts a real delivery provider, prints credentials, or alters real user
 """
 
 from pathlib import Path
+import argparse
 import hashlib
 import json
 import os
@@ -31,7 +32,7 @@ def snapshot(engine):
             "password_reset_codes", "email_verification_codes", "user_profiles",
             "seller_verifications", "seller_evidence", "seller_verification_audit",
             "cities", "categories", "admin_catalog_audit", "catalog_write_lock",
-            "product_listings",
+            "product_listings", "product_images",
         ):
             table = Table(name, metadata, autoload_with=connection)
             rows = connection.execute(select(table).order_by(table.c.id)).all()
@@ -42,6 +43,9 @@ def snapshot(engine):
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--browser", action="store_true", help="Also run isolated real Chrome UI checks.")
+    args = parser.parse_args()
     import httpx
     from sqlalchemy import delete, select
     from sqlalchemy.orm import Session
@@ -49,12 +53,14 @@ def main() -> int:
     from app.core.config import settings
     from app.core.database import engine
     from app.common.enums import AccountStatus
-    from app.models import User, UserRole, SellerVerification, SellerVerificationAudit, ProductListing
+    from app.models import User, UserRole, SellerVerification, SellerVerificationAudit, ProductListing, ProductImage
     from app.common.enums import UserRoleType
     from io import BytesIO
     from PIL import Image
     from scripts.catalog_http_checks import assert_catalog_namespace_unused, run_catalog_checks, cleanup_catalog_synthetic
     from scripts.product_http_checks import product_category, run_product_checks, cleanup_product_catalog
+    from scripts.product_image_http_checks import run_product_image_checks
+    from scripts.product_image_browser_checks import run_browser_checks
 
     if settings.app_env.strip().lower() != "development" or engine.url.host not in {
         "127.0.0.1", "localhost", "::1",
@@ -78,8 +84,20 @@ def main() -> int:
         port_socket.bind(("127.0.0.1", 0))
         port = port_socket.getsockname()[1]
     env = os.environ.copy()
+    frontend_process = None
+    browser_resources = None
+    frontend_url = None
+    if args.browser:
+        with socket.socket() as frontend_socket:
+            frontend_socket.bind(("127.0.0.1", 0))
+            frontend_port = frontend_socket.getsockname()[1]
+        frontend_url = f"http://127.0.0.1:{frontend_port}"
+        env["FRONTEND_URL"] = frontend_url
+        browser_resources = tempfile.TemporaryDirectory(prefix="unishop-browser-http-")
     private_storage = tempfile.TemporaryDirectory(prefix="unishop-seller-http-")
     assert Path(private_storage.name).resolve().parent == Path(tempfile.gettempdir()).resolve()
+    product_storage = tempfile.TemporaryDirectory(prefix="unishop-product-http-")
+    assert Path(product_storage.name).resolve().parent == Path(tempfile.gettempdir()).resolve()
     env.update({
         "APP_ENV": "development", "APP_DEBUG": "false",
         "SMS_ENABLED": "true", "SMS_PROVIDER": "fake",
@@ -92,6 +110,7 @@ def main() -> int:
         "FAKE_EMAIL_VERIFICATION_DELIVERY_DELAY_SECONDS": "0",
         "REFRESH_COOKIE_SECURE": "false",
         "SELLER_PRIVATE_STORAGE_DIR": private_storage.name,
+        "PRODUCT_IMAGE_STORAGE_DIR": product_storage.name, "PRODUCT_IMAGE_STORAGE_PROVIDER": "local",
     })
     process = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1",
@@ -109,6 +128,28 @@ def main() -> int:
 
     try:
         base_url = f"http://127.0.0.1:{port}"
+        if args.browser:
+            frontend_dir = BACKEND_DIR.parent / "frontend"
+            vite = frontend_dir / "node_modules/vite/bin/vite.js"
+            if not vite.is_file():
+                raise RuntimeError("Installed Vite runtime unavailable.")
+            frontend_env = env.copy()
+            frontend_env["VITE_API_BASE_URL"] = base_url + "/api/v1"
+            frontend_process = subprocess.Popen(
+                ["node", str(vite), "--host", "127.0.0.1", "--port", str(frontend_port), "--strictPort"],
+                cwd=frontend_dir, env=frontend_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            with httpx.Client(trust_env=False, timeout=3) as probe:
+                for _ in range(100):
+                    try:
+                        if probe.get(frontend_url).status_code == 200:
+                            break
+                    except httpx.TransportError:
+                        pass
+                    time.sleep(0.1)
+                else:
+                    raise RuntimeError("Frontend startup unavailable.")
         with httpx.Client(base_url=base_url, timeout=15) as first, \
                 httpx.Client(base_url=base_url, timeout=15) as second:
             for _ in range(100):
@@ -241,56 +282,80 @@ def main() -> int:
             check(first.post(seller + "/evidence", data={"evidence_type": "SELFIE"},
                              files={"file": ("proof.png", buffer.getvalue(), "image/png")}).status_code == 409,
                   "seller-evidence-immutable-after-review")
-            stage = "product-listings"
-            run_product_checks(first, second, check, marker)
-            stage = "catalog-foundation"
-            run_catalog_checks(first, second, check, engine, marker, synthetic_admin_id)
-            stage = "password-reset"
-            check(first.post("/api/v1/auth/password/forgot", json={
-                "identifier": emails[0],
-            }).status_code == 202, "forgot")
-            code = first.post("/api/v1/dev/fake-password-reset/latest", json={
-                "identifier": emails[0],
-            })
-            check(code.status_code == 200, "fake-reset-delivery")
-            reset_payload = {"identifier": emails[0], "code": code.json()["code"],
-                             "new_password": passwords[1]}
-            check(first.post("/api/v1/auth/password/reset", json=reset_payload).status_code == 200,
-                  "reset")
-            check(first.post("/api/v1/auth/password/reset", json=reset_payload).status_code == 400,
-                  "reset-replay-rejected")
-            first.headers["X-CSRF-Token"] = first.cookies.get(settings.csrf_cookie_name)
-            check(first.post("/api/v1/auth/refresh").status_code == 401, "reset-revokes-session")
-            response = first.post("/api/v1/auth/login", json={
-                "identifier": emails[0], "password": passwords[1],
-            })
-            check(response.status_code == 200, "login-after-reset")
-            first.headers["Authorization"] = "Bearer " + response.json()["access_token"]
-            stage = "password-change"
-            check(first.post("/api/v1/auth/password/change", json={
-                "current_password": passwords[1], "new_password": passwords[2],
-            }).status_code == 200, "password-change")
-            check(not first.cookies.get(settings.refresh_cookie_name), "password-change-clears-cookie")
-            response = first.post("/api/v1/auth/login", json={
-                "identifier": emails[0], "password": passwords[2],
-            })
-            check(response.status_code == 200, "login-after-change")
-            first.headers["Authorization"] = "Bearer " + response.json()["access_token"]
-            check(first.get("/api/v1/profile/me").json()["onboarding_completed"],
-                  "onboarding-server-persistence")
-            stage = "logout"
-            check(first.post("/api/v1/auth/logout-all").status_code == 204, "logout-all")
-            check(first.post("/api/v1/auth/refresh").status_code == 401, "logout-all-refresh-rejected")
-            second.headers["X-CSRF-Token"] = second.cookies.get(settings.csrf_cookie_name)
-            check(second.post("/api/v1/auth/refresh").status_code == 200, "other-user-session-preserved")
-            second.headers["X-CSRF-Token"] = second.cookies.get(settings.csrf_cookie_name)
-            check(second.post("/api/v1/auth/logout").status_code == 204, "logout")
-            check(second.post("/api/v1/auth/refresh").status_code == 401, "logout-refresh-rejected")
+            if args.browser:
+                # Independent browser lifecycle: retain normal rate limits rather than
+                # spend this user's entire write budget on the separate HTTP matrix first.
+                category = second.post("/api/v1/admin/categories", json={
+                    "slug": product_category(marker), "name_en": "Synthetic Browser Category", "name_zh": "Synthetic",
+                })
+                check(category.status_code == 201, "browser-category-create")
+                stage = "product-images-browser"
+                run_browser_checks(frontend_url, base_url, emails[0], passwords[0], emails[1],
+                                   passwords[0], product_category(marker), Path(browser_resources.name), check)
+            else:
+                stage = "product-listings"
+                run_product_checks(first, second, check, marker)
+                stage = "product-images"
+                run_product_image_checks(first, second, check, marker, engine, emails[0])
+                check(not any(path.is_file() for path in Path(product_storage.name).rglob("*")), "image-physical-objects-empty")
+            if not args.browser:
+                stage = "catalog-foundation"
+                run_catalog_checks(first, second, check, engine, marker, synthetic_admin_id)
+                stage = "password-reset"
+                check(first.post("/api/v1/auth/password/forgot", json={
+                    "identifier": emails[0],
+                }).status_code == 202, "forgot")
+                code = first.post("/api/v1/dev/fake-password-reset/latest", json={
+                    "identifier": emails[0],
+                })
+                check(code.status_code == 200, "fake-reset-delivery")
+                reset_payload = {"identifier": emails[0], "code": code.json()["code"],
+                                 "new_password": passwords[1]}
+                check(first.post("/api/v1/auth/password/reset", json=reset_payload).status_code == 200,
+                      "reset")
+                check(first.post("/api/v1/auth/password/reset", json=reset_payload).status_code == 400,
+                      "reset-replay-rejected")
+                first.headers["X-CSRF-Token"] = first.cookies.get(settings.csrf_cookie_name)
+                check(first.post("/api/v1/auth/refresh").status_code == 401, "reset-revokes-session")
+                response = first.post("/api/v1/auth/login", json={
+                    "identifier": emails[0], "password": passwords[1],
+                })
+                check(response.status_code == 200, "login-after-reset")
+                first.headers["Authorization"] = "Bearer " + response.json()["access_token"]
+                stage = "password-change"
+                check(first.post("/api/v1/auth/password/change", json={
+                    "current_password": passwords[1], "new_password": passwords[2],
+                }).status_code == 200, "password-change")
+                check(not first.cookies.get(settings.refresh_cookie_name), "password-change-clears-cookie")
+                response = first.post("/api/v1/auth/login", json={
+                    "identifier": emails[0], "password": passwords[2],
+                })
+                check(response.status_code == 200, "login-after-change")
+                first.headers["Authorization"] = "Bearer " + response.json()["access_token"]
+                check(first.get("/api/v1/profile/me").json()["onboarding_completed"],
+                      "onboarding-server-persistence")
+                stage = "logout"
+                check(first.post("/api/v1/auth/logout-all").status_code == 204, "logout-all")
+                check(first.post("/api/v1/auth/refresh").status_code == 401, "logout-all-refresh-rejected")
+                second.headers["X-CSRF-Token"] = second.cookies.get(settings.csrf_cookie_name)
+                check(second.post("/api/v1/auth/refresh").status_code == 200, "other-user-session-preserved")
+                second.headers["X-CSRF-Token"] = second.cookies.get(settings.csrf_cookie_name)
+                check(second.post("/api/v1/auth/logout").status_code == 204, "logout")
+                check(second.post("/api/v1/auth/refresh").status_code == 401, "logout-refresh-rejected")
         result = 0
     except Exception as error:
         print(json.dumps({"status": "FAIL", "stage": stage, "error_type": type(error).__name__}))
         result = 1
     finally:
+        if frontend_process is not None:
+            frontend_process.terminate()
+            try:
+                frontend_process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                frontend_process.kill()
+                frontend_process.wait(timeout=5)
+        if browser_resources is not None:
+            browser_resources.cleanup()
         process.terminate()
         try:
             process.wait(timeout=10)
@@ -299,15 +364,21 @@ def main() -> int:
             process.wait(timeout=5)
         with Session(engine) as session, session.begin():
             owned_ids = select(User.id).where(User.email.in_(emails))
+            session.execute(delete(ProductImage).where(ProductImage.product_listing_id.in_(
+                select(ProductListing.id).where(ProductListing.seller_user_id.in_(owned_ids)))))
             session.execute(delete(ProductListing).where(ProductListing.seller_user_id.in_(owned_ids)))
             session.execute(delete(User).where(User.email.in_(emails)))
             cleanup_product_catalog(session, marker)
             cleanup_catalog_synthetic(session, marker)
         private_storage.cleanup()
+        product_storage.cleanup()
+        media_clean = not Path(product_storage.name).exists()
         preserved = snapshot(engine) == baseline
         print(json.dumps({"checks_passed": passed, "preservation": preserved,
-                          "synthetic_cleanup": preserved, "server_stopped": process.poll() is not None}))
-        if not preserved:
+                          "synthetic_cleanup": preserved, "media_cleanup": media_clean,
+                          "server_stopped": process.poll() is not None,
+                          "frontend_stopped": frontend_process is None or frontend_process.poll() is not None}))
+        if not preserved or not media_clean:
             result = 1
     return result
 

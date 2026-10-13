@@ -99,7 +99,7 @@ def main() -> int:
                                   .replace(root_password, "[redacted]")[:400])
                     raise RuntimeError("Isolated Alembic operation failed")
 
-            if "--products" in sys.argv:
+            if "--products" in sys.argv or "--product-images" in sys.argv:
                 stage = "empty base-to-head product migration"
                 alembic("upgrade", "head")
                 alembic("check")
@@ -163,12 +163,42 @@ def main() -> int:
                 handles = list(connection.scalars(text("SELECT public_handle FROM user_profiles")))
                 assert len(handles) == len(set(handles)) == 3
                 assert all(len(h) == 25 and h.startswith("user-") for h in handles)
-            if "--products" in sys.argv:
+            if "--product-images" in sys.argv:
+                stage = "product-image isolated round-trip"
+                def image_schema():
+                    schema = inspect(app_engine)
+                    columns = {column["name"]: column for column in schema.get_columns("product_images")}
+                    assert set(columns) == {"id", "product_listing_id", "public_ref", "storage_key", "mime_type",
+                                            "width", "height", "file_size", "position", "created_at", "updated_at"}
+                    assert columns["public_ref"]["type"].collation == "ascii_bin"
+                    assert len(schema.get_check_constraints("product_images")) == 7
+                    assert {tuple(item["column_names"]) for item in schema.get_unique_constraints("product_images")} == {
+                        ("public_ref",), ("storage_key",), ("product_listing_id", "position")}
+                    foreign_keys = schema.get_foreign_keys("product_images")
+                    assert len(foreign_keys) == 1 and foreign_keys[0]["referred_table"] == "product_listings"
+                    assert foreign_keys[0]["options"]["ondelete"] == "RESTRICT"
+                image_schema()
+                with app_engine.connect() as connection:
+                    tables = list(connection.scalars(text("SHOW TABLES")))
+                    before_images = {name: connection.execute(text("SELECT * FROM `" + name + "` ORDER BY id")).all()
+                        for name in tables if name not in {"alembic_version", "product_images"}}
+                    assert connection.scalar(text("SELECT COUNT(*) FROM product_images")) == 0
+                alembic("downgrade", "f9a1b2c3d4e5")
+                with app_engine.connect() as connection:
+                    assert "product_images" not in list(connection.scalars(text("SHOW TABLES")))
+                    for name, rows in before_images.items():
+                        assert connection.execute(text("SELECT * FROM `" + name + "` ORDER BY id")).all() == rows
+                alembic("upgrade", "head")
+                alembic("check")
+                image_schema()
+                print(json.dumps({"product_image_cycle": "PASS", "previous_15_tables_preserved": True,
+                                  "actual_image_schema": "PASS", "drift": False}))
+            if "--products" in sys.argv or "--product-images" in sys.argv:
                 stage = "product isolated round-trip"
                 with app_engine.connect() as connection:
                     tables = list(connection.scalars(text("SHOW TABLES")))
                     previous = {name: connection.execute(text("SELECT * FROM `" + name + "` ORDER BY id")).all()
-                                for name in tables if name not in {"alembic_version", "product_listings"}}
+                                for name in tables if name not in {"alembic_version", "product_listings", "product_images"}}
                     assert connection.scalar(text("SELECT COUNT(*) FROM product_listings")) == 0
                     assert connection.scalar(text("SELECT COUNT(*) FROM information_schema.table_constraints "
                         "WHERE table_schema=DATABASE() AND table_name='product_listings' AND constraint_type='CHECK'")) == 8

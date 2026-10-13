@@ -22,6 +22,7 @@ Thumbs.db
 backend/uploads/temporary/*
 backend/uploads/private/*
 private_uploads/
+private_storage/
 database/backups/*
 !**/.gitkeep
 backend/.env

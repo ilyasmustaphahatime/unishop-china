@@ -5,6 +5,7 @@ export function clearPrivateQueryCache() {
   queryClient.removeQueries({
     predicate: (query) => query.meta?.private === true || query.queryKey[0] === 'auth' ||
       query.queryKey[0] === 'seller-verification' ||
+      ((query.queryKey[0] === 'products' || query.queryKey[0] === 'product-images') && query.queryKey[1] === 'mine') ||
       (query.queryKey[0] === 'profile' && query.queryKey[1] === 'me'),
   });
 }
