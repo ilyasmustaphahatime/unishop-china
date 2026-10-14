@@ -1,3 +1,4 @@
+import { useAppTranslation } from '../../i18n/useAppTranslation';
 type AvatarProps = {
   name: string | null;
   size?: 'sm' | 'md' | 'lg';
@@ -6,6 +7,7 @@ type AvatarProps = {
 const sizes = { sm: 'h-9 w-9 text-sm', md: 'h-12 w-12 text-base', lg: 'h-24 w-24 text-3xl' };
 
 export default function Avatar({ name, size = 'md' }: AvatarProps) {
+  const { t } = useAppTranslation();
   const initials =
     name
       ?.trim()
@@ -16,7 +18,8 @@ export default function Avatar({ name, size = 'md' }: AvatarProps) {
       .toLocaleUpperCase() || 'U';
   return (
     <span
-      aria-label={`${name || 'UniShop user'} avatar`}
+      aria-label={t('common:avatar', { name: name || t('common:defaultUser') })}
+      dir="auto"
       className={`inline-flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-600 to-rose-500 font-black text-white shadow-sm ${sizes[size]}`}
       role="img"
     >

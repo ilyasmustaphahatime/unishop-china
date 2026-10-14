@@ -1,0 +1,23 @@
+{
+  "city": "المدينة",
+  "currentCity": "المدينة الحالية",
+  "chooseCity": "اختر مدينتك",
+  "activeCityCopy": "اختر مدينة نشطة من دليل UniShop الحالي.",
+  "loadCitiesFailed": "تعذّر تحميل المدن.",
+  "retryCities": "إعادة تحميل المدن",
+  "noCities": "لا توجد مدن متاحة حاليًا.",
+  "historicalCityCopy": "لم تعد مدينتك المحفوظة قابلة للاختيار. ستبقى في ملفك؛ اختر مدينة نشطة لتغييرها.",
+  "loadingCities": "جارٍ تحميل المدن…",
+  "historicalCity": "{{name}} (لم تعد متاحة)",
+  "category": "الفئة",
+  "categories": "الفئات",
+  "loadingCategories": "جارٍ تحميل الفئات",
+  "loadingCategoriesOption": "جارٍ تحميل الفئات…",
+  "loadCategoriesFailed": "تعذّر تحميل الفئات.",
+  "retryCategories": "إعادة تحميل الفئات",
+  "noCategories": "لا توجد فئات متاحة حاليًا.",
+  "directoryCopy": "استكشف فئات المنتجات في المجتمع.",
+  "historicalCategoryCopy": "الفئة المحفوظة متوقّفة. اختر فئة نشطة لتغييرها.",
+  "chooseCategory": "اختر فئة",
+  "retiredCategory": "{{name}} (متوقّفة)"
+}

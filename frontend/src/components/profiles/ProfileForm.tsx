@@ -1,3 +1,6 @@
+import { formatNumber } from '../../i18n/formatters';
+import { localizeMessage } from '../../i18n/messages';
+import { useAppTranslation } from '../../i18n/useAppTranslation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -14,6 +17,7 @@ import { profileFormSchema, type ProfileFormValues } from '../../features/profil
 import type { MyProfile } from '../../features/profiles/types';
 
 export default function ProfileForm({ profile }: { profile: MyProfile }) {
+  const { t } = useAppTranslation();
   const mutation = useUpdateProfile();
   const navigate = useNavigate();
   const {
@@ -57,8 +61,8 @@ export default function ProfileForm({ profile }: { profile: MyProfile }) {
   const selectedCity = useWatch({ control, name: 'city' }) ?? '';
   return (
     <form className="space-y-5" onSubmit={handleSubmit(submit)} noValidate>
-      {mutation.isError && <Alert>{profileErrorMessage(mutation.error)}</Alert>}
-      <FormField id="display-name" label="Display name" error={errors.displayName?.message}>
+      {mutation.isError && <Alert>{localizeMessage(profileErrorMessage(mutation.error))}</Alert>}
+      <FormField id="display-name" label={t('profile:displayName')} error={errors.displayName?.message}>
         <Input
           id="display-name"
           autoComplete="nickname"
@@ -69,26 +73,26 @@ export default function ProfileForm({ profile }: { profile: MyProfile }) {
       </FormField>
       <FormField
         id="bio"
-        label="Bio (optional)"
+        label={t('profile:bioOptional')}
         error={errors.bio?.message}
-        hint={`${bioLength}/300 characters`}
+        hint={t('profile:bioCount', { length: formatNumber(bioLength) })}
       >
         <Textarea
           id="bio"
           rows={5}
           aria-describedby={errors.bio ? 'bio-error' : 'bio-hint'}
           aria-invalid={Boolean(errors.bio)}
-          placeholder="Share a little about yourself and what brings you to UniShop."
+          placeholder={t('profile:bioPlaceholder')}
           {...register('bio')}
         />
       </FormField>
-      <FormField id="city" label="City" error={errors.city?.message}>
+      <FormField id="city" label={t('catalog:city')} error={errors.city?.message}>
         <CitySelect id="city" registration={register('city')} value={selectedCity} currentSlug={profile.citySlug} currentName={profile.city} />
       </FormField>
       <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-        <Button variant="secondary" onClick={() => navigate('/profile')}>Cancel</Button>
+        <Button variant="secondary" onClick={() => navigate('/profile')}>{t('common:cancel')}</Button>
         <Button type="submit" disabled={mutation.isPending}>
-          {mutation.isPending ? 'Saving…' : 'Save profile'}
+          {mutation.isPending ? t('common:saving') : t('profile:save')}
         </Button>
       </div>
     </form>

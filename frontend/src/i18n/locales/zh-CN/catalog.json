@@ -1,0 +1,23 @@
+{
+  "city": "城市",
+  "currentCity": "当前城市",
+  "chooseCity": "选择您的城市",
+  "activeCityCopy": "从 UniShop 当前目录中选择有效城市。",
+  "loadCitiesFailed": "无法加载城市。",
+  "retryCities": "重新加载城市",
+  "noCities": "目前没有可选城市。",
+  "historicalCityCopy": "已保存的城市不可再选，但仍保留在资料中。如需更改，请选择有效城市。",
+  "loadingCities": "正在加载城市…",
+  "historicalCity": "{{name}}（不再可选）",
+  "category": "类别",
+  "categories": "类别",
+  "loadingCategories": "正在加载类别",
+  "loadingCategoriesOption": "正在加载类别…",
+  "loadCategoriesFailed": "无法加载类别。",
+  "retryCategories": "重新加载类别",
+  "noCategories": "目前没有可选类别。",
+  "directoryCopy": "浏览社区商品类别。",
+  "historicalCategoryCopy": "已保存的类别已停用。如需更改，请选择有效类别。",
+  "chooseCategory": "选择类别",
+  "retiredCategory": "{{name}}（已停用）"
+}

@@ -1,3 +1,5 @@
+import { localizeMessage } from '../../i18n/messages';
+import { useAppTranslation } from '../../i18n/useAppTranslation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   localFakeSmsApi,
@@ -40,6 +42,7 @@ export function LocalPhoneVerificationPage({
   pollIntervalMs = 1_000,
   pollTimeoutMs = 20_000,
 }: Props) {
+  const { t } = useAppTranslation();
   const [phoneInput, setPhoneInput] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
@@ -92,7 +95,7 @@ export function LocalPhoneVerificationPage({
       }
       if (Date.now() >= deadline) {
         setDeliveryStatus(
-          `No fake message delivered within ${Math.ceil(pollTimeoutMs / 1_000)} seconds`,
+          'timeout',
         );
         setPollRequest(null);
         return;
@@ -197,17 +200,15 @@ export function LocalPhoneVerificationPage({
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <header>
         <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
-          Development Fake SMS
-        </p>
-        <h1 className="text-3xl font-bold text-slate-900">Local Phone Verification Test</h1>
+          {t('verification:devSms')}</p>
+        <h1 className="text-3xl font-bold text-slate-900">{t('verification:localTest')}</h1>
         <p className="mt-2 rounded-lg bg-amber-50 p-3 text-amber-900">
-          No real SMS will be sent to the phone.
-        </p>
+          {t('verification:noRealSms')}</p>
       </header>
 
       {error && (
         <div role="alert" className="rounded-lg bg-red-50 p-3 text-red-800">
-          {error}
+          {localizeMessage(error)}
         </div>
       )}
       {verified && (
@@ -217,11 +218,11 @@ export function LocalPhoneVerificationPage({
       )}
 
       <section className="rounded-xl border border-slate-200 p-5">
-        <h2 className="text-xl font-semibold">Registration</h2>
+        <h2 className="text-xl font-semibold">{t('verification:registration')}</h2>
         <label className="mt-4 block">
-          <span>Chinese phone number</span>
-          <input
-            aria-label="Chinese phone number"
+          <span>{t('verification:chinesePhone')}</span>
+          <input dir="ltr"
+            aria-label={t('verification:chinesePhone')}
             value={phoneInput}
             onChange={(event) => setPhoneInput(event.target.value)}
             className="mt-1 block w-full rounded border p-2"
@@ -229,9 +230,9 @@ export function LocalPhoneVerificationPage({
           />
         </label>
         <label className="mt-4 block">
-          <span>Password</span>
-          <input
-            aria-label="Password"
+          <span>{t('auth:password')}</span>
+          <input dir="ltr"
+            aria-label={t('auth:password')}
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
@@ -239,54 +240,51 @@ export function LocalPhoneVerificationPage({
             autoComplete="new-password"
           />
         </label>
-        <div className="mt-4 flex gap-3">
+        <div className="mt-4 flex flex-wrap gap-3">
           <button
             type="button"
             disabled={pendingAction !== null}
             onClick={() => void register()}
             className="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
           >
-            Register test account
-          </button>
+            {t('verification:registerTest')}</button>
           <button
             type="button"
             disabled={pendingAction !== null}
             onClick={() => void resend()}
             className="rounded border px-4 py-2 disabled:opacity-50"
           >
-            Request new code
-          </button>
+            {t('verification:requestCode')}</button>
         </div>
       </section>
 
       <section className="rounded-xl border border-slate-200 p-5">
-        <h2 className="text-xl font-semibold">Fake SMS inbox</h2>
+        <h2 className="text-xl font-semibold">{t('verification:fakeInbox')}</h2>
         <p className="mt-2" role="status">
-          {deliveryStatus}
+          {deliveryStatus === 'timeout' ? t('verification:noDelivery', { seconds: Math.ceil(pollTimeoutMs / 1_000) }) : localizeMessage(deliveryStatus)}
         </p>
         {message && (
           <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-4">
-            <p>Masked phone: {message.phoneNumberMasked}</p>
-            <p>Message type: {message.deliveryType}</p>
-            <p className="font-mono text-2xl tracking-widest">{message.code}</p>
-            <p>Expires in: {expiresIn} seconds</p>
+            <p>{t('verification:maskedPhone')}{' '}<bdi dir="ltr">{message.phoneNumberMasked}</bdi></p>
+            <p>{t('verification:messageType')}{' '}{t(message.deliveryType === 'registration' ? 'verification:registration' : 'verification:resend')}</p>
+            <p dir="ltr" className="font-mono text-2xl tracking-widest">{message.code}</p>
+            <p>{t('verification:expiresIn', { count: expiresIn })}</p>
             <button
               type="button"
               onClick={() => void copyCode()}
               className="rounded border px-3 py-1"
             >
-              Copy code
-            </button>
+              {t('verification:copyCode')}</button>
           </div>
         )}
       </section>
 
       <section className="rounded-xl border border-slate-200 p-5">
-        <h2 className="text-xl font-semibold">Verification</h2>
+        <h2 className="text-xl font-semibold">{t('verification:verification')}</h2>
         <label className="mt-4 block">
-          <span>Six-digit OTP</span>
-          <input
-            aria-label="Six-digit OTP"
+          <span>{t('verification:otp')}</span>
+          <input dir="ltr"
+            aria-label={t('verification:otp')}
             value={otp}
             onChange={(event) => setOtp(event.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
             className="mt-1 block w-full rounded border p-2 font-mono"
@@ -301,8 +299,7 @@ export function LocalPhoneVerificationPage({
           onClick={() => void verify()}
           className="mt-4 rounded bg-green-700 px-4 py-2 text-white disabled:opacity-50"
         >
-          Verify phone
-        </button>
+          {t('verification:verifyPhone')}</button>
       </section>
     </main>
   );

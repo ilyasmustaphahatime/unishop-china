@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.app.json",
+  "include": ["tests/typecheck/i18n-keys.ts", "src/i18n/types.d.ts"]
+}

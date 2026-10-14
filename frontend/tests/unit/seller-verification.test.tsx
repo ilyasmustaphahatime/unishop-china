@@ -132,7 +132,8 @@ describe('seller verification page', () => {
   });
   it('renders rejection text safely and allows a fresh attempt', async () => {
     page({ ...draft, status: 'REJECTED', rejection_reason: '<script>not HTML</script>' });
-    expect(await screen.findByText('Review feedback: <script>not HTML</script>')).toBeInTheDocument();
+    expect((await screen.findByText('<script>not HTML</script>')).closest('p')).toHaveTextContent('Review feedback: <script>not HTML</script>');
+    expect(screen.getByText('<script>not HTML</script>').tagName).toBe('BDI');
     expect(document.querySelector('script')).toBeNull();
     expect(screen.getByRole('button', { name: 'Start verification' })).toBeEnabled();
   });

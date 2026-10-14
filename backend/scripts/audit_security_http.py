@@ -94,6 +94,7 @@ def main() -> int:
         frontend_url = f"http://127.0.0.1:{frontend_port}"
         env["FRONTEND_URL"] = frontend_url
         browser_resources = tempfile.TemporaryDirectory(prefix="unishop-browser-http-")
+        assert Path(browser_resources.name).resolve().parent == Path(tempfile.gettempdir()).resolve()
     private_storage = tempfile.TemporaryDirectory(prefix="unishop-seller-http-")
     assert Path(private_storage.name).resolve().parent == Path(tempfile.gettempdir()).resolve()
     product_storage = tempfile.TemporaryDirectory(prefix="unishop-product-http-")
@@ -354,8 +355,6 @@ def main() -> int:
             except subprocess.TimeoutExpired:
                 frontend_process.kill()
                 frontend_process.wait(timeout=5)
-        if browser_resources is not None:
-            browser_resources.cleanup()
         process.terminate()
         try:
             process.wait(timeout=10)
@@ -374,10 +373,26 @@ def main() -> int:
         product_storage.cleanup()
         media_clean = not Path(product_storage.name).exists()
         preserved = snapshot(engine) == baseline
-        print(json.dumps({"checks_passed": passed, "preservation": preserved,
+        browser_clean = True
+        if browser_resources is not None:
+            # Chrome may briefly retain a profile log after the process exits on
+            # Windows. Synthetic DB/media cleanup must finish before this retry.
+            for attempt in range(5):
+                try:
+                    browser_resources.cleanup()
+                    break
+                except PermissionError:
+                    if attempt == 4:
+                        browser_clean = False
+                    else:
+                        time.sleep(0.5)
+        print(json.dumps({"checks_passed": passed, "check_count": len(passed), "preservation": preserved,
                           "synthetic_cleanup": preserved, "media_cleanup": media_clean,
+                          "browser_temp_cleanup": browser_clean,
                           "server_stopped": process.poll() is not None,
                           "frontend_stopped": frontend_process is None or frontend_process.poll() is not None}))
+        if not browser_clean:
+            result = 1
         if not preserved or not media_clean:
             result = 1
     return result

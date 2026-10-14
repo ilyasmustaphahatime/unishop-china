@@ -1,5 +1,69 @@
 # UniShop China Current Project Status
 
+## Phase 11A final adversarial audit (2026-10-14)
+
+**LOCAL PHASE 11A AUDIT PASSED: YES. READY FOR HUMAN GIT CLOSURE: YES.
+PRODUCTION READY: NO.** No staging, commit, push or Phase 11B work was done.
+HEAD remains `00be821` on `feature/authentication`.
+
+- Four confirmed review findings were corrected narrowly: one medium synthetic
+  browser-harness cleanup fault and three low locale race/misleading-copy issues.
+  The first failed browser attempt left one disclosed disposable Chrome temp
+  profile outside the repository; all development data/media were restored,
+  and the final two real-Chrome runs cleaned automatically.
+- Final frontend **387 passed / 22 files** (20 additional adversarial cases
+  over the 367 implementation baseline), TypeScript, negative-key checks,
+  ESLint and production build pass. Final backend **1,388 passed**; compile,
+  Ruff, pip check/audit pass. Final real Chrome **130/130 checks twice**,
+  including held private-image response across account switching.
+- Alembic current/head `a10b2c3d4e5f`, no drift; all 16 development-table
+  fingerprints and 13 protected artifact hashes unchanged; media audit clean.
+  Original 104-file Phase 11A manifest preserved; audit adds one tracked
+  harness path and one new report path, for 106 scoped paths total.
+- `npm audit --omit=dev` has zero findings; full audit retains **5 High /
+  2 Moderate affected build nodes** from inherited braces and selector-parser
+  advisories. Tailwind 3 remains unchanged. Private production storage,
+  distributed controls, target MySQL 8, Docker/NGINX runtime and operational
+  readiness are still release blockers.
+
+See the [30-section final adversarial audit](phases/PHASE_11A_FINAL_ADVERSARIAL_AUDIT.md)
+for findings, evidence, exact change manifest and limitations. The dated
+implementation results below are historical, not the final regression counts.
+
+## Phase 11A internationalization implementation (2026-10-14)
+
+**LOCAL PHASE 11A PASSED: YES. READY FOR FINAL ADVERSARIAL AUDIT: YES. PRODUCTION READY: NO.**
+Final audit and human Git closure are required before Phase 11B. No browse/search,
+backend/security-contract or schema changes were made. Phase 10 is committed;
+the Phase 11A worktree remains unstaged at HEAD `00be821` on `feature/authentication`.
+
+- English, Simplified Chinese, Modern Standard Arabic (RTL), French; seven bundled
+  namespaces, one engine/registry/controller and typed keys. Only `unishop.locale`
+  is persisted, allowlisted and independent of authentication/accounts.
+- Fresh frontend **367 tests/22 files** (304 retained + 63 new), application and
+  negative-key TypeScript, ESLint and production build pass. Four older test files
+  update presentation expectations only; their security/payload assertions remain.
+- Fresh backend **1,388 passed**, one inherited httpx/TestClient deprecation warning;
+  compile, Ruff `--no-cache`, pip check/audit pass. Cached Ruff initially crashed;
+  uncached verification passed without disabling lint rules.
+- Real MySQL/Uvicorn HTTP compatibility passed. Real Chrome: **74 i18n UI + 50
+  HTTP setup checks**, all four languages, desktop/mobile, native keyboard, no-flash
+  refresh, invalid/blocked storage, form/Blob stability, RTL reorder, escaping,
+  logout, UTC listing clocks and account isolation. Exact synthetic DB/media cleanup verified.
+- All 16 development-table fingerprints and all 13 unrelated artifact SHA-256s
+  unchanged. Current sole revision `a10b2c3d4e5f`, no drift; no migration/downgrade.
+- Exact i18next **26.4.4** / react-i18next **17.0.16**; only four package entries
+  added, no old locked version changed. All 330 installed entries match the lock;
+  manifest consistency/ci dry-run pass. System-CA HTTPS, `strict-ssl=true`.
+- Full npm audit retains **5 High / 2 Moderate affected build nodes**; production
+  audit zero. Tailwind **3.4.19** stays unchanged. No TLS bypass or forced fixes.
+- Production storage/operations, distributed controls, target MySQL 8 and
+  Docker/NGINX runtime remain release blockers. Local runtime is MySQL **9.4.0**.
+  Chrome local verification passed, not all-browser/deployment certification.
+
+See the [30-section implementation report and every changed file](phases/PHASE_11A_INTERNATIONALIZATION.md).
+Older dated sections below are historical snapshots, not current Git claims.
+
 ## Phase 10 final adversarial audit (2026-10-13)
 
 **LOCAL PHASE 10 PASSED: YES. READY TO COMMIT: YES. PRODUCTION READY: NO.**

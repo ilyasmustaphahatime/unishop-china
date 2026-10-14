@@ -4,6 +4,12 @@ UniShop China is a full-stack marketplace project for international students and
 
 ## Stack and structure
 
+Phase 11A adds English, Simplified Chinese, Arabic (RTL) and French to existing
+reachable UI, with a global selector and browser preference. Local regression and
+real Chrome gates passed; final adversarial audit/Git closure are still pending.
+See the [Phase 11A report and full manifest](documentation/phases/PHASE_11A_INTERNATIONALIZATION.md).
+Seller content, authentication, API payloads and database schemas are unchanged.
+
 - `frontend/`: React, TypeScript, Vite, Router, Axios, TanStack Query, Zustand, Tailwind.
 - `backend/`: FastAPI, SQLAlchemy, Alembic, Pydantic, secure JWT/session authentication, PyMySQL, profiles, private seller verification and catalogs/admin.
 - `database/`: MySQL 8 bootstrap, seed placeholders, diagrams, ignored backups.
@@ -47,5 +53,5 @@ and the [Phase 10 gate and full manifest](documentation/phases/PHASE_10_PRODUCT_
 Local regression passed. Production readiness is **NO**: Tailwind 3 build advisories,
 unconfigured production storage/operations, container/proxy runtime and target MySQL 8
 verification remain open. Isolated real-Chrome Phase 10 checks passed. Tailwind
-remains 3; Phase 11 was not started. Default local product media lives under ignored
+remains 3; Phase 11A is implemented, but Phase 11B browsing/search has not started. Default local product media lives under ignored
 `backend/private_storage/product-media/`, separate from private seller evidence.

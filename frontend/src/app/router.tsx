@@ -6,6 +6,7 @@ import MainLayout from '../components/layout/MainLayout';
 import ProfileGate from '../components/profiles/ProfileGate';
 import GuestRoute from '../routes/GuestRoute';
 import ProtectedRoute from '../routes/ProtectedRoute';
+import Spinner from '../components/common/Spinner';
 
 const pages = import.meta.glob([
   '../pages/public/HomePage.tsx',
@@ -37,7 +38,7 @@ const localPhoneVerificationPath = import.meta.env.DEV ? '/dev/phone-verificatio
 function page(path: string) {
   const Page = lazy(pages[`../pages/${path}.tsx`] as () => Promise<{ default: ComponentType }>);
   return (
-    <Suspense fallback={<p className="p-6 text-slate-600">Loading…</p>}>
+    <Suspense fallback={<Spinner />}>
       <Page />
     </Suspense>
   );
@@ -47,7 +48,7 @@ function developmentPage() {
   if (!localPhoneVerificationPage) return null;
   const Page = lazy(localPhoneVerificationPage);
   return (
-    <Suspense fallback={<p className="p-6 text-slate-600">Loadingâ€¦</p>}>
+    <Suspense fallback={<Spinner />}>
       <Page />
     </Suspense>
   );

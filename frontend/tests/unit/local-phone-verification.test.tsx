@@ -79,7 +79,8 @@ describe('LocalPhoneVerificationPage', () => {
     await screen.findByText(message.code);
     expect(api.register).toHaveBeenCalledWith(phone, 'StrongPass9');
     expect(screen.getByLabelText('Password')).toHaveValue('');
-    expect(screen.getByText(`Masked phone: ${message.phoneNumberMasked}`)).toBeInTheDocument();
+    expect(screen.getByText(message.phoneNumberMasked).closest('p')).toHaveTextContent(`Masked phone: ${message.phoneNumberMasked}`);
+    expect(screen.getByText(message.phoneNumberMasked)).toHaveAttribute('dir', 'ltr');
     expect(screen.queryByText(phone)).not.toBeInTheDocument();
     expect(localStorage).toHaveLength(0);
     expect(sessionStorage).toHaveLength(0);
@@ -180,7 +181,7 @@ describe('LocalPhoneVerificationPage', () => {
 
     await screen.findByText(message.code);
     expect(api.resend).toHaveBeenCalledWith(phone);
-    expect(screen.getByText('Message type: resend')).toBeInTheDocument();
+    expect(screen.getByText('Message type: Resend')).toBeInTheDocument();
   });
 
   it('stops bounded polling and reports a safe timeout', async () => {

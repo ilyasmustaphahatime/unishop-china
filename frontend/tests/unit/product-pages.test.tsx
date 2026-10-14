@@ -12,6 +12,7 @@ import { apiClient } from '../../src/services/apiClient';
 import { useAuthStore } from '../../src/stores/authStore';
 import type { OwnProduct } from '../../src/features/products/types';
 import { productKeys } from '../../src/features/products/hooks';
+import { formatListingTimestamp } from '../../src/i18n/formatters';
 
 const slug = 'item-' + 'a'.repeat(24);
 const city = { slug: 'qingdao', name_en: 'Qingdao', name_zh: '青岛', province_en: 'Shandong', province_zh: '山东', country_code: 'CN' as const };
@@ -55,7 +56,7 @@ it('creates draft using string price and server catalog slugs only', async () =>
   await user.type(screen.getByLabelText('Title'), 'Study desk');
   await user.type(screen.getByLabelText('Description'), 'A sturdy desk in good condition.');
   await user.type(screen.getByLabelText('Price (CNY)'), '123.45');
-  await screen.findByRole('option', { name: 'Study · 学习' });
+  await screen.findByRole('option', { name: 'Study' });
   await user.selectOptions(screen.getByLabelText('City'), 'qingdao');
   await user.selectOptions(screen.getByLabelText('Category'), 'study');
   await user.click(screen.getByRole('button', { name: 'Create draft' }));
@@ -78,9 +79,10 @@ it('owner list includes the listing condition and last-updated time', async () =
   vi.spyOn(apiClient, 'get').mockResolvedValue(response({ items: [product], next_offset: null }));
   const view = renderPage(<SellerProductsPage />);
   await screen.findByRole('link', { name: 'Study desk' });
-  expect(screen.getByText(/Condition: good/)).toBeInTheDocument();
+  expect(screen.getByText(/Condition: Good/)).toBeInTheDocument();
   expect(view.container.querySelector('time')).toHaveAttribute('dateTime', product.updated_at);
-  expect(view.container.querySelector('time')).toHaveTextContent(product.updated_at);
+  expect(view.container.querySelector('time')).toHaveTextContent(formatListingTimestamp(product.updated_at));
+  expect(view.container.querySelector('time')).toHaveTextContent('UTC');
 });
 it('rapid repeated form submissions issue only one draft request while delivery is pending', async () => {
   mockCatalogs();
@@ -91,7 +93,7 @@ it('rapid repeated form submissions issue only one draft request while delivery 
   await user.type(screen.getByLabelText('Title'), 'Study desk');
   await user.type(screen.getByLabelText('Description'), 'A sturdy desk in good condition.');
   await user.type(screen.getByLabelText('Price (CNY)'), '123.45');
-  await screen.findByRole('option', { name: 'Study · 学习' });
+  await screen.findByRole('option', { name: 'Study' });
   await user.selectOptions(screen.getByLabelText('City'), 'qingdao');
   await user.selectOptions(screen.getByLabelText('Category'), 'study');
   try {
@@ -115,7 +117,7 @@ it('a failed draft request releases the submission guard for an explicit retry',
   await user.type(screen.getByLabelText('Title'), 'Study desk');
   await user.type(screen.getByLabelText('Description'), 'A sturdy desk in good condition.');
   await user.type(screen.getByLabelText('Price (CNY)'), '123.45');
-  await screen.findByRole('option', { name: 'Study · 学习' });
+  await screen.findByRole('option', { name: 'Study' });
   await user.selectOptions(screen.getByLabelText('City'), 'qingdao');
   await user.selectOptions(screen.getByLabelText('Category'), 'study');
   await user.click(screen.getByRole('button', { name: 'Create draft' }));

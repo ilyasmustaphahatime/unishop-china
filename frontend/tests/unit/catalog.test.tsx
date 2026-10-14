@@ -88,7 +88,7 @@ describe('dynamic city controls', () => {
   it('selects a newly managed city by public slug only', async () => {
     vi.spyOn(apiClient, 'get').mockResolvedValue({ data: { items: [city] } });
     wrap(<Selector />);
-    await screen.findByRole('option', { name: 'Fuzhou · 福州' });
+    await screen.findByRole('option', { name: 'Fuzhou' });
     await userEvent.setup().selectOptions(screen.getByLabelText('City'), 'fuzhou');
     expect(screen.getByLabelText('City')).toHaveValue('fuzhou');
     expect(document.querySelector('[href*="city_id"]')).toBeNull();
@@ -123,7 +123,7 @@ describe('read-only category directory and cache boundaries', () => {
   it('renders two levels as inert text without any product features', async () => {
     vi.spyOn(apiClient, 'get').mockResolvedValue({ data: { items: [{ ...root, name_en: '<script>not executable</script>' }] } });
     wrap(<CategoriesPage />);
-    expect(await screen.findByText('Phones · 手机')).toBeInTheDocument();
+    expect(await screen.findByText('Phones')).toBeInTheDocument();
     expect(screen.getByText(/not executable/)).toBeInTheDocument();
     expect(document.querySelector('script')).toBeNull();
     expect(screen.queryByRole('link', { name: /product/i })).toBeNull();

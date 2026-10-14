@@ -1,9 +1,12 @@
+import { default as LanguageSwitcher } from './LanguageSwitcher';
+import { useAppTranslation } from '../../i18n/useAppTranslation';
 import { Link, NavLink, Outlet } from 'react-router';
 import AuthActions from '../auth/AuthActions';
 import Avatar from '../common/Avatar';
 import { useAuthStore } from '../../stores/authStore';
 
 export default function AuthenticatedLayout() {
+  const { t } = useAppTranslation();
   const user = useAuthStore((state) => state.user);
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `rounded-lg px-3 py-2 text-sm font-semibold transition ${
@@ -12,18 +15,19 @@ export default function AuthenticatedLayout() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <nav className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-3 sm:px-6" aria-label="Account navigation">
-          <Link className="mr-2 flex items-center gap-2 font-black tracking-tight text-red-600" to="/profile">
+        <nav className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-3 sm:px-6" aria-label={t('common:accountNavigation')}>
+          <Link className="me-2 flex items-center gap-2 font-black tracking-tight text-red-600" to="/profile">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-red-600 text-sm text-white" aria-hidden="true">中</span>
             UniShop China
           </Link>
           <div className="order-3 flex w-full flex-wrap gap-1 border-t border-slate-100 pt-2 sm:order-none sm:w-auto sm:border-0 sm:pt-0">
-            <NavLink className={linkClass} to="/profile" end>My profile</NavLink>
-            <NavLink className={linkClass} to="/profile/edit">Edit profile</NavLink>
-            <NavLink className={linkClass} to="/seller/listings">My listings</NavLink>
-            <NavLink className={linkClass} to="/sell/new">New listing</NavLink>
+            <NavLink className={linkClass} to="/profile" end>{t('common:myProfile')}</NavLink>
+            <NavLink className={linkClass} to="/profile/edit">{t('common:editProfile')}</NavLink>
+            <NavLink className={linkClass} to="/seller/listings">{t('common:myListings')}</NavLink>
+            <NavLink className={linkClass} to="/sell/new">{t('common:newListing')}</NavLink>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <LanguageSwitcher />
+          <div className="ms-auto flex flex-wrap items-center gap-2">
             <Avatar name={user?.email ?? user?.phoneNumber ?? null} size="sm" />
             <AuthActions />
           </div>

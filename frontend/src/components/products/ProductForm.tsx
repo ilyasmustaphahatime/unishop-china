@@ -1,3 +1,6 @@
+import { catalogName } from '../../i18n/formatters';
+import { localizeMessage } from '../../i18n/messages';
+import { useAppTranslation } from '../../i18n/useAppTranslation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useRef } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -18,6 +21,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { requireCurrentSession } from '../../services/apiClient';
 
 export default function ProductForm({ product }: { product?: OwnProduct }) {
+  const { t } = useAppTranslation();
   const mutation = useProductMutation();
   const categories = useCategories();
   const navigate = useNavigate();
@@ -61,41 +65,41 @@ export default function ProductForm({ product }: { product?: OwnProduct }) {
     finally { submitting.current = false; }
   }
   return <form className="space-y-5" onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>
-    {mutation.isError && <Alert>{productErrorMessage(mutation.error)}</Alert>}
-    {archived && <p role="status">Archived listings are read-only.</p>}
+    {mutation.isError && <Alert>{localizeMessage(productErrorMessage(mutation.error))}</Alert>}
+    {archived && <p role="status">{t('products:readOnly')}</p>}
     <fieldset disabled={archived || mutation.isPending} className="space-y-5">
-      <FormField id="product-title" label="Title" error={errors.title?.message}>
+      <FormField id="product-title" label={t('products:title')} error={errors.title?.message}>
         <Input id="product-title" {...register('title')} aria-invalid={Boolean(errors.title)} aria-describedby={errors.title ? 'product-title-error' : undefined} />
       </FormField>
-      <FormField id="product-description" label="Description" error={errors.description?.message} hint="10–5,000 characters. Plain text only.">
+      <FormField id="product-description" label={t('products:description')} error={errors.description?.message} hint={t('products:descriptionHint')}>
         <Textarea id="product-description" rows={6} {...register('description')} aria-invalid={Boolean(errors.description)} aria-describedby={errors.description ? 'product-description-error' : 'product-description-hint'} />
       </FormField>
-      <FormField id="product-price" label="Price (CNY)" error={errors.price?.message} hint="Positive amount, maximum two decimal places.">
-        <Input id="product-price" inputMode="decimal" type="text" {...register('price')} aria-invalid={Boolean(errors.price)} aria-describedby={errors.price ? 'product-price-error' : 'product-price-hint'} />
+      <FormField id="product-price" label={t('products:price')} error={errors.price?.message} hint={t('products:priceHint')}>
+        <Input id="product-price" dir="ltr" inputMode="decimal" type="text" {...register('price')} aria-invalid={Boolean(errors.price)} aria-describedby={errors.price ? 'product-price-error' : 'product-price-hint'} />
       </FormField>
-      <FormField id="product-condition" label="Condition" error={errors.condition?.message}>
+      <FormField id="product-condition" label={t('products:condition')} error={errors.condition?.message}>
         <Select id="product-condition" {...register('condition')}>
-          <option value="new">New</option><option value="like_new">Like new</option>
-          <option value="good">Good</option><option value="fair">Fair</option>
+          <option value="new">{t('products:new')}</option><option value="like_new">{t('products:likeNew')}</option>
+          <option value="good">{t('products:good')}</option><option value="fair">{t('products:fair')}</option>
         </Select>
       </FormField>
-      <FormField id="product-city" label="City" error={errors.city_slug?.message}>
+      <FormField id="product-city" label={t('catalog:city')} error={errors.city_slug?.message}>
         <CitySelect id="product-city" registration={register('city_slug')} value={selectedCity}
-          currentSlug={product?.city.slug} currentName={product?.city.name_en} />
+          currentSlug={product?.city.slug} currentName={product ? catalogName(product.city) : undefined} />
       </FormField>
-      <FormField id="product-category" label="Category" error={errors.category_slug?.message}>
-        {categories.isError && <Alert>Categories could not be loaded. <button type="button" onClick={() => void categories.refetch()}>Retry categories</button></Alert>}
-        {categories.isSuccess && !options.length && <p role="status">No categories are currently available.</p>}
-        {historical && <p role="status">The saved category is retired. Choose an active category to change it.</p>}
+      <FormField id="product-category" label={t('catalog:category')} error={errors.category_slug?.message}>
+        {categories.isError && <Alert>{t('catalog:loadCategoriesFailed')}<button type="button" onClick={() => void categories.refetch()}>{t('catalog:retryCategories')}</button></Alert>}
+        {categories.isSuccess && !options.length && <p role="status">{t('catalog:noCategories')}</p>}
+        {historical && <p role="status">{t('catalog:historicalCategoryCopy')}</p>}
         <Select id="product-category" {...register('category_slug')} value={selectedCategory}
           disabled={!categories.isSuccess || !options.length} aria-invalid={Boolean(errors.category_slug)}>
-          <option value="">{categories.isPending ? 'Loading categories…' : 'Choose a category'}</option>
-          {historical && <option value={product.category.slug} disabled>{product.category.name_en} (retired)</option>}
-          {options.map((c) => <option key={c.slug} value={c.slug}>{c.parent_slug ? '— ' : ''}{c.name_en} · {c.name_zh}</option>)}
+          <option value="">{categories.isPending ? t('catalog:loadingCategoriesOption') : t('catalog:chooseCategory')}</option>
+          {historical && <option value={product.category.slug} disabled>{t('catalog:retiredCategory', { name: catalogName(product.category) })}</option>}
+          {options.map((c) => <option key={c.slug} value={c.slug}>{c.parent_slug ? '— ' : ''}{catalogName(c)}</option>)}
         </Select>
       </FormField>
       {!archived && <Button type="submit" disabled={mutation.isPending || (!product && (!categories.isSuccess || !options.length))}>
-        {mutation.isPending ? 'Saving…' : product ? 'Save changes' : 'Create draft'}
+        {mutation.isPending ? t('common:saving') : product ? t('products:saveChanges') : t('products:createDraft')}
       </Button>}
     </fieldset>
   </form>;

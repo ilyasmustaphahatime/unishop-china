@@ -1,1 +1,3 @@
-﻿export default function ForgotPasswordPage() { return <h1 className="text-3xl font-bold">UniShop China Forgot Password</h1>; }
+import { useAppTranslation } from '../../i18n/useAppTranslation';
+export default function ForgotPasswordPage() {
+  const { t } = useAppTranslation(); return <h1 className="text-3xl font-bold">{t('auth:forgotTitle')}</h1>; }

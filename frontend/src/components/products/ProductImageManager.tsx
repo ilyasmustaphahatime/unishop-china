@@ -1,3 +1,6 @@
+import { formatNumber } from '../../i18n/formatters';
+import { localizeMessage } from '../../i18n/messages';
+import { useAppTranslation } from '../../i18n/useAppTranslation';
 import { useRef, useState } from 'react';
 import Alert from '../common/Alert';
 import Button from '../common/Button';
@@ -9,6 +12,7 @@ import type { ImageCommand } from '../../features/productImages/types';
 import type { OwnProduct } from '../../features/products/types';
 
 export default function ProductImageManager({ product }: { product: OwnProduct }) {
+  const { t } = useAppTranslation();
   const query = useMyProductImages(product.public_slug);
   const mutation = useImageMutation(product.public_slug);
   const [file, setFile] = useState<File | null>(null);
@@ -34,28 +38,29 @@ export default function ProductImageManager({ product }: { product: OwnProduct }
     [refs[index], refs[index + delta]] = [refs[index + delta], refs[index]];
     void send({ action: 'reorder', refs });
   }
-  return <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6" aria-label="Product images">
-    <h2 className="text-xl font-bold">Product images</h2>
-    <p className="my-2 text-sm text-slate-600">Up to 8 static JPEG, PNG or WebP images, 10 MiB each. First image is the cover. Metadata is removed before storage.</p>
-    {query.isPending && <p role="status">Loading image metadata…</p>}
-    {query.isError && <Alert>{imageErrorMessage(query.error)} <button onClick={() => void query.refetch()}>Retry image list</button></Alert>}
-    {mutation.isError && <Alert>{imageErrorMessage(mutation.error)}</Alert>}
-    {validation && <Alert>{validation}</Alert>}
-    {product.status === 'ARCHIVED' && <p className="my-2 text-sm">Archived: images cannot be uploaded or reordered. You may still delete them.</p>}
-    {query.isSuccess && !images.length && <p role="status">No images yet. Publishing without images remains allowed.</p>}
+  return <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6" aria-label={t('products:images')}>
+    <h2 className="text-xl font-bold">{t('products:images')}</h2>
+    <p className="my-2 text-sm text-slate-600">{t('products:imageConstraints')}</p>
+    {query.isPending && <p role="status">{t('products:loadingMetadata')}</p>}
+    {query.isError && <Alert>{localizeMessage(imageErrorMessage(query.error))} <button onClick={() => void query.refetch()}>{t('products:retryImages')}</button></Alert>}
+    {mutation.isError && <Alert>{localizeMessage(imageErrorMessage(mutation.error))}</Alert>}
+    {validation && <Alert>{localizeMessage(validation)}</Alert>}
+    {product.status === 'ARCHIVED' && <p className="my-2 text-sm">{t('products:archivedImages')}</p>}
+    {query.isSuccess && !images.length && <p role="status">{t('products:noOwnerImages')}</p>}
     {query.isSuccess && <ol className="my-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
       {images.map((image, index) => <li key={image.ref} className="rounded-lg border p-3">
         <OwnerProductImage slug={product.public_slug} imageRef={image.ref} position={image.position} />
-        <p className="my-2 text-sm font-semibold">{index === 0 ? 'Cover image' : 'Image ' + (index + 1)}</p>
+        <p className="my-2 text-sm font-semibold">{index === 0 ? t('products:cover') : t('products:imageNumber', { number: formatNumber(index + 1) })}</p>
         <div className="flex flex-wrap gap-2">
-          {editable && <><Button variant="secondary" disabled={mutation.isPending || index === 0} onClick={() => move(index, -1)}>Move left</Button>
-            <Button variant="secondary" disabled={mutation.isPending || index === images.length - 1} onClick={() => move(index, 1)}>Move right</Button></>}
-          <Button variant="secondary" disabled={mutation.isPending} onClick={() => void send({ action: 'delete', ref: image.ref })}>Delete image {index + 1}</Button>
+          {editable && <><Button variant="secondary" disabled={mutation.isPending || index === 0} onClick={() => move(index, -1)}>{t('products:moveEarlier')}</Button>
+            <Button variant="secondary" disabled={mutation.isPending || index === images.length - 1} onClick={() => move(index, 1)}>{t('products:moveLater')}</Button></>}
+          <Button variant="secondary" disabled={mutation.isPending} onClick={() => void send({ action: 'delete', ref: image.ref })}>{t('products:deleteImage', { number: formatNumber(index + 1) })}</Button>
         </div>
       </li>)}
     </ol>}
+    {editable && query.isSuccess && <p role="status">{t('products:imagesRemaining', { count: IMAGE_LIMITS.count - images.length })}</p>}
     {editable && <div className="mt-4 flex flex-col gap-3">
-      <label htmlFor="product-image-file" className="font-semibold">Add image</label>
+      <label htmlFor="product-image-file" className="font-semibold">{t('products:addImage')}</label>
       <input ref={input} id="product-image-file" type="file" accept="image/jpeg,image/png,image/webp"
         disabled={mutation.isPending || !query.isSuccess || images.length >= IMAGE_LIMITS.count}
         onChange={(event) => {
@@ -65,7 +70,7 @@ export default function ProductImageManager({ product }: { product: OwnProduct }
         }} />
       <Button disabled={!file || mutation.isPending || images.length >= IMAGE_LIMITS.count}
         onClick={() => { if (file) void send({ action: 'upload', file }); }}>
-        {mutation.isPending ? 'Updating images…' : 'Upload image'}
+        {mutation.isPending ? t('products:updatingImages') : t('products:uploadImage')}
       </Button>
     </div>}
   </section>;

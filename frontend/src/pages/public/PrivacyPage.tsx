@@ -1,1 +1,3 @@
-﻿export default function PrivacyPage() { return <h1 className="text-3xl font-bold">UniShop China Privacy</h1>; }
+import { useAppTranslation } from '../../i18n/useAppTranslation';
+export default function PrivacyPage() {
+  const { t } = useAppTranslation(); return <h1 className="text-3xl font-bold">{t('common:privacyTitle')}</h1>; }

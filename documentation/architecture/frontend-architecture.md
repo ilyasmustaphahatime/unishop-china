@@ -1,5 +1,37 @@
 # Frontend Architecture
 
+## Phase 11A presentation layer
+
+`src/i18n` owns one registry (`en`, `zh-CN`, `ar`, `fr`), one synchronous locally
+bundled engine, safe preference persistence and a serialized controller.
+`main.tsx` initializes before visible render; auth/query providers are unchanged.
+Hooks explicitly use the engine. The controller imports no auth/client/cache code
+and stores only allowlisted `unishop.locale`, independent of accounts.
+
+One native `LanguageSwitcher` is in all three global shells. Routes/query/hash,
+component keys and forms are preserved. Root lang/dir, generic title/description
+and UI text update together. Arabic uses logical spacing/insets, password padding,
+native flex/grid flow and system glyph fallbacks, never mirrored photos/logos.
+Original content uses `dir=auto`/`bdi`; credentials/OTP/challenge/price input are LTR.
+No localized URL paths, backend localization, account locale or new database fields.
+
+Seven namespaces (`common`, `auth`, `profile`, `verification`, `products`, `catalog`,
+`validation`) exist in four directories. Parity/interpolation/plural/UTF-8/duplicate
+checks, AST JSX review and negative TS-key fixtures supplement manual inventory.
+Owned legacy helper/schema messages map to semantic keys at presentation; unknown
+raw values get a safe localized fallback, never arbitrary backend-English matching.
+
+Intl is display-only: CNY remains the currency, decimal payloads and browser-local
+timestamp semantics stay unchanged. Owner-list timestamps retain their original UTC clock;
+profile/challenge displays retain browser-local behavior. Catalog names are server-approved Chinese or
+English fallback; Arabic/French use English. The profile contract supplies only an
+English city display name, retained without additional locale-triggered requests.
+
+Fresh: **367 tests** (304 retained + 63 new), TS/negative-key checks/lint/build;
+real Chrome 74 locale checks, backend 1,388 and live HTTP compatibility. See
+[coverage, boundaries and limitations](../phases/PHASE_11A_INTERNATIONALIZATION.md).
+Older verification notes below are dated historical snapshots.
+
 The React application uses Router, Axios, TanStack Query, Zustand, React Hook Form, Zod, and Tailwind.
 
 Authentication access state is memory-only in Zustand. The refresh token remains an HttpOnly cookie handled by the centralized API/session clients. `AuthBootstrap` restores a session; `ProtectedRoute` is a UX guard, never the backend authorization boundary.

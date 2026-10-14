@@ -1,0 +1,23 @@
+{
+  "city": "City",
+  "currentCity": "Current city",
+  "chooseCity": "Choose your city",
+  "activeCityCopy": "Choose an active city from the current UniShop directory.",
+  "loadCitiesFailed": "Cities could not be loaded.",
+  "retryCities": "Retry cities",
+  "noCities": "No cities are currently available.",
+  "historicalCityCopy": "Your saved city is no longer selectable. It remains on your profile; choose an active city to change it.",
+  "loadingCities": "Loading cities…",
+  "historicalCity": "{{name}} (no longer available)",
+  "category": "Category",
+  "categories": "Categories",
+  "loadingCategories": "Loading categories",
+  "loadingCategoriesOption": "Loading categories…",
+  "loadCategoriesFailed": "Categories could not be loaded.",
+  "retryCategories": "Retry categories",
+  "noCategories": "No categories are currently available.",
+  "directoryCopy": "Explore the community's product categories.",
+  "historicalCategoryCopy": "The saved category is retired. Choose an active category to change it.",
+  "chooseCategory": "Choose a category",
+  "retiredCategory": "{{name}} (retired)"
+}

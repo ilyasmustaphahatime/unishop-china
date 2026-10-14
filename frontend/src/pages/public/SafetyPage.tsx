@@ -1,1 +1,3 @@
-﻿export default function SafetyPage() { return <h1 className="text-3xl font-bold">UniShop China Safety</h1>; }
+import { useAppTranslation } from '../../i18n/useAppTranslation';
+export default function SafetyPage() {
+  const { t } = useAppTranslation(); return <h1 className="text-3xl font-bold">{t('common:safetyTitle')}</h1>; }

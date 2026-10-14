@@ -5,5 +5,14 @@
 
 body {
   margin: 0;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: Inter, system-ui, 'Segoe UI', 'Microsoft YaHei', 'Noto Sans Arabic', Tahoma, sans-serif;
+  text-align: start;
 }
+
+/* Latin credentials retain LTR ordering; the reveal action follows UI direction. */
+.password-input { padding-inline-end: 5.5rem; }
+html[dir='rtl'] .password-input { padding-inline-start: 5.5rem; padding-inline-end: 1rem; }
+
+bdi { overflow-wrap: anywhere; }
+input, select, textarea { min-width: 0; }
+button, a, h1, h2, p { overflow-wrap: anywhere; }
