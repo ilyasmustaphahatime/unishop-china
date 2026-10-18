@@ -342,7 +342,10 @@ def test_byte_limit_content_type_and_scope_boundaries(world):
     client, _, owner, _, _ = world
     assert client.post(OWN, content="x" * 32769, headers={**headers(owner), "Content-Type": "application/json"}).status_code == 413
     assert client.post(OWN, content="{}", headers={**headers(owner), "Content-Type": "text/plain"}).status_code == 415
-    assert client.get("/api/v1/products").status_code == 404
+    browse = client.get("/api/v1/products")
+    assert browse.status_code == 200 and browse.json() == {
+        "items": [], "next_cursor": None, "has_more": False,
+    }
     slug = create(world)["public_slug"]
     assert client.delete(OWN + "/" + slug, headers=headers(owner)).status_code == 405
     assert client.get(PUBLIC + "item-%61" + "a" * 23).status_code == 404

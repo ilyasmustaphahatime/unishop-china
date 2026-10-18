@@ -160,7 +160,9 @@ def create_app(
     async def protect_token_responses_from_caching(request: Request, call_next):
         response = await call_next(request)
         response.headers["Referrer-Policy"] = "no-referrer"
-        if request.url.path.startswith(private_prefixes) or request.url.path == f"{config.api_v1_prefix}/seller-verification":
+        if request.url.path.startswith(private_prefixes) or request.url.path in {
+            f"{config.api_v1_prefix}/seller-verification", f"{config.api_v1_prefix}/products",
+        }:
             response.headers["Cache-Control"] = "no-store"
             response.headers["Pragma"] = "no-cache"
         return response
@@ -176,7 +178,9 @@ def create_app(
     @application.exception_handler(Exception)
     async def unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
         headers = {"Referrer-Policy": "no-referrer"}
-        if request.url.path.startswith(private_prefixes) or request.url.path == f"{config.api_v1_prefix}/seller-verification":
+        if request.url.path.startswith(private_prefixes) or request.url.path in {
+            f"{config.api_v1_prefix}/seller-verification", f"{config.api_v1_prefix}/products",
+        }:
             headers.update({"Cache-Control": "no-store", "Pragma": "no-cache"})
         return JSONResponse(
             status_code=500, content={"detail": "Internal server error"}, headers=headers

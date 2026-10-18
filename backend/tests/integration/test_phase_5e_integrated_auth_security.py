@@ -42,6 +42,7 @@ from app.models import (
 )
 from app.models.base import utc_now
 from app.services.email_verification_service import EmailVerificationService
+from tests.browse_cursor_support import TEST_BROWSE_CURSOR_KEY
 from app.services.password_change_service import PasswordChangeService
 from app.services.password_reset_service import PasswordResetCompletionService
 from app.services.phone_verification_service import PhoneVerificationService
@@ -64,6 +65,7 @@ def phase_settings(**overrides: object) -> Settings:
         "app_env": "development",
         "app_debug": False,
         "jwt_secret_key": JWT_SECRET,
+        "browse_cursor_signing_key": TEST_BROWSE_CURSOR_KEY,
         "verification_code_hash_secret": CODE_SECRET,
         "jwt_algorithm": "HS256",
         "jwt_issuer": "unishop-china-api",

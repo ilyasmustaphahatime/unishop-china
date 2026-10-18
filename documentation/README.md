@@ -5,6 +5,8 @@ Architecture, workflow, API, security, phase, and design records live in this di
 Current implementation:
 
 - [Current status](CURRENT_PROJECT_STATUS.md)
+- [Phase 11B browse/search API](api/product-browse-search-api.md) and [search/pagination ADR](architecture/ADR_PHASE_11B_SEARCH_PAGINATION.md)
+- [Phase 11B implementation and verification report](phases/PHASE_11B_PRODUCT_BROWSE_SEARCH_BACKEND.md)
 - [Phase 11A internationalization implementation, coverage and full manifest](phases/PHASE_11A_INTERNATIONALIZATION.md)
 - [Phase 10 product images gate and changed-file manifest](phases/PHASE_10_PRODUCT_IMAGES_STORAGE.md)
 - [Listing API](api/product-api.md) and [image API](api/product-images-api.md)

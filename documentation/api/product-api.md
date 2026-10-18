@@ -2,7 +2,8 @@
 
 All paths are relative to `/api/v1`. Listing navigation uses immutable opaque
 `item-` plus 24 lowercase hex characters: never an internal UUID, title, identity,
-token, or storage reference. There is no public collection/feed endpoint.
+token, or storage reference. Phase 11B adds the
+[anonymous browse/search endpoint](product-browse-search-api.md).
 
 | Method | Path | Authority / result |
 |---|---|---|

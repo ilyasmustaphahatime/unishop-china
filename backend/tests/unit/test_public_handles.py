@@ -56,9 +56,14 @@ def test_openapi_has_only_public_identifiers_and_bounded_owner_pagination():
             operation_ids.append(operation["operationId"])
             for parameter in operation.get("parameters", []):
                 if parameter["in"] == "query":
-                    assert path == "/api/v1/seller/products" and method == "get"
-                    assert parameter["name"] in {"limit", "offset"}
-                    assert "maximum" in parameter["schema"] and "minimum" in parameter["schema"]
+                    assert path in {"/api/v1/seller/products", "/api/v1/products"} and method == "get"
+                    if path == "/api/v1/seller/products":
+                        assert parameter["name"] in {"limit", "offset"}
+                    else:
+                        assert parameter["name"] in {"q", "city", "category", "min_price", "max_price",
+                                                     "condition", "sort", "limit", "cursor"}
+                    if parameter["name"] in {"limit", "offset"}:
+                        assert "maximum" in parameter["schema"] and "minimum" in parameter["schema"]
                 if parameter["in"] == "path":
                     if path.startswith(("/api/v1/cities/", "/api/v1/categories/",
                                         "/api/v1/admin/cities/", "/api/v1/admin/categories/",
@@ -81,8 +86,8 @@ def test_openapi_has_only_public_identifiers_and_bounded_owner_pagination():
             if "/admin/" in path:
                 assert path.startswith(("/api/v1/admin/cities", "/api/v1/admin/categories"))
                 assert operation["security"]
-    assert len(operation_ids) == len(set(operation_ids)) == 55
-    assert "/api/v1/products" not in schema["paths"]
+    assert len(operation_ids) == len(set(operation_ids)) == 56
+    assert not schema["paths"]["/api/v1/products"]["get"].get("security")
     assert "/api/v1/profiles/{public_id}" not in schema["paths"]
     for kind in ("sms", "password-reset"):
         assert "post" in schema["paths"][f"/api/v1/dev/fake-{kind}/latest"]

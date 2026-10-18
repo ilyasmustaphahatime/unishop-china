@@ -2,14 +2,34 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 from app.api.v1.products.dependencies import listing_user, safe_product_operation
+from app.api.v1.products.browse_dependencies import browse_query
 from app.common.product_slugs import ProductSlug
 from app.core.database import get_db
 from app.schemas.catalog import StrictBody
 from app.schemas.product import ProductCreate, ProductUpdate, OwnProduct, OwnProductList, PublicProduct
+from app.schemas.product_browse import BrowseQuery, ProductBrowsePage
+from app.services.product_browse_cursor import BrowseCursorCodec, InvalidBrowseCursor
+from app.services.product_browse_service import ProductBrowseService
+from fastapi import HTTPException
 from app.services.product_service import ProductService
 
 router = APIRouter(tags=["products"])
 seller_router = APIRouter(tags=["seller-products"])
+
+
+@router.get("", response_model=ProductBrowsePage)
+def browse_products(request: Request, query: BrowseQuery = Depends(browse_query),
+                    db: Session = Depends(get_db)):
+    try:
+        codec = BrowseCursorCodec(request.app.state.settings)
+        return ProductBrowseService(codec=codec,
+            api_prefix=request.app.state.settings.api_v1_prefix).browse(db, query)
+    except InvalidBrowseCursor:
+        raise HTTPException(400, "Invalid cursor.") from None
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(503, "Listing operation unavailable.") from None
 
 
 @router.get("/{slug}", response_model=PublicProduct)

@@ -11,6 +11,7 @@ class ProductRequestBoundary:
         self.prefix = prefix
         self.paths = (prefix + "/products", prefix + "/seller/products")
         self.read = InMemoryRateLimiter(max_requests=180, window_seconds=60, max_keys=10000)
+        self.browse = InMemoryRateLimiter(max_requests=60, window_seconds=60, max_keys=10000)
         self.write = InMemoryRateLimiter(max_requests=90, window_seconds=60, max_keys=10000)
 
     async def __call__(self, scope, receive, send):
@@ -23,11 +24,16 @@ class ProductRequestBoundary:
         write = scope["method"] in {"POST", "PATCH"}
         peer = (scope.get("client") or ("unknown",))[0]
         decision = (self.write if write else self.read).consume(peer)
+        browse = scope["path"] == self.prefix + "/products" and scope["method"] == "GET"
+        if decision.allowed and browse:
+            decision = self.browse.consume(peer)
         error = None
         if not decision.allowed:
             error = (429, "Too many listing requests.")
         elif b"%" in scope.get("raw_path", b""):
             error = (404, "Listing not found.")
+        elif browse and len(scope.get("query_string", b"")) > 1024:
+            error = (413, "Browse request exceeds input limits.")
         elif write:
             headers = dict(scope.get("headers", []))
             if headers.get(b"content-type", b"").split(b";", 1)[0].strip().lower() != b"application/json":

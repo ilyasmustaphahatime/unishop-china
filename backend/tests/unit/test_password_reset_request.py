@@ -19,6 +19,7 @@ from app.integrations.password_reset_delivery import (
 )
 from app.main import create_app
 from app.schemas.auth import ForgotPasswordRequest
+from tests.browse_cursor_support import TEST_BROWSE_CURSOR_KEY
 
 TEST_JWT_SECRET = "phase-5a-test-jwt-secret-with-more-than-thirty-two-characters"
 TEST_CODE_SECRET = "phase-5a-test-code-secret-with-more-than-thirty-two-characters"
@@ -40,6 +41,7 @@ def reset_settings(**overrides: object) -> Settings:
         "_env_file": None,
         "app_env": "development",
         "jwt_secret_key": TEST_JWT_SECRET,
+        "browse_cursor_signing_key": TEST_BROWSE_CURSOR_KEY,
         "verification_code_hash_secret": TEST_CODE_SECRET,
         "password_reset_delivery_provider": "disabled",
         "enable_fake_password_reset_dev_inbox": False,

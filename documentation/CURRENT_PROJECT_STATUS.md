@@ -1,5 +1,23 @@
 # UniShop China Current Project Status
 
+## Phase 11B browse/search backend (2026-10-14)
+
+**Backend implementation/local functional regression: PASS. All mandatory
+environment gates: NOT YET PASSED. Production ready: NO.** The unstaged
+working tree is on `feature/authentication` at Phase 11A HEAD `f21c4c5`.
+Anonymous bounded browse, MySQL ngram search, shared public visibility,
+signed/keyed keyset cursors, cover projection and additive indexes are in
+place. Final backend: **1,443 passed**; frontend compatibility: **387 passed**;
+live Uvicorn/MySQL: **161 checks**; Alembic no drift; synthetic cleanup and
+development fingerprints preserved. A 20k-row benchmark found low-ms ordinary
+and rare-filter browse but ~0.74s median common-term search. Separate MySQL 8/disposable-DB
+migration verification is unavailable on this machine. Full npm audit still
+reports Tailwind 3 build-chain advisories; no frontend dependency migration
+was attempted. See the [48-section Phase 11B report](phases/PHASE_11B_PRODUCT_BROWSE_SEARCH_BACKEND.md)
+and [browse API contract](api/product-browse-search-api.md).
+
+The Phase 11A entries below are historical reports, not the current Git state.
+
 ## Phase 11A final adversarial audit (2026-10-14)
 
 **LOCAL PHASE 11A AUDIT PASSED: YES. READY FOR HUMAN GIT CLOSURE: YES.

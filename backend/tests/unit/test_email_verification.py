@@ -6,6 +6,7 @@ import pytest
 
 from app.api.v1.auth.dependencies import build_email_verification_delivery_provider
 from app.core.config import Settings, UnsafeRuntimeConfigurationError
+from tests.browse_cursor_support import TEST_BROWSE_CURSOR_KEY
 from app.core.security import (
     generate_verification_code,
     hash_email_verification_code,
@@ -45,6 +46,7 @@ def email_settings(**overrides: object) -> Settings:
         "app_env": "development",
         "app_debug": False,
         "jwt_secret_key": TEST_JWT_SECRET,
+        "browse_cursor_signing_key": TEST_BROWSE_CURSOR_KEY,
         "verification_code_hash_secret": TEST_CODE_SECRET,
         "email_verification_delivery_provider": "disabled",
         "enable_fake_email_verification_dev_inbox": False,

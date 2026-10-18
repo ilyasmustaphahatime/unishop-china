@@ -40,6 +40,14 @@ class ProductListing(UUIDTimestampMixin, Base):
         Index("ix_product_listings_owner_updated", "seller_user_id", "updated_at", "id"),
         Index("ix_product_listings_city", "city_id"),
         Index("ix_product_listings_category", "category_id"),
+        Index("ix_product_listings_browse_newest", "status", "published_at", "public_slug"),
+        Index("ix_product_listings_browse_price", "status", "price", "public_slug"),
+        Index("ix_product_listings_city_newest", "status", "city_id", "published_at", "public_slug"),
+        Index("ix_product_listings_city_price", "status", "city_id", "price", "public_slug"),
+        Index("ix_product_listings_category_newest", "status", "category_id", "published_at", "public_slug"),
+        Index("ix_product_listings_category_price", "status", "category_id", "price", "public_slug"),
+        Index("ix_product_listings_search_ngram", "title", "description",
+              mysql_prefix="FULLTEXT", mysql_with_parser="ngram"),
     )
     seller_user_id: Mapped[str] = mapped_column(ForeignKey("users.id", name="fk_product_listings_seller", ondelete="RESTRICT"), nullable=False, active_history=True)
     public_slug: Mapped[str] = mapped_column(String(29, collation="ascii_bin"), default=generate_product_slug, nullable=False, active_history=True)

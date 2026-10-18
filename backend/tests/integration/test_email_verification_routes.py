@@ -44,6 +44,7 @@ from app.services.email_verification_service import (
     EmailVerificationService,
 )
 from app.services.token_service import AccessTokenService
+from tests.browse_cursor_support import TEST_BROWSE_CURSOR_KEY
 
 TEST_JWT_SECRET = "phase-5d-test-jwt-secret-with-more-than-thirty-two-characters"
 TEST_CODE_SECRET = "phase-5d-test-code-secret-with-more-than-thirty-two-characters"
@@ -128,6 +129,7 @@ def phase_settings(**overrides: object) -> Settings:
         "app_env": "development",
         "app_debug": False,
         "jwt_secret_key": TEST_JWT_SECRET,
+        "browse_cursor_signing_key": TEST_BROWSE_CURSOR_KEY,
         "verification_code_hash_secret": TEST_CODE_SECRET,
         "jwt_algorithm": "HS256",
         "jwt_issuer": "unishop-china-api",

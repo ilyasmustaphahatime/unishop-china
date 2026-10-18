@@ -1,7 +1,6 @@
 """Listing lifecycle and current authoritative eligibility in atomic transactions."""
 from decimal import Decimal
 from pydantic import ValidationError
-from app.common.enums import AccountStatus
 from app.core.authorization import lock_active_user, lock_verified_seller
 from app.core.transactions import retry_deadlock, transaction
 from app.models.base import utc_now
@@ -138,12 +137,6 @@ class ProductService:
     def public_view(self, db, slug):
         view = self.repo.public_candidate(db, slug)
         if view is None:
-            raise ProductError("Listing not found.", 404)
-        row, city, category, parent, account, email, phone, handle, display, completed, profile_city, verified = view
-        visible = (row.status == ProductStatus.PUBLISHED and account == AccountStatus.ACTIVE and email and phone
-                   and verified and completed and ProfileService.required_onboarding_fields_valid(display, profile_city)
-                   and city.is_active and CategoryService.is_publicly_active(category, parent))
-        if not visible:
             raise ProductError("Listing not found.", 404)
         return view
 

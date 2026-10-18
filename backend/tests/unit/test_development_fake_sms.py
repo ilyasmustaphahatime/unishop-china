@@ -13,6 +13,7 @@ from app.integrations.development_fake_sms import (
     DevelopmentFakeSmsStore,
 )
 from app.main import create_app
+from tests.browse_cursor_support import TEST_BROWSE_CURSOR_KEY
 
 JWT_TEST_SECRET = "phase-4a-test-only-jwt-secret-with-more-than-thirty-two-characters"
 CODE_TEST_SECRET = "phase-5a-test-only-code-secret-with-more-than-thirty-two-characters"
@@ -191,6 +192,7 @@ def test_non_development_application_forces_debug_off(environment: str) -> None:
         sms_provider="tencent",
         enable_fake_sms_dev_inbox=False,
         jwt_secret_key=JWT_TEST_SECRET,
+        browse_cursor_signing_key=TEST_BROWSE_CURSOR_KEY,
         verification_code_hash_secret=CODE_TEST_SECRET,
         refresh_cookie_secure=True,
     )
@@ -210,6 +212,7 @@ def test_phase_4b_cors_uses_explicit_origin_with_credentials() -> None:
         sms_provider="tencent",
         enable_fake_sms_dev_inbox=False,
         jwt_secret_key=JWT_TEST_SECRET,
+        browse_cursor_signing_key=TEST_BROWSE_CURSOR_KEY,
         verification_code_hash_secret=CODE_TEST_SECRET,
         refresh_cookie_secure=True,
     )

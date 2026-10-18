@@ -5,12 +5,13 @@ from sqlalchemy.orm import aliased
 from app.common.product_slugs import generate_product_slug
 from app.models import Category, City, ProductListing, User, UserProfile
 from app.repositories.seller_verification_repository import SellerVerificationRepository
+from app.repositories.product_visibility import publicly_visible
 
 
 class ProductRepository:
     @staticmethod
-    def joined():
-        parent = aliased(Category)
+    def joined(parent=None):
+        parent = parent or aliased(Category)
         return (select(ProductListing, City, Category, parent)
                 .join(City, City.id == ProductListing.city_id)
                 .join(Category, Category.id == ProductListing.category_id)
@@ -48,10 +49,11 @@ class ProductRepository:
 
     def public_candidate(self, db, slug):
         # One consistent visibility snapshot; no authentication PII is selected.
-        return db.execute(self.joined().add_columns(
+        parent = aliased(Category)
+        return db.execute(self.joined(parent).add_columns(
             User.account_status, User.email_verified, User.phone_verified,
             UserProfile.public_handle, UserProfile.display_name, UserProfile.onboarding_completed,
             UserProfile.city_id, SellerVerificationRepository.verified_predicate(User.id),
         ).join(User, User.id == ProductListing.seller_user_id)
           .join(UserProfile, UserProfile.user_id == User.id)
-          .where(ProductListing.public_slug == slug)).first()
+          .where(ProductListing.public_slug == slug, publicly_visible(parent))).first()

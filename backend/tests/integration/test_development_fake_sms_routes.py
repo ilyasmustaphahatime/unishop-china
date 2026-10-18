@@ -22,6 +22,7 @@ from app.models import PhoneVerificationCode, User
 from app.models.base import utc_now
 from app.services.auth_service import RegistrationService
 from app.services.phone_verification_service import PhoneVerificationService
+from tests.browse_cursor_support import TEST_BROWSE_CURSOR_KEY
 
 SECRET = "phase-3b-test-only-verification-secret-with-adequate-entropy"
 JWT_TEST_SECRET = "phase-4a-test-only-jwt-secret-with-more-than-thirty-two-characters"
@@ -132,6 +133,7 @@ def test_production_route_and_openapi_are_absent() -> None:
             sms_provider="tencent",
             enable_fake_sms_dev_inbox=False,
             jwt_secret_key=JWT_TEST_SECRET,
+            browse_cursor_signing_key=TEST_BROWSE_CURSOR_KEY,
             verification_code_hash_secret=SECRET,
             refresh_cookie_secure=True,
         )

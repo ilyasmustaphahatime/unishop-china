@@ -62,6 +62,7 @@ class Settings(BaseSettings):
 
     frontend_url: str = "http://localhost:5173"
     jwt_secret_key: SecretStr | None = None
+    browse_cursor_signing_key: SecretStr | None = None
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = Field(default=15, ge=5, le=60)
     jwt_issuer: str = "unishop-china-api"
@@ -280,6 +281,20 @@ def validate_runtime_security(config: Settings) -> None:
 
     validate_authentication_configuration(config)
     validate_session_configuration(config)
+    validate_browse_cursor_configuration(config)
+
+
+def validate_browse_cursor_configuration(config: Settings) -> None:
+    """Production cursors must have a distinct, strong, shared signing key."""
+    key = (config.browse_cursor_signing_key.get_secret_value().strip()
+           if config.browse_cursor_signing_key is not None else "")
+    if config.app_env.strip().lower() == "development" and not key:
+        return  # Local-only, purpose-separated JWT-derived key in cursor codec.
+    markers = ("replace_with", "change_me", "local_secret", "your_secret")
+    jwt_key = (config.jwt_secret_key.get_secret_value().strip()
+               if config.jwt_secret_key is not None else "")
+    if len(key) < 32 or key == jwt_key or any(marker in key.lower() for marker in markers):
+        raise UnsafeRuntimeConfigurationError(["BROWSE_CURSOR_SIGNING_KEY"])
 
 
 def validate_authentication_configuration(config: Settings) -> None:
