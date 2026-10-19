@@ -3,8 +3,8 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.dialects.mysql import match
 from sqlalchemy.orm import aliased
 
-from app.models import Category, City, ProductImage, ProductListing, User, UserProfile
-from app.repositories.product_visibility import publicly_visible
+from app.models import Category, City, ProductListing
+from app.repositories.product_card_projection import public_product_card_statement
 from app.schemas.product_browse import BrowseQuery, BrowseSort
 from app.services.product_browse_cursor import BrowsePosition
 
@@ -22,34 +22,7 @@ def browse_index(query: BrowseQuery) -> str:
 
 class ProductBrowseRepository:
     def page_statement(self, query: BrowseQuery, position: BrowsePosition | None):
-        parent = aliased(Category)
-        cover_ref = (select(ProductImage.public_ref)
-                     .where(ProductImage.product_listing_id == ProductListing.id)
-                     .order_by(ProductImage.position.asc()).limit(1)
-                     .correlate(ProductListing).scalar_subquery())
-        stmt = (select(
-            ProductListing.public_slug.label("public_slug"),
-            ProductListing.title.label("title"),
-            ProductListing.price.label("price"),
-            ProductListing.currency.label("currency"),
-            ProductListing.condition.label("condition"),
-            ProductListing.published_at.label("published_at"),
-            City.slug.label("city_slug"), City.name_en.label("city_name_en"),
-            City.name_zh.label("city_name_zh"), City.province_en.label("city_province_en"),
-            City.province_zh.label("city_province_zh"), City.country_code.label("country_code"),
-            Category.slug.label("category_slug"), Category.name_en.label("category_name_en"),
-            Category.name_zh.label("category_name_zh"),
-            Category.description.label("category_description"),
-            parent.slug.label("parent_slug"),
-            UserProfile.public_handle.label("seller_handle"),
-            UserProfile.display_name.label("seller_display_name"),
-            cover_ref.label("cover_ref"),
-        ).join(City, City.id == ProductListing.city_id)
-         .join(Category, Category.id == ProductListing.category_id)
-         .outerjoin(parent, parent.id == Category.parent_id)
-         .join(User, User.id == ProductListing.seller_user_id)
-         .join(UserProfile, UserProfile.user_id == User.id)
-         .where(publicly_visible(parent))
+        stmt = (public_product_card_statement()
          # Public eligibility is evaluated after an indexed product read. Driving
          # from tiny catalog/seller tables caused unbounded filesorts in the
          # measured 20k-row workload, including keyword searches.

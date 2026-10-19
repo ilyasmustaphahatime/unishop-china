@@ -1,0 +1,1 @@
+"""Authenticated private marketplace associations."""

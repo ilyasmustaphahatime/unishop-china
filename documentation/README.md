@@ -4,6 +4,7 @@ Architecture, workflow, API, security, phase, and design records live in this di
 
 Current implementation:
 
+- [Phase 12 private favorites/history API](api/favorites-recently-viewed-api.md), [architecture decision](architecture/ADR_PHASE_12_PRIVATE_PRODUCT_LISTS.md), and [implementation report](phases/PHASE_12_FAVORITES_RECENTLY_VIEWED_BACKEND.md)
 - [Current status](CURRENT_PROJECT_STATUS.md)
 - [Phase 11B browse/search API](api/product-browse-search-api.md) and [search/pagination ADR](architecture/ADR_PHASE_11B_SEARCH_PAGINATION.md)
 - [Phase 11B implementation and verification report](phases/PHASE_11B_PRODUCT_BROWSE_SEARCH_BACKEND.md)

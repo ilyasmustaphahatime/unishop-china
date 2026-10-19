@@ -1,5 +1,41 @@
 # UniShop China Current Project Status
 
+## Phase 12 favorites and recently viewed backend (2026-10-19)
+
+**IMPLEMENTED — PENDING FINAL AUDIT AND GIT CLOSURE.** Ready for independent
+final audit: **YES**. Production ready: **NO**. Phase 11B is committed/pushed;
+current branch `feature/authentication` remains at `eb563b8`. Phase 12 exists
+only as unstaged changes: 11 modified tracked paths + 24 new paths; no staging,
+commit, push, frontend feature or Phase 13 work.
+
+- Eight authenticated private `/me` operations; user-scoped favorites and explicit
+  recent history, existing public card/visibility reused, private signed keysets,
+  500 saved-item cap and 100-row history retention. Per-user row locking protects
+  concurrent idempotency, quota, pruning and clear. GET remains read-only.
+- Focused **141 passed** (48 unit + 93 MySQL integration); full backend **1,599
+  passed**, zero failed/skipped. One inherited TestClient deprecation warning.
+  Real Uvicorn/MySQL 8.4.11: **204 Phase 12 assertions**, five races × three rounds;
+  existing complete HTTP security/media regression **161 checks** passed.
+- Frontend compatibility **387 tests / 22 files**, TypeScript, ESLint and build
+  passed. Python compile/Ruff/pip check/audit passed; no configured Python type
+  checker. No dependency updates; full npm audit retains inherited **5 High /
+  2 Moderate build-chain nodes**; production-only npm audit has zero findings.
+- Additive migration `c12d3e4f5a6b` after `b11b2c3d4e5f`, single head/no drift.
+  Development upgraded forward only. Disposable MySQL 8.4.11 full historical
+  upgrade and Phase 12 upgrade/downgrade/re-upgrade, integrity/CASCADE/precision
+  gates passed with representative prior data preserved.
+- All 16 prior development data-table fingerprints unchanged; two new tables
+  empty after cleanup; all 13 protected artifact hashes unchanged/untracked;
+  configured private media unchanged, report-only media consistency clean.
+- Independent final audit and later explicit Git closure remain. Inherited
+  Tailwind 3 advisories, private production storage, distributed controls and
+  deployed operational acceptance still block production readiness.
+
+See the [Phase 12 report and complete file manifest](phases/PHASE_12_FAVORITES_RECENTLY_VIEWED_BACKEND.md),
+[API contract](api/favorites-recently-viewed-api.md), and
+[architecture decision](architecture/ADR_PHASE_12_PRIVATE_PRODUCT_LISTS.md).
+The dated entries below are historical snapshots, not current Git claims.
+
 ## Phase 11B browse/search backend (2026-10-14)
 
 **Backend implementation/local functional regression: PASS. All mandatory

@@ -56,27 +56,36 @@ def test_openapi_has_only_public_identifiers_and_bounded_owner_pagination():
             operation_ids.append(operation["operationId"])
             for parameter in operation.get("parameters", []):
                 if parameter["in"] == "query":
-                    assert path in {"/api/v1/seller/products", "/api/v1/products"} and method == "get"
+                    assert path in {"/api/v1/seller/products", "/api/v1/products",
+                                    "/api/v1/me/favorites", "/api/v1/me/recently-viewed"} and method == "get"
                     if path == "/api/v1/seller/products":
                         assert parameter["name"] in {"limit", "offset"}
-                    else:
+                    elif path == "/api/v1/products":
                         assert parameter["name"] in {"q", "city", "category", "min_price", "max_price",
                                                      "condition", "sort", "limit", "cursor"}
+                    else:
+                        assert parameter["name"] in {"limit", "cursor"}
+                        if parameter["name"] == "cursor":
+                            assert parameter["schema"]["anyOf"][0]["maxLength"] == 512
                     if parameter["name"] in {"limit", "offset"}:
                         assert "maximum" in parameter["schema"] and "minimum" in parameter["schema"]
                 if parameter["in"] == "path":
                     if path.startswith(("/api/v1/cities/", "/api/v1/categories/",
                                         "/api/v1/admin/cities/", "/api/v1/admin/categories/",
-                                        "/api/v1/products/", "/api/v1/seller/products/")):
+                                        "/api/v1/products/", "/api/v1/seller/products/",
+                                        "/api/v1/me/favorites/", "/api/v1/me/recently-viewed/")):
                         assert parameter["name"] in ({"slug", "image_ref"} if "/images/" in path else {"slug"})
                         if parameter["name"] == "image_ref":
                             assert parameter["schema"]["pattern"] == "^img-[0-9a-f]{32}$"
-                        elif "/products/" in path:
+                        elif "/products/" in path or "/me/" in path:
                             assert parameter["schema"]["pattern"] == "^item-[0-9a-f]{24}$"
                     else:
                         assert parameter["name"] == "handle"
                         assert path == "/api/v1/profiles/by-handle/{handle}"
-            assert not any(word in path for word in ("/chat", "/deals", "/orders", "/favorites"))
+            assert not any(word in path for word in ("/chat", "/deals", "/orders"))
+            if "/favorites" in path or "/recently-viewed" in path:
+                assert path.startswith(("/api/v1/me/favorites", "/api/v1/me/recently-viewed"))
+                assert operation["security"]
             if "/images" in path:
                 assert path in {"/api/v1/products/{slug}/images/{image_ref}",
                     "/api/v1/seller/products/{slug}/images", "/api/v1/seller/products/{slug}/images/order",
@@ -86,7 +95,7 @@ def test_openapi_has_only_public_identifiers_and_bounded_owner_pagination():
             if "/admin/" in path:
                 assert path.startswith(("/api/v1/admin/cities", "/api/v1/admin/categories"))
                 assert operation["security"]
-    assert len(operation_ids) == len(set(operation_ids)) == 56
+    assert len(operation_ids) == len(set(operation_ids)) == 64
     assert not schema["paths"]["/api/v1/products"]["get"].get("security")
     assert "/api/v1/profiles/{public_id}" not in schema["paths"]
     for kind in ("sms", "password-reset"):

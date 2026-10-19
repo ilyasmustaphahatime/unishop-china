@@ -9,8 +9,12 @@ from app.api.v1.profiles.routes import router as profiles_router
 from app.core.database import check_database_connection
 from app.api.v1.seller_verification.routes import router as seller_router
 from app.api.v1.admin.seller_verification_routes import router as seller_admin_router
+from app.api.v1.me.favorites_routes import router as favorites_router
+from app.api.v1.me.recently_viewed_routes import router as recently_viewed_router
 
 router = APIRouter()
+router.include_router(favorites_router, prefix="/me/favorites")
+router.include_router(recently_viewed_router, prefix="/me/recently-viewed")
 router.include_router(products_router, prefix="/products")
 router.include_router(seller_products_router, prefix="/seller/products")
 router.include_router(image_router, prefix="/products")

@@ -11,6 +11,7 @@ from app.core.evidence_security import EvidenceUploadBoundary, install_evidence_
 from app.core.catalog_security import CatalogRequestBoundary
 from app.core.product_security import ProductRequestBoundary
 from app.core.product_image_security import ProductImageRequestBoundary
+from app.core.personalization_security import PersonalizationRequestBoundary
 from app.services.product_image_storage import product_image_storage
 from app.api.v1.dev.fake_sms_routes import create_development_fake_sms_router
 from app.api.v1.dev.fake_password_reset_routes import (
@@ -117,13 +118,14 @@ def create_app(
     application.add_middleware(CatalogRequestBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(ProductRequestBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(ProductImageRequestBoundary, prefix=config.api_v1_prefix)
+    application.add_middleware(PersonalizationRequestBoundary, prefix=config.api_v1_prefix)
     application.state.fake_password_reset_store = fake_password_reset_store
     application.state.fake_email_verification_store = fake_email_verification_store
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(allowed_frontend_origins(config)),
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Evidence-Ticket"],
     )
     application.include_router(api_router, prefix=config.api_v1_prefix)
@@ -153,7 +155,7 @@ def create_app(
 
     private_prefixes = tuple(
         f"{config.api_v1_prefix}/{namespace}/"
-        for namespace in ("auth", "profile", "dev", "seller-verification", "admin", "seller", "products")
+        for namespace in ("auth", "profile", "dev", "seller-verification", "admin", "seller", "products", "me")
     )
 
     @application.middleware("http")

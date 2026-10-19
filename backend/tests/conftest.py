@@ -19,9 +19,13 @@ from app.models import (
     City, Category, CatalogWriteLock, AdminCatalogAudit,
     ProductListing,
     ProductImage,
+    ProductFavorite,
+    ProductRecentView,
 )
 
 TRACKED_TEST_TABLES = (
+    ProductFavorite,
+    ProductRecentView,
     ProductImage,
     ProductListing,
     City, Category, CatalogWriteLock, AdminCatalogAudit,
