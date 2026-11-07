@@ -11,7 +11,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
     [
         (
             "backend/Dockerfile",
-            ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"],
+            [
+                "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000",
+                "--ws", "websockets-sansio", "--ws-max-size", "16384",
+                "--ws-per-message-deflate", "false", "--log-level", "info",
+            ],
         ),
         (
             "frontend/Dockerfile",

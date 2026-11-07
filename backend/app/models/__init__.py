@@ -1,4 +1,7 @@
 from app.models.email_verification_code import EmailVerificationCode
+from app.models.conversation import Conversation
+from app.models.message import Message
+from app.models.wechat_share_request import WeChatShareRequest
 from app.models.catalog import City, Category, CatalogWriteLock, AdminCatalogAudit
 from app.models.password_reset_code import PasswordResetCode
 from app.models.phone_verification_code import PhoneVerificationCode
@@ -13,6 +16,7 @@ from app.models.user_role import UserRole
 from app.models.seller_verification import SellerVerification, SellerEvidence, SellerVerificationAudit
 
 __all__ = [
+    "Conversation", "Message", "WeChatShareRequest",
     "ProductListing",
     "ProductImage",
     "ProductFavorite",

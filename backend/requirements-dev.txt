@@ -3,3 +3,5 @@ pytest>=8.0
 httpx>=0.27
 ruff>=0.6
 pip-audit>=2.10
+# pip-audit -> CacheControl[filecache]; security-fixed lock implementation.
+filelock==4.2.1

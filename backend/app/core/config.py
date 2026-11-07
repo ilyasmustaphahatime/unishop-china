@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     jwt_secret_key: SecretStr | None = None
     browse_cursor_signing_key: SecretStr | None = None
+    wechat_contact_encryption_key: SecretStr | None = None
     personal_favorites_limit: int = Field(default=500, ge=1, le=500)
     personal_history_limit: int = Field(default=100, ge=1, le=100)
     jwt_algorithm: str = "HS256"

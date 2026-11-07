@@ -12,6 +12,9 @@ from app.core.catalog_security import CatalogRequestBoundary
 from app.core.product_security import ProductRequestBoundary
 from app.core.product_image_security import ProductImageRequestBoundary
 from app.core.personalization_security import PersonalizationRequestBoundary
+from app.core.chat_security import ChatRequestBoundary
+from app.core.chat_logging import install_chat_log_protection
+from app.core.websocket_manager import WebSocketConnectionManager
 from app.services.product_image_storage import product_image_storage
 from app.api.v1.dev.fake_sms_routes import create_development_fake_sms_router
 from app.api.v1.dev.fake_password_reset_routes import (
@@ -88,8 +91,11 @@ def safe_validation_errors(exc: RequestValidationError) -> list[dict[str, Any]]:
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    yield
+async def lifespan(application: FastAPI):
+    try:
+        yield
+    finally:
+        await application.state.chat_manager.shutdown()
 
 
 def create_app(
@@ -112,13 +118,16 @@ def create_app(
         lifespan=lifespan,
     )
     application.state.settings = config
+    application.state.chat_manager = WebSocketConnectionManager()
     application.state.product_image_storage = product_image_storage(config)
     install_evidence_log_filter()
+    install_chat_log_protection()
     application.add_middleware(EvidenceUploadBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(CatalogRequestBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(ProductRequestBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(ProductImageRequestBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(PersonalizationRequestBoundary, prefix=config.api_v1_prefix)
+    application.add_middleware(ChatRequestBoundary, prefix=config.api_v1_prefix)
     application.state.fake_password_reset_store = fake_password_reset_store
     application.state.fake_email_verification_store = fake_email_verification_store
     application.add_middleware(
@@ -155,7 +164,7 @@ def create_app(
 
     private_prefixes = tuple(
         f"{config.api_v1_prefix}/{namespace}/"
-        for namespace in ("auth", "profile", "dev", "seller-verification", "admin", "seller", "products", "me")
+        for namespace in ("auth", "profile", "dev", "seller-verification", "admin", "seller", "products", "me", "chat")
     )
 
     @application.middleware("http")

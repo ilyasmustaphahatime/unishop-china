@@ -1,5 +1,53 @@
 # UniShop China Current Project Status
 
+## Phase 13 secure chat and consent handoff (updated 2026-10-26)
+
+**IMPLEMENTED — DEPENDENCY REMEDIATION PASSED; READY FOR INDEPENDENT FINAL AUDIT. Production ready: NO.**
+Phase 12 is committed at `24b1bcd68720874a6379451d3e69a5d305652d6c` on
+`feature/authentication`; the older dated sections below describe historical state.
+Phase 13 remains entirely unstaged, with no commit/push or frontend chat/Phase 14 work.
+The dependency-only follow-up changed frontend dependencies and compatibility tests,
+not frontend product functionality. Older dated audit findings below are historical.
+
+- Nine private HTTP operations and one authentication-first WebSocket endpoint;
+  product-linked conversations, durable idempotent messages, bounded history,
+  explicit encrypted WeChat approval/denial/revocation and authorization rechecks.
+- Additive revision `d13e4f5a6b7c`; development forward only, disposable MySQL 8.4.11
+  upgrade/downgrade/re-upgrade and three concurrency rounds verified. No schema drift.
+- After remediation: **317 focused dependency/media/Phase 13 tests passed**. Full
+  backend run once: **1,824 passed**, zero failed/skipped, one inherited TestClient
+  warning. Full frontend run once: **390 passed / 23 files**. Compilation, Ruff,
+  pip check, TypeScript, ESLint and production build passed.
+- The Pillow-related real MySQL 9.4/Uvicorn HTTP/media workflow passed **161 checks**,
+  with exact synthetic/media cleanup and server shutdown. Original Phase 13 live
+  results (**175 assertions each on MySQL 9.4 and isolated 8.4**) and three concurrency
+  rounds remain historical evidence; they were not unnecessarily repeated.
+- All **22** data fingerprints and schema hashes match the pre-remediation baseline;
+  canonical OpenAPI hash and existing HTTP/WebSocket source/contracts are unchanged.
+  Media and all 13 protected artifacts remain unchanged. Read-only Alembic current/check
+  confirms d13e4f5a6b7c/no drift; no migration was applied or reversed in this follow-up.
+- Current Python, full npm and production npm audits all report **zero findings**.
+  Resolved **41 Python advisories** and **14 distinct npm advisories** (fresh npm
+  baseline: 10 affected nodes, 4 High / 6 Moderate; production: 2 High nodes).
+- Installed fixes: certifi 2026.10.19, filelock 4.2.1, Pillow 13.0.0,
+  follow-redirects 1.16.2, zod 4.6.6, vite 8.1.6, vitest/mocker 4.1.12, undici 7.30.1
+  and scoped postcss-selector-parser 7.1.6. The necessary Pillow/filelock major changes
+  were investigated and regression-tested. **Tailwind stays 3.4.19**; both pre-update
+  CSS fixture hashes match with the narrow parser override. HTTPS/TLS validation
+  remained enabled and the clean install matches the lockfile (330 installed packages).
+- `cryptography` 50.0.2 was installed using normal HTTPS verification. Dedicated
+  pagination/contact secrets must be provisioned privately; local `.env` was not edited.
+- Existing Phase 12 LOW findings remain unresolved. Production storage/secrets,
+  deployed WSS/TLS, full Docker/NGINX runtime, browser acceptance, sustained load and
+  online key rotation remain operational acceptance items. Local audits are not
+  production certification. Independent final audit and human-owned Git closure
+  have not happened.
+- Combined scope: 34 modified + 22 new Phase 13 paths. All are unstaged; the separate
+  Postman README BOM edit and 13 protected artifacts are preserved and excluded.
+  See the [remediation matrix, advisory IDs and exact results](phases/PHASE_13_DEPENDENCY_REMEDIATION.md),
+  [Phase 13 evidence and manifest](phases/PHASE_13_SECURE_CHAT.md), and
+  [API/event contract](api/chat-api.md).
+
 ## Phase 12 favorites and recently viewed backend (2026-10-19)
 
 **IMPLEMENTED — PENDING FINAL AUDIT AND GIT CLOSURE.** Ready for independent

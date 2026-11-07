@@ -21,9 +21,15 @@ from app.models import (
     ProductImage,
     ProductFavorite,
     ProductRecentView,
+    Conversation,
+    Message,
+    WeChatShareRequest,
 )
 
 TRACKED_TEST_TABLES = (
+    Message,
+    WeChatShareRequest,
+    Conversation,
     ProductFavorite,
     ProductRecentView,
     ProductImage,
