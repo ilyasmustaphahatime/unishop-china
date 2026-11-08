@@ -58,13 +58,22 @@ def test_openapi_has_only_public_identifiers_and_bounded_owner_pagination():
                 if parameter["in"] == "query":
                     assert path in {"/api/v1/seller/products", "/api/v1/products",
                                     "/api/v1/me/favorites", "/api/v1/me/recently-viewed",
-                                    "/api/v1/chat/conversations",
+                                    "/api/v1/chat/conversations", "/api/v1/offers", "/api/v1/deals",
                                     "/api/v1/chat/conversations/{conversation_ref}/messages"} and method == "get"
                     if path == "/api/v1/seller/products":
                         assert parameter["name"] in {"limit", "offset"}
                     elif path == "/api/v1/products":
                         assert parameter["name"] in {"q", "city", "category", "min_price", "max_price",
                                                      "condition", "sort", "limit", "cursor"}
+                    elif path in {"/api/v1/offers", "/api/v1/deals"}:
+                        allowed = {"limit", "cursor", "conversation_ref", "role"}
+                        if path.endswith("/offers"):
+                            allowed.add("status")
+                        assert parameter["name"] in allowed
+                        if parameter["name"] == "cursor":
+                            assert parameter["schema"]["anyOf"][0]["maxLength"] == 512
+                        if parameter["name"] == "conversation_ref":
+                            assert parameter["schema"]["anyOf"][0]["pattern"] == "^cv-[0-9a-f]{32}$"
                     else:
                         assert parameter["name"] in {"limit", "cursor"}
                         if parameter["name"] == "cursor":
@@ -72,7 +81,11 @@ def test_openapi_has_only_public_identifiers_and_bounded_owner_pagination():
                     if parameter["name"] in {"limit", "offset"}:
                         assert "maximum" in parameter["schema"] and "minimum" in parameter["schema"]
                 if parameter["in"] == "path":
-                    if path.startswith("/api/v1/chat/conversations/"):
+                    if path.startswith(("/api/v1/offers/", "/api/v1/deals/")):
+                        name, prefix = ("offer_ref", "of") if "/offers/" in path else ("deal_ref", "dl")
+                        assert parameter["name"] == name
+                        assert parameter["schema"]["pattern"] == "^" + prefix + "-[0-9a-f]{32}$"
+                    elif path.startswith("/api/v1/chat/conversations/"):
                         assert parameter["name"] == "conversation_ref"
                         assert parameter["schema"]["pattern"] == "^cv-[0-9a-f]{32}$"
                     elif path.startswith(("/api/v1/cities/", "/api/v1/categories/",
@@ -87,7 +100,18 @@ def test_openapi_has_only_public_identifiers_and_bounded_owner_pagination():
                     else:
                         assert parameter["name"] == "handle"
                         assert path == "/api/v1/profiles/by-handle/{handle}"
-            assert not any(word in path for word in ("/deals", "/orders"))
+            assert "/orders" not in path
+            if path.startswith(("/api/v1/offers", "/api/v1/deals")):
+                assert (method, path) in {
+                    ("post", "/api/v1/offers"), ("get", "/api/v1/offers"),
+                    ("get", "/api/v1/offers/{offer_ref}"),
+                    ("post", "/api/v1/offers/{offer_ref}/counteroffers"),
+                    ("post", "/api/v1/offers/{offer_ref}/accept"),
+                    ("post", "/api/v1/offers/{offer_ref}/reject"),
+                    ("post", "/api/v1/offers/{offer_ref}/withdraw"),
+                    ("get", "/api/v1/deals"), ("get", "/api/v1/deals/{deal_ref}"),
+                }
+                assert operation["security"]
             if "/chat" in path:
                 assert path in {
                     "/api/v1/chat/conversations",
@@ -112,7 +136,7 @@ def test_openapi_has_only_public_identifiers_and_bounded_owner_pagination():
             if "/admin/" in path:
                 assert path.startswith(("/api/v1/admin/cities", "/api/v1/admin/categories"))
                 assert operation["security"]
-    assert len(operation_ids) == len(set(operation_ids)) == 73
+    assert len(operation_ids) == len(set(operation_ids)) == 82
     assert not schema["paths"]["/api/v1/products"]["get"].get("security")
     assert "/api/v1/profiles/{public_id}" not in schema["paths"]
     for kind in ("sms", "password-reset"):

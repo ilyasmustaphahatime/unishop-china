@@ -7,7 +7,8 @@ class ChatTransportLogFilter(logging.Filter):
         if record.levelno < logging.INFO:
             return False
         values = record.args if isinstance(record.args, tuple) else (record.args,)
-        if any(isinstance(value, str) and "/chat" in value for value in (*values, record.msg)):
+        if any(isinstance(value, str) and any(path in value for path in ("/chat", "/offers", "/deals"))
+               for value in (*values, record.msg)):
             return False
         if record.exc_info and record.module in {"websockets_sansio_impl", "websockets_impl", "wsproto_impl"}:
             record.msg, record.args = "WebSocket protocol error.", ()

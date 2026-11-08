@@ -13,6 +13,7 @@ from app.core.product_security import ProductRequestBoundary
 from app.core.product_image_security import ProductImageRequestBoundary
 from app.core.personalization_security import PersonalizationRequestBoundary
 from app.core.chat_security import ChatRequestBoundary
+from app.core.offer_security import OfferRequestBoundary
 from app.core.chat_logging import install_chat_log_protection
 from app.core.websocket_manager import WebSocketConnectionManager
 from app.services.product_image_storage import product_image_storage
@@ -128,6 +129,7 @@ def create_app(
     application.add_middleware(ProductImageRequestBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(PersonalizationRequestBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(ChatRequestBoundary, prefix=config.api_v1_prefix)
+    application.add_middleware(OfferRequestBoundary, prefix=config.api_v1_prefix)
     application.state.fake_password_reset_store = fake_password_reset_store
     application.state.fake_email_verification_store = fake_email_verification_store
     application.add_middleware(
@@ -164,7 +166,7 @@ def create_app(
 
     private_prefixes = tuple(
         f"{config.api_v1_prefix}/{namespace}/"
-        for namespace in ("auth", "profile", "dev", "seller-verification", "admin", "seller", "products", "me", "chat")
+        for namespace in ("auth", "profile", "dev", "seller-verification", "admin", "seller", "products", "me", "chat", "offers", "deals")
     )
 
     @application.middleware("http")
@@ -173,6 +175,7 @@ def create_app(
         response.headers["Referrer-Policy"] = "no-referrer"
         if request.url.path.startswith(private_prefixes) or request.url.path in {
             f"{config.api_v1_prefix}/seller-verification", f"{config.api_v1_prefix}/products",
+            f"{config.api_v1_prefix}/offers", f"{config.api_v1_prefix}/deals",
         }:
             response.headers["Cache-Control"] = "no-store"
             response.headers["Pragma"] = "no-cache"
@@ -191,6 +194,7 @@ def create_app(
         headers = {"Referrer-Policy": "no-referrer"}
         if request.url.path.startswith(private_prefixes) or request.url.path in {
             f"{config.api_v1_prefix}/seller-verification", f"{config.api_v1_prefix}/products",
+            f"{config.api_v1_prefix}/offers", f"{config.api_v1_prefix}/deals",
         }:
             headers.update({"Cache-Control": "no-store", "Pragma": "no-cache"})
         return JSONResponse(

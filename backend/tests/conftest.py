@@ -24,9 +24,11 @@ from app.models import (
     Conversation,
     Message,
     WeChatShareRequest,
+    Offer, Deal,
 )
 
 TRACKED_TEST_TABLES = (
+    Deal, Offer,
     Message,
     WeChatShareRequest,
     Conversation,

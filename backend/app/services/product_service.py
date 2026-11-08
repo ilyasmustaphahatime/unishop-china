@@ -7,6 +7,7 @@ from app.models.base import utc_now
 from app.models.product import ProductStatus
 from app.repositories.catalog_repository import CatalogAuditRepository
 from app.repositories.product_repository import ProductRepository
+from app.repositories.offer_repository import OfferRepository
 from app.repositories.product_image_repository import ProductImageRepository
 from app.schemas.product_image import PublicProductImage
 from app.schemas.product import OwnProduct, OwnProductList, ProductCreate, PublicProduct, PublicSeller
@@ -131,6 +132,8 @@ class ProductService:
             else:
                 row.status = ProductStatus.PAUSED if action == "pause" else ProductStatus.ARCHIVED
                 CatalogAuditRepository().lock_writes(db)
+                if action == "archive":
+                    OfferRepository().close_product_pending(db, row.id, utc_now().replace(tzinfo=None))
             db.flush()
             return self.own_response(self.repo.owned_view(db, user_id, slug))
 

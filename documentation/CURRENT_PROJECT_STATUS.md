@@ -1,5 +1,27 @@
 # UniShop China Current Project Status
 
+## Phase 14 private offers and agreements (finalized 2026-11-08)
+
+Phase 13 Git closure baseline: `0368378ae97601512fb7abfe10bbc3431d74d57e`, branch
+`feature/authentication`. Older dated sections below retain their historical claims.
+Phase 14 implements nine private backend operations, immutable CNY proposals,
+24-hour expiry, alternating counteroffers, replay-safe transitions and atomic
+agreement/listing archival/competing-offer closure. No frontend, payment, shipping,
+notification or Phase 15 work. **READY FOR INDEPENDENT FINAL AUDIT. Production ready: NO.**
+
+Verified: 127 focused tests, 553 related regressions, one full backend run with
+1,951 passed; three MySQL race rounds with 11 passed each; real Uvicorn/MySQL smoke,
+disposable native MySQL 9.4 migration round-trip, no drift, Ruff/compile/pip check,
+exact pre-existing data fingerprints and protected-file preservation. No new
+dependency resolution; previous dependency audit results remain historical.
+
+Additive revision `e14f5a6b7c8d` follows `d13e4f5a6b7c`. No historical migration edits
+or development downgrade. Refer to the [Phase 14 implementation report](phases/PHASE_14_DEALS_OFFERS.md)
+for the final verification results and exact unstaged manifest; the
+[ADR](architecture/ADR_PHASE_14_OFFERS_DEALS.md) documents policy, locking and limits.
+Unrelated LICENSE/Postman changes and the 13 protected artifacts remain excluded.
+Existing Phase 12 and Phase 13 LOW findings are retained, not silently resolved.
+
 ## Phase 13 secure chat and consent handoff (updated 2026-10-26)
 
 **IMPLEMENTED — DEPENDENCY REMEDIATION PASSED; READY FOR INDEPENDENT FINAL AUDIT. Production ready: NO.**

@@ -14,6 +14,7 @@ class Conversation(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "conversations"
     __table_args__ = (
         UniqueConstraint("public_ref", name="uq_conversations_public_ref"),
+        UniqueConstraint("id", "product_listing_id", name="uq_conversations_id_product"),
         UniqueConstraint("buyer_user_id", "seller_user_id", "product_listing_id",
                          name="uq_conversations_participants_product"),
         CheckConstraint("buyer_user_id <> seller_user_id", name="ck_conversations_distinct_users"),

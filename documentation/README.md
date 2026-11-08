@@ -4,6 +4,8 @@ Architecture, workflow, API, security, phase, and design records live in this di
 
 Current implementation:
 
+- [Phase 14 private offers API](api/offers-api.md), [deals API](api/deals-api.md), [architecture decision](architecture/ADR_PHASE_14_OFFERS_DEALS.md), and [implementation/verification manifest](phases/PHASE_14_DEALS_OFFERS.md)
+- [Phase 13 chat API](api/chat-api.md) and [architecture decision](architecture/ADR_PHASE_13_PRIVATE_CHAT.md)
 - [Phase 12 private favorites/history API](api/favorites-recently-viewed-api.md), [architecture decision](architecture/ADR_PHASE_12_PRIVATE_PRODUCT_LISTS.md), and [implementation report](phases/PHASE_12_FAVORITES_RECENTLY_VIEWED_BACKEND.md)
 - [Current status](CURRENT_PROJECT_STATUS.md)
 - [Phase 11B browse/search API](api/product-browse-search-api.md) and [search/pagination ADR](architecture/ADR_PHASE_11B_SEARCH_PAGINATION.md)

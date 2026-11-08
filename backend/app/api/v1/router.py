@@ -14,8 +14,12 @@ from app.api.v1.me.recently_viewed_routes import router as recently_viewed_route
 from app.api.v1.chat.routes import router as chat_router
 from app.api.v1.chat.websocket import router as chat_websocket_router
 from app.api.v1.wechat_sharing.routes import router as wechat_router
+from app.api.v1.offers.routes import router as offers_router
+from app.api.v1.deals.routes import router as deals_router
 
 router = APIRouter()
+router.include_router(offers_router, prefix="/offers")
+router.include_router(deals_router, prefix="/deals")
 router.include_router(chat_router, prefix="/chat/conversations")
 router.include_router(wechat_router, prefix="/chat/conversations")
 router.include_router(chat_websocket_router, prefix="/chat")
