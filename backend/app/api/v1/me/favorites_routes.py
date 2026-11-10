@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
-from app.api.v1.me.dependencies import personal_query, personal_user, safe_personal_operation
+from app.api.v1.me.dependencies import PERSONAL_ERROR_RESPONSES, personal_query, personal_user, safe_personal_operation
 from app.common.product_slugs import ProductSlug
 from app.core.database import get_db
 from app.schemas.product_personalization import (
@@ -11,7 +11,7 @@ from app.schemas.product_personalization import (
 from app.services.favorites_service import FavoritesService
 from app.services.personalization_cursor import PersonalizationCursorCodec
 
-router = APIRouter(tags=["favorites"])
+router = APIRouter(tags=["favorites"], responses=PERSONAL_ERROR_RESPONSES)
 
 
 def _service(request):

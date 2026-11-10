@@ -10,12 +10,30 @@ from app.api.v1.auth.dependencies import get_current_user
 from app.core.authorization import AuthorizationError
 from app.core.rate_limit import InMemoryRateLimiter
 from app.schemas.product_personalization import PersonalListQuery
+from app.schemas.errors import SafeErrorResponse
 from app.services.personalization_cursor import InvalidPersonalizationCursor
 from app.services.personalization_errors import PersonalizationError
 
 personal_peer_limiter = InMemoryRateLimiter(max_requests=180, window_seconds=60, max_keys=10000)
 personal_read_limiter = InMemoryRateLimiter(max_requests=120, window_seconds=60, max_keys=10000)
 personal_write_limiter = InMemoryRateLimiter(max_requests=60, window_seconds=60, max_keys=10000)
+
+PERSONAL_ERROR_RESPONSES = {
+    code: {"model": SafeErrorResponse, "description": description}
+    for code, description in {
+        400: "Invalid or incorrectly scoped cursor.",
+        401: "Active authenticated account required.",
+        404: "Listing unavailable or resource missing.",
+        408: "Input deadline exceeded.",
+        409: "Favorite quota reached.",
+        413: "Actual body or query byte limit exceeded.",
+        415: "Lookup requests require application/json.",
+        422: "Strict request validation; submitted values are not echoed.",
+        429: "Peer/account budget exceeded; see Retry-After.",
+        500: "Unexpected failure without private details.",
+        503: "Personal listing operation temporarily unavailable.",
+    }.items()
+}
 
 
 def _reject(retry_after):

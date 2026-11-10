@@ -2,14 +2,14 @@
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
-from app.api.v1.me.dependencies import personal_query, personal_user, safe_personal_operation
+from app.api.v1.me.dependencies import PERSONAL_ERROR_RESPONSES, personal_query, personal_user, safe_personal_operation
 from app.common.product_slugs import ProductSlug
 from app.core.database import get_db
 from app.schemas.product_personalization import PersonalListQuery, RecentlyViewedPage
 from app.services.personalization_cursor import PersonalizationCursorCodec
 from app.services.recently_viewed_service import RecentlyViewedService
 
-router = APIRouter(tags=["recently-viewed"])
+router = APIRouter(tags=["recently-viewed"], responses=PERSONAL_ERROR_RESPONSES)
 
 
 def _service(request):
