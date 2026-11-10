@@ -2,7 +2,7 @@
 from datetime import datetime
 import secrets
 
-from sqlalchemy import CHAR, CheckConstraint, DateTime, ForeignKeyConstraint, Index, String, UniqueConstraint
+from sqlalchemy import CHAR, CheckConstraint, DateTime, ForeignKeyConstraint, Index, String, UniqueConstraint, inspect
 from sqlalchemy.dialects.mysql import DATETIME
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
@@ -32,6 +32,9 @@ class Deal(UUIDPrimaryKeyMixin, Base):
 
     @validates("public_ref", "accepted_offer_id", "product_listing_id", "agreed_at", "product_title_snapshot", "product_condition_snapshot")
     def immutable_agreement(self, key, value):
+        # An unloaded persisted snapshot must not become writable after expiry.
+        if inspect(self).has_identity and key not in self.__dict__:
+            raise ValueError("Agreement cannot be changed.")
         if key in self.__dict__ and self.__dict__[key] != value:
             raise ValueError("Agreement cannot be changed.")
         return value

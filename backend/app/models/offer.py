@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 import secrets
 
-from sqlalchemy import CHAR, CheckConstraint, Computed, DateTime, ForeignKeyConstraint, Index, Numeric, String, UniqueConstraint
+from sqlalchemy import CHAR, CheckConstraint, Computed, DateTime, ForeignKeyConstraint, Index, Numeric, String, UniqueConstraint, inspect
 from sqlalchemy.dialects.mysql import DATETIME
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
@@ -64,6 +64,10 @@ class Offer(UUIDPrimaryKeyMixin, Base):
 
     @validates("public_ref", "conversation_id", "product_listing_id", "parent_offer_id", "proposer_role", "amount", "currency", "client_offer_id", "created_at", "expires_at")
     def immutable_proposal(self, key, value):
+        # Expired/deferred terms are absent from __dict__, but still persisted.
+        # Fail closed without loading them (including on detached instances).
+        if inspect(self).has_identity and key not in self.__dict__:
+            raise ValueError("Proposal terms cannot be changed.")
         if key in self.__dict__ and self.__dict__[key] != value:
             raise ValueError("Proposal terms cannot be changed.")
         return value

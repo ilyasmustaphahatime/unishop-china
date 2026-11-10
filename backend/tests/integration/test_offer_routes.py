@@ -1,11 +1,13 @@
 """Real MySQL HTTP lifecycle, privacy and transaction regressions; rollback scoped."""
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 import json
 from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import event, func, select, update
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.orm import defer
 from app.common.enums import AccountStatus
 from app.core.database import get_db
 from app.core.offer_limits import clear_offer_limits
@@ -52,6 +54,49 @@ def offer(world, **kwargs):
     response = create(world, **kwargs)
     assert response.status_code == 201, response.text
     return response.json()
+
+
+@pytest.mark.parametrize("state", ["loaded", "expired", "deferred", "detached"])
+@pytest.mark.parametrize("model,field,replacement", [
+    (Offer, "amount", Decimal("99.99")),
+    (Offer, "parent_offer_id", "forged-parent"),
+    (Deal, "product_title_snapshot", "Changed agreement title"),
+    (Deal, "product_condition_snapshot", "fair"),
+])
+def test_persisted_terms_remain_immutable_when_unloaded(world, state, model, field, replacement):
+    client, db, data, _, _ = world
+    first = offer(world)
+    response = action(world, first["offer_ref"], "accept")
+    assert response.status_code == 200
+    agreement = response.json()
+    ref = first["offer_ref"] if model is Offer else agreement["deal_ref"]
+    column = getattr(model, field)
+    row = db.scalar(select(model).where(model.public_ref == ref))
+    original = getattr(row, field)
+    auth = headers(data.seller)
+    if state == "deferred":
+        db.expunge(row)
+        row = db.scalar(select(model).options(defer(column)).where(model.public_ref == ref))
+    elif state in {"expired", "detached"}:
+        db.expire(row, [field])
+        if state == "detached":
+            db.expunge(row)
+    if state != "loaded":
+        assert field not in row.__dict__
+    with pytest.raises(ValueError, match="cannot be changed"):
+        setattr(row, field, replacement)
+    db.flush()
+    assert db.scalar(select(column).where(model.public_ref == ref)) == original
+    assert client.get("/api/v1/deals/" + agreement["deal_ref"], headers=auth).json() == agreement
+
+
+def test_loaded_immutable_terms_allow_identical_assignment(world):
+    _, db, _, _, _ = world
+    first = offer(world)
+    row = db.scalar(select(Offer).where(Offer.public_ref == first["offer_ref"]))
+    row.amount = row.amount
+    row.parent_offer_id = row.parent_offer_id
+    db.flush()
 
 
 def test_counter_acceptance_snapshots_competitors_replay_and_chat(world):
