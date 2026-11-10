@@ -30,11 +30,29 @@ def chat_world(db_session):
     clear_chat_limits()
     config = chat_config()
     world = seed_chat_world(db_session, count=5)
+    # Every chat regression runs beside unrelated synthetic history. This makes
+    # global counts/updates and arbitrary consent-row selection fail visibly.
+    other = seed_chat_world(db_session, count=1)
+    sentinel = Conversation(buyer_user_id=other.buyer.id, seller_user_id=other.seller.id,
+                            product_listing_id=other.products[0].id)
+    db_session.add(sentinel)
+    db_session.flush()
+    sentinel_id = sentinel.id
+    db_session.add(Message(conversation_id=sentinel_id, sender_user_id=other.buyer.id,
+                           client_message_id=str(uuid4()), content="Unrelated synthetic history"))
+    db_session.add(WeChatShareRequest(conversation_id=sentinel_id))
     db_session.commit()
+    def sentinel_state():
+        return tuple(db_session.execute(select(model.__table__).where(column == sentinel_id)).one()
+                     for model, column in ((Conversation, Conversation.id),
+                                           (Message, Message.conversation_id),
+                                           (WeChatShareRequest, WeChatShareRequest.conversation_id)))
+    baseline = sentinel_state()
     app = create_app(config)
     app.dependency_overrides[get_db] = lambda: db_session
     with TestClient(app, raise_server_exceptions=False) as client:
         yield client, db_session, world, config
+    assert sentinel_state() == baseline, "Chat test changed unrelated history."
     clear_chat_limits()
 
 
@@ -83,7 +101,8 @@ def test_create_reuse_roles_and_minimal_projection(chat_world):
     ref = start(chat_world)
     assert ref.startswith("cv-") and len(ref) == 35
     assert start(chat_world) == ref
-    assert db.scalar(select(func.count()).select_from(Conversation)) == 1
+    assert db.scalar(select(func.count()).select_from(Conversation).where(
+        Conversation.buyer_user_id == world.buyer.id)) == 1
     for actor, role in ((world.buyer, "buyer"), (world.seller, "seller")):
         response = client.get(f"{BASE}/{ref}", headers=headers(actor))
         assert response.status_code == 200
@@ -220,7 +239,8 @@ def test_message_idempotency_content_conflict_and_actor_isolation(chat_world):
     assert conflict.value.status_code == 409
     seller = send(chat_world, ref, "Seller's own idempotency scope", actor=world.seller, client_id=client_id)
     assert seller.created and seller.message.message_ref != first.message.message_ref
-    assert db.scalar(select(func.count()).select_from(Message)) == 2
+    assert db.scalar(select(func.count()).select_from(Message).join(Conversation).where(
+        Conversation.public_ref == ref)) == 2
     with pytest.raises(ChatError) as denied:
         send(chat_world, ref, actor=world.outsider)
     assert denied.value.status_code == 404
@@ -247,7 +267,8 @@ def test_message_failure_rolls_back_without_partial_activity(chat_world, monkeyp
     with pytest.raises((OperationalError, ChatError)):
         MessageService(db, config=config).send(actor, ref, str(uuid4()), "Must never be persisted")
     monkeypatch.setattr(db, "commit", original_commit)
-    assert db.scalar(select(func.count()).select_from(Message)) == 0
+    assert db.scalar(select(func.count()).select_from(Message).join(Conversation).where(
+        Conversation.public_ref == ref)) == 0
     assert db.scalar(select(Conversation.activity_at).where(Conversation.public_ref == ref)) == original_activity
 
 
@@ -255,7 +276,8 @@ def test_equal_timestamp_history_and_cursor_isolation(chat_world):
     client, db, world, _ = chat_world
     first, second = start(chat_world), start(chat_world, 1)
     expected = {send(chat_world, first, f"Message {index}").message.message_ref for index in range(5)}
-    db.execute(update(Message).values(created_at=datetime(2026, 1, 2, 3, 4, 5, 123456)))
+    db.execute(update(Message).where(Message.public_ref.in_(expected)).values(
+        created_at=datetime(2026, 1, 2, 3, 4, 5, 123456)))
     db.commit()
     path = f"{BASE}/{first}/messages"
     page = client.get(path, headers=headers(world.buyer), params={"limit": 2}).json()
@@ -275,7 +297,8 @@ def test_equal_timestamp_history_and_cursor_isolation(chat_world):
 def test_equal_timestamp_conversation_keyset_pages(chat_world):
     client, db, world, _ = chat_world
     refs = {start(chat_world, index) for index in range(5)}
-    db.execute(update(Conversation).values(activity_at=datetime(2026, 1, 2, 3, 4, 5, 123456)))
+    db.execute(update(Conversation).where(Conversation.public_ref.in_(refs)).values(
+        activity_at=datetime(2026, 1, 2, 3, 4, 5, 123456)))
     db.commit()
     seen, cursor = [], None
     for _ in range(4):
@@ -317,7 +340,7 @@ def test_wechat_explicit_consent_encrypted_at_rest_and_revoke(chat_world):
     assert handoff(chat_world, ref, "approve", body={"contact": CONTACT}).status_code == 403
     approved = handoff(chat_world, ref, "approve", user=world.seller, body={"contact": CONTACT})
     assert approved.status_code == 200 and approved.json()["contact"] is None
-    row = db.scalar(select(WeChatShareRequest))
+    row = db.scalar(select(WeChatShareRequest).join(Conversation).where(Conversation.public_ref == ref))
     assert row.contact_ciphertext and CONTACT not in row.contact_ciphertext
     for actor in (world.buyer, world.seller):
         response = handoff(chat_world, ref, user=actor)
@@ -332,7 +355,8 @@ def test_wechat_explicit_consent_encrypted_at_rest_and_revoke(chat_world):
     assert handoff(chat_world, ref, "revoke", user=world.seller).status_code == 200
     assert handoff(chat_world, ref).json()["contact"] is None
     db.expire_all()
-    assert db.scalar(select(WeChatShareRequest.contact_ciphertext)) is None
+    assert db.scalar(select(WeChatShareRequest.contact_ciphertext).join(Conversation).where(
+        Conversation.public_ref == ref)) is None
     assert handoff(chat_world, ref, "request").status_code == 409
     assert handoff(chat_world, ref, "approve", user=world.seller, body={"contact": CONTACT}).status_code == 409
 
@@ -396,5 +420,5 @@ def test_active_seller_can_withdraw_consent_for_inactive_buyer(chat_world):
     world.buyer.account_status = AccountStatus.SUSPENDED
     db.commit()
     assert handoff(chat_world, ref, "revoke", user=world.seller).status_code == 200
-    row = db.scalar(select(WeChatShareRequest))
+    row = db.scalar(select(WeChatShareRequest).join(Conversation).where(Conversation.public_ref == ref))
     assert row.status == "REVOKED" and row.contact_ciphertext is None
