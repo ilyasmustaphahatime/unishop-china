@@ -14,6 +14,7 @@ from app.core.product_image_security import ProductImageRequestBoundary
 from app.core.personalization_security import PersonalizationRequestBoundary
 from app.core.chat_security import ChatRequestBoundary
 from app.core.offer_security import OfferRequestBoundary
+from app.core.auth_request_security import AuthRequestBoundary
 from app.core.chat_logging import install_chat_log_protection
 from app.core.websocket_manager import WebSocketConnectionManager
 from app.services.product_image_storage import product_image_storage
@@ -130,6 +131,7 @@ def create_app(
     application.add_middleware(PersonalizationRequestBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(ChatRequestBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(OfferRequestBoundary, prefix=config.api_v1_prefix)
+    application.add_middleware(AuthRequestBoundary, prefix=config.api_v1_prefix)
     application.state.fake_password_reset_store = fake_password_reset_store
     application.state.fake_email_verification_store = fake_email_verification_store
     application.add_middleware(

@@ -77,8 +77,24 @@ from app.services.password_change_service import (
 )
 from app.services.phone_verification_service import PhoneVerificationService
 from app.services.refresh_session_service import RefreshSessionService
+from app.schemas.errors import SafeErrorResponse
 
-router = APIRouter(tags=["authentication"])
+router = APIRouter(tags=["authentication"], responses={
+    code: {"model": SafeErrorResponse, "description": description}
+    for code, description in {
+        400: "Invalid verification, reset or password-change request.",
+        401: "Valid active credentials or refresh session required.",
+        403: "Origin or CSRF verification failed.",
+        408: "Authentication input exceeded the five-second deadline.",
+        409: "Registration or verification conflict.",
+        413: "Authentication input exceeds the 16 KiB actual-byte limit.",
+        415: "A nonempty authentication body must use a JSON media type.",
+        422: "Invalid input; sensitive values are not echoed.",
+        429: "Peer/account/operation request budget exceeded; see Retry-After.",
+        500: "Operation failed without internal details.",
+        503: "Verification provider temporarily unavailable.",
+    }.items()
+})
 NO_STORE_HEADERS = {"Cache-Control": "no-store", "Pragma": "no-cache"}
 
 

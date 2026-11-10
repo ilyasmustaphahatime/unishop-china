@@ -51,9 +51,12 @@ TRACKED_TEST_TABLES = (
 @pytest.fixture(autouse=True)
 def isolate_phone_request_budget():
     from app.api.v1.auth.dependencies import phone_verification_ip_rate_limiter
+    from app.core.auth_request_security import auth_request_rate_limiter
 
+    auth_request_rate_limiter.clear()
     phone_verification_ip_rate_limiter.clear()
     yield
+    auth_request_rate_limiter.clear()
     phone_verification_ip_rate_limiter.clear()
 
 
