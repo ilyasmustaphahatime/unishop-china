@@ -6,7 +6,7 @@ from sqlalchemy.orm import aliased
 from app.models import Category, City, ProductListing
 from app.repositories.product_card_projection import public_product_card_statement
 from app.schemas.product_browse import BrowseQuery, BrowseSort
-from app.services.product_browse_cursor import BrowsePosition
+from app.common.pagination import BrowsePosition
 
 
 def browse_index(query: BrowseQuery) -> str:

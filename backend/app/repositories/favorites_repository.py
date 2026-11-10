@@ -11,7 +11,7 @@ from app.repositories.product_card_projection import (
 )
 
 if TYPE_CHECKING:
-    from app.services.personalization_cursor import PersonalizationPosition
+    from app.common.pagination import PersonalizationPosition
 
 
 class FavoritesRepository:

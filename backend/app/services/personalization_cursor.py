@@ -1,7 +1,6 @@
 """Private HMAC keysets; no raw user or internal product identifiers in tokens."""
 import base64
 import binascii
-from dataclasses import dataclass
 from datetime import datetime
 import hashlib
 import hmac
@@ -9,18 +8,13 @@ import json
 import re
 
 from app.common.product_slugs import validate_product_slug
+from app.common.pagination import PersonalizationPosition as PersonalizationPosition
 from app.core.config import Settings
 from app.schemas.product_personalization import PersonalListKind
 
 
 class InvalidPersonalizationCursor(ValueError):
     pass
-
-
-@dataclass(frozen=True, slots=True)
-class PersonalizationPosition:
-    value: datetime
-    slug: str
 
 
 def _encode(value: bytes) -> str:

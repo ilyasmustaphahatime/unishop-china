@@ -1,7 +1,6 @@
 """Versioned, query-bound HMAC cursor. No internal database identifiers."""
 import base64
 import binascii
-from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 import hashlib
@@ -10,18 +9,13 @@ import json
 import re
 
 from app.common.product_slugs import validate_product_slug
+from app.common.pagination import BrowsePosition as BrowsePosition
 from app.core.config import Settings
 from app.schemas.product_browse import BrowseQuery, BrowseSort
 
 
 class InvalidBrowseCursor(ValueError):
     pass
-
-
-@dataclass(frozen=True, slots=True)
-class BrowsePosition:
-    value: datetime | Decimal
-    slug: str
 
 
 def _base64url(data: bytes) -> str:
