@@ -5,3 +5,5 @@ ruff>=0.6
 pip-audit>=2.10
 # pip-audit -> CacheControl[filecache]; security-fixed lock implementation.
 filelock==4.2.1
+# pip-audit -> CacheControl cache decoding: CVE-2026-114613.
+msgpack==1.2.3
