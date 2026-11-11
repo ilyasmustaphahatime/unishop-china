@@ -1,14 +1,16 @@
-"""Real MySQL additive index round-trip on a disposable table, never live listings."""
+"""Real index round-trip on an isolated server, never the development schema."""
 import importlib.util
+import os
 from pathlib import Path
-from uuid import uuid4
+import shutil
 
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from sqlalchemy import inspect
+from sqlalchemy import create_engine, inspect
 
 from app.core.config import settings
-from app.core.database import engine
+from app.core.database import Base, engine
+from scripts.offers_migration_checks import disposable_server
 from tests.conftest import _database_snapshot
 
 MIGRATION = (Path(__file__).resolve().parents[2] / "alembic" / "versions" /
@@ -19,27 +21,32 @@ INDEXES = {"ix_product_listings_browse_newest", "ix_product_listings_browse_pric
            "ix_product_listings_category_price"}
 
 
-def test_additive_indexes_upgrade_downgrade_upgrade_on_disposable_mysql_table():
+def test_additive_indexes_upgrade_downgrade_upgrade_on_isolated_mysql_database():
     assert settings.app_env == "development" and engine.url.database == "unishop_china"
     before = _database_snapshot()
-    name = "phase11b_probe_" + uuid4().hex[:12]
+    candidates = sorted(Path(os.environ.get("ProgramFiles", "C:/Program Files")).glob(
+        "MySQL/MySQL Server */bin/mysqld.exe"))
+    binary = os.environ.get("UNISHOP_TEST_MYSQLD") or shutil.which("mysqld") or next(iter(candidates), None)
+    assert binary, "Set UNISHOP_TEST_MYSQLD to an installed native MySQL server binary."
     spec = importlib.util.spec_from_file_location("phase11b_probe_migration", MIGRATION)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    module.TABLE = name
-    with engine.connect() as conn:
+    with disposable_server(binary) as url:
+        assert url.port != engine.url.port and url.port != 3306
+        isolated = create_engine(url, pool_pre_ping=True)
         try:
-            conn.exec_driver_sql(f"CREATE TABLE `{name}` LIKE product_listings")
-            for index in INDEXES:
-                conn.exec_driver_sql(f"ALTER TABLE `{name}` DROP INDEX `{index}`")
-            module.op = Operations(MigrationContext.configure(conn))
-            for action, expected in ((module.upgrade, True), (module.downgrade, False),
-                                     (module.upgrade, True)):
-                action()
-                present = {row["name"] for row in inspect(conn).get_indexes(name)}
-                assert INDEXES.issubset(present) if expected else INDEXES.isdisjoint(present)
+            # Only the temporary server receives DDL. Metadata includes the
+            # catalog/user FK targets required by the isolated listing table.
+            Base.metadata.create_all(isolated)
+            with isolated.connect() as conn:
+                for index in INDEXES:
+                    conn.exec_driver_sql(f"ALTER TABLE `product_listings` DROP INDEX `{index}`")
+                module.op = Operations(MigrationContext.configure(conn))
+                for action, expected in ((module.upgrade, True), (module.downgrade, False),
+                                         (module.upgrade, True)):
+                    action()
+                    present = {row["name"] for row in inspect(conn).get_indexes("product_listings")}
+                    assert INDEXES.issubset(present) if expected else INDEXES.isdisjoint(present)
         finally:
-            conn.exec_driver_sql(f"DROP TABLE IF EXISTS `{name}`")
-            conn.commit()
-    assert not inspect(engine).has_table(name)
+            isolated.dispose()
     assert _database_snapshot() == before
