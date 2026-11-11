@@ -38,14 +38,15 @@ export async function settleSessionRequests() {
   if (refreshPromise) await refreshPromise.catch(() => undefined);
 }
 
-export function coordinateLogout(revoke: () => Promise<void>): Promise<void> {
+export function coordinateLogout(revoke: (version: number) => Promise<void>): Promise<void> {
   if (logoutPromise) return logoutPromise;
   clearAuthenticatedSession();
   const version = currentSessionVersion();
   logoutPromise = (async () => {
     // Let an already-dispatched rotation finish setting its cookie before revoking it.
     if (refreshPromise) await refreshPromise.catch(() => undefined);
-    await revoke();
+    requireCurrentSession(version);
+    await revoke(version);
   })().finally(() => {
     if (version === currentSessionVersion()) clearAuthenticatedSession();
     logoutPromise = null;
