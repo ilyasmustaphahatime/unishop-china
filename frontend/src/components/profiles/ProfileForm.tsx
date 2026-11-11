@@ -57,7 +57,8 @@ export default function ProfileForm({ profile }: { profile: MyProfile }) {
     }
   }
 
-  const bioLength = useWatch({ control, name: 'bio' })?.length ?? 0;
+  const bio = useWatch({ control, name: 'bio' }) ?? '';
+  const bioLength = Array.from(bio.normalize('NFC').trim()).length;
   const selectedCity = useWatch({ control, name: 'city' }) ?? '';
   return (
     <form className="space-y-5" onSubmit={handleSubmit(submit)} noValidate>
