@@ -43,7 +43,9 @@ def health() -> dict[str, str]:
     return {"application": "UniShop China API", "status": "running", "version": "1.0.0"}
 
 
-@router.get("/health/database", tags=["health"])
+@router.get("/health/database", tags=["health"], responses={
+    503: {"model": dict[str, str | bool], "description": "MySQL unavailable; no connection details."},
+})
 def database_health(response: Response) -> dict[str, str | bool]:
     """Return database availability without exposing connection details."""
     if not check_database_connection():

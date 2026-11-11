@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
+from app.schemas.errors import SafeErrorResponse
 from app.core.evidence_security import EvidenceUploadBoundary, install_evidence_log_filter
 from app.core.catalog_security import CatalogRequestBoundary
 from app.core.product_security import ProductRequestBoundary
@@ -118,6 +119,10 @@ def create_app(
         version="1.0.0",
         debug=config.app_debug and environment == "development",
         lifespan=lifespan,
+        responses={
+            "default": {"model": SafeErrorResponse, "description": "Safe error; status identifies validation, authorization, conflict, limits or availability failure."},
+            422: {"model": SafeErrorResponse, "description": "Safe validation error without input values."},
+        },
     )
     application.state.settings = config
     application.state.chat_manager = WebSocketConnectionManager()

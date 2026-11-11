@@ -77,7 +77,10 @@ def evidence_access(body: EvidenceAccessRequest, request: Request, user=Depends(
             ticket=ticket)
 
 
-@router.get("/evidence/content", response_class=Response)
+@router.get("/evidence/content", response_class=Response, responses={200: {
+    "content": {mime: {"schema": {"type": "string", "format": "binary"}}
+                for mime in ("image/jpeg", "image/png")},
+}})
 def evidence_content(user=Depends(read_user), db: Session = Depends(get_db),
                      service=Depends(get_seller_service),
                      ticket: str = Header(alias="X-Evidence-Ticket", min_length=129, max_length=129,
