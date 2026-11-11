@@ -1,12 +1,12 @@
 ﻿# UniShop China
 
-UniShop China is a full-stack marketplace project for international students and foreigners living in China. Authentication, secure frontend sessions, profiles/onboarding, public handles, private seller verification, catalogs/admin, product listings and secure product images are implemented through Phase 10. Sign-up, forgot/reset password and standard phone-verification frontend pages remain placeholders. Browsing/search, chat, favorites, deals and reviews remain future work. UniShop China does **not** process payments; payment and delivery will be arranged privately outside the platform.
+UniShop China is a full-stack marketplace project for international students and foreigners living in China. The backend is implemented through Phase 14: authentication, profiles/onboarding, seller verification, catalogs/admin, product listings/images, browse/search, favorites/recent history, private chat, consent-based WeChat sharing and offers/deals. The frontend implements secure sessions, profiles, seller verification and product management in four languages. Sign-up/reset/standard phone-verification pages and browse/chat/favorites/offers interfaces remain deferred or placeholders. UniShop China does **not** process payments; payment and delivery are arranged privately outside the platform.
 
 ## Stack and structure
 
 Phase 11A adds English, Simplified Chinese, Arabic (RTL) and French to existing
-reachable UI, with a global selector and browser preference. Local regression and
-real Chrome gates passed; final adversarial audit/Git closure are still pending.
+reachable UI, with a global selector and browser preference. Phase 11A Git closure
+is complete; its historical browser evidence is distinct from current local tests.
 See the [Phase 11A report and full manifest](documentation/phases/PHASE_11A_INTERNATIONALIZATION.md).
 Seller content, authentication, API payloads and database schemas are unchanged.
 
@@ -40,18 +40,24 @@ See [current project status](documentation/CURRENT_PROJECT_STATUS.md), the
 [Phase 1-8 architecture/security review](documentation/architecture/PHASE_1_TO_8_ARCHITECTURE_REVIEW.md),
 [seller workflow](documentation/phases/PHASE_7_SELLER_VERIFICATION.md), and
 [catalog API](documentation/api/catalog-api.md). Apply migrations through the sole
-head `a10b2c3d4e5f` before starting the code. Profile/listing city writes use public city slugs.
+head `e14f5a6b7c8d` before starting the code. Profile/listing city writes use public city slugs.
 
 Phase 9 routes: `/sell/new`, `/seller/listings`, `/seller/listings/:slug/edit`, `/p/:slug`.
 Create/publish requires current approved seller status, verified email/phone and
 completed onboarding. Each listing supports 0-8 sanitized static JPEG/PNG/WebP images,
 private authenticated owner previews, ordering/cover and deletion. Public image
-bytes follow current listing visibility; there is no public feed/search. See
+bytes follow current listing visibility. The backend now supports public browse/search;
+the corresponding browse UI remains deferred. See
 [listing API](documentation/api/product-api.md), [image API](documentation/api/product-images-api.md)
 and the [Phase 10 gate and full manifest](documentation/phases/PHASE_10_PRODUCT_IMAGES_STORAGE.md).
 
-Local regression passed. Production readiness is **NO**: Tailwind 3 build advisories,
-unconfigured production storage/operations, container/proxy runtime and target MySQL 8
-verification remain open. Isolated real-Chrome Phase 10 checks passed. Tailwind
-remains 3; Phase 11A is implemented, but Phase 11B browsing/search has not started. Default local product media lives under ignored
-`backend/private_storage/product-media/`, separate from private seller evidence.
+The [full codebase audit](documentation/audits/FULL_CODEBASE_ARCHITECTURE_API_SECURITY_AUDIT.md)
+(11 November 2026) records 2,003 passing full-backend tests, 405 frontend tests,
+targeted follow-up regressions, three concurrency rounds and live MySQL HTTP/WebSocket
+checks. Current Python/full npm/production npm audits report zero known vulnerabilities;
+Tailwind remains 3.4.19. This does not constitute production certification.
+
+Production readiness is **NO**: production private storage/delivery/operations,
+deployed TLS/WSS, container/proxy runtime, target-runtime and fresh browser acceptance
+remain release gates. Phase 15 has not started. Configured private product media is
+kept separate from private seller evidence and is not committed to Git.

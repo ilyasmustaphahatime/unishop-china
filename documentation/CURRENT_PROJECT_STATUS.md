@@ -1,5 +1,31 @@
 # UniShop China Current Project Status
 
+## Full codebase audit (11 November 2026)
+
+**AUDIT PASSED — CODEBASE VERIFIED WITH DOCUMENTED LIMITATIONS. Production ready: NO.**
+Phase 14 baseline `9c66e1ac81c1531b6e13b4ff26f8d1200590cc86` is followed by
+verified, normally pushed audit batches on `feature/authentication`. No Phase 15
+work or development schema migration was introduced. Older sections below are
+historical records, not current Git or dependency status.
+
+- Full backend: 2,003 passed; full frontend: 405 passed / 24 files. Narrow final
+  corrections passed 215 OpenAPI/profile/media and 305 identity/security tests.
+  Final collection has 2,015 backend cases; this is not a second full-suite result.
+- Three extra concurrency rounds: 32 passed each. Live chat HTTP/WebSocket: 175
+  checks; offers/deals and health/CORS smoke passed, with exact synthetic cleanup.
+- Alembic remains `e14f5a6b7c8d`, one head/no drift. All 24 pre-existing table data
+  fingerprints and schema hashes remain unchanged. Protected files stay excluded.
+- Python and both npm audits: zero known vulnerabilities after narrow DNS/cache/
+  minimatch security updates. Clean npm install verified; Tailwind stays 3.4.19.
+- Phase 12 repository coupling/error documentation and Phase 13 unscoped chat
+  test observations are resolved. Additional fixes cover immutable ORM fields,
+  refresh lock ordering, identity JSON ingress, browser logout recovery and Unicode.
+- Production private storage/delivery, deployment TLS/WSS, Docker/NGINX runtime,
+  fresh real-browser/target-runtime acceptance, load and operations remain gates.
+
+See the [complete A–L audit and exact commit manifests](audits/FULL_CODEBASE_ARCHITECTURE_API_SECURITY_AUDIT.md)
+and [function/route/model/test inventory](audits/FULL_CODEBASE_AUDIT_INVENTORY.json).
+
 ## Phase 14 private offers and agreements (finalized 2026-11-08)
 
 Phase 13 Git closure baseline: `0368378ae97601512fb7abfe10bbc3431d74d57e`, branch
