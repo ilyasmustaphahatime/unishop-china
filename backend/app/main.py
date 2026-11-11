@@ -129,7 +129,6 @@ def create_app(
     application.state.product_image_storage = product_image_storage(config)
     install_evidence_log_filter()
     install_chat_log_protection()
-    application.add_middleware(EvidenceUploadBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(CatalogRequestBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(ProductRequestBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(ProductImageRequestBoundary, prefix=config.api_v1_prefix)
@@ -137,6 +136,8 @@ def create_app(
     application.add_middleware(ChatRequestBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(OfferRequestBoundary, prefix=config.api_v1_prefix)
     application.add_middleware(AuthRequestBoundary, prefix=config.api_v1_prefix)
+    # Seller peer budgets must run before generic identity JSON rejection.
+    application.add_middleware(EvidenceUploadBoundary, prefix=config.api_v1_prefix)
     application.state.fake_password_reset_store = fake_password_reset_store
     application.state.fake_email_verification_store = fake_email_verification_store
     application.add_middleware(

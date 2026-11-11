@@ -1,4 +1,4 @@
-"""Bound authentication input before JSON parsing, dependencies or password work."""
+"""Bound authentication/identity JSON before parsing or authorization work."""
 import json
 
 from fastapi.responses import JSONResponse
@@ -30,17 +30,23 @@ class AuthRequestBoundary:
 
     def __init__(self, app, prefix):
         self.app = app
-        self.path = prefix + "/auth"
+        self.paths = tuple(prefix + "/" + namespace for namespace in (
+            "auth", "profile", "dev", "seller-verification", "admin/seller-verifications",
+        ))
+        self.multipart_path = prefix + "/seller-verification/evidence"
 
     async def __call__(self, scope, receive, send):
         if (scope["type"] != "http" or scope["method"] == "OPTIONS"
-                or not (scope["path"] == self.path or scope["path"].startswith(self.path + "/"))):
+                or not any(scope["path"] == path or scope["path"].startswith(path + "/") for path in self.paths)
+                or (scope["path"] == self.multipart_path and scope["method"] == "POST")):
+            # EvidenceUploadBoundary owns the actual-byte/time-limited multipart
+            # exception. Content-Type alone can never opt out of this JSON guard.
             return await self.app(scope, receive, send)
         peer = (scope.get("client") or ("unknown",))[0]
         decision = auth_request_rate_limiter.consume(peer)
         code, detail, body = 0, "", b""
         if not decision.allowed:
-            code, detail = 429, "Too many authentication requests."
+            code, detail = 429, "Too many identity requests."
         else:
             try:
                 body = await bounded_json_body(receive, maximum_bytes=16384, timeout_seconds=5)

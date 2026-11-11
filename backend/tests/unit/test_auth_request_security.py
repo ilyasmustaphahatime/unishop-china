@@ -106,3 +106,32 @@ def test_auth_transport_errors_are_documented():
         for status in (408, 413, 415, 422, 429):
             response = operation["responses"][str(status)]
             assert response["content"]["application/json"]["schema"]["$ref"].endswith("/SafeErrorResponse")
+
+
+@pytest.mark.parametrize("path,method", [
+    ("/api/v1/profile/me", "PATCH"),
+    ("/api/v1/profile/onboarding/complete", "POST"),
+    ("/api/v1/seller-verification", "POST"),
+    ("/api/v1/seller-verification/evidence/access", "POST"),
+    ("/api/v1/admin/seller-verifications/synthetic/approve", "POST"),
+    ("/api/v1/dev/fake-sms/latest", "POST"),
+])
+def test_identity_json_is_bounded_before_dependencies(path, method):
+    called, output = run_boundary([
+        {"type": "http.request", "body": b"x" * 16385},
+    ], method=method, path=path, headers=[(b"content-type", b"multipart/form-data")])
+    assert not called and output[0]["status"] == 413
+
+
+def test_identity_malformed_json_consumes_budget(monkeypatch):
+    monkeypatch.setattr(auth_request_rate_limiter, "max_requests", 1)
+    with TestClient(create_app()) as client:
+        assert client.patch("/api/v1/profile/me", content=b"{",
+                            headers={"Content-Type": "application/json"}).status_code == 422
+        assert client.patch("/api/v1/profile/me", content=b"{").status_code == 429
+
+
+def test_evidence_multipart_retains_its_separate_upload_boundary():
+    called, output = run_boundary([{"type": "http.request", "body": b"image"}],
+                                  path="/api/v1/seller-verification/evidence")
+    assert called and not output
