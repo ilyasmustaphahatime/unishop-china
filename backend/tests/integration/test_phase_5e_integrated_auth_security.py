@@ -348,15 +348,11 @@ def test_password_reset_vs_refresh_preserves_successful_reset_authority() -> Non
                 )
             )
             assert user is not None and challenge is not None and refresh_rows
-            if reset_outcome == "reset":
-                assert verify_password(RESET_PASSWORD, user.password_hash)
-                assert challenge.used_at is not None
-                assert all(row.revoked_at is not None for row in refresh_rows)
-            else:
-                assert reset_outcome == "database-retry-required"
-                assert refresh_outcome == "rotated"
-                assert verify_password(OLD_PASSWORD, user.password_hash)
-                assert challenge.used_at is None
+            assert reset_outcome == "reset"
+            assert refresh_outcome in {"rotated", "rejected"}
+            assert verify_password(RESET_PASSWORD, user.password_hash)
+            assert challenge.used_at is not None
+            assert all(row.revoked_at is not None for row in refresh_rows)
     finally:
         cleanup_user(user_id)
     assert database_snapshot() == baseline
@@ -422,15 +418,11 @@ def test_password_change_vs_refresh_preserves_successful_change_authority() -> N
                 )
             )
             assert user is not None and challenge is not None and refresh_rows
-            if change_outcome == "changed":
-                assert verify_password(CHANGE_PASSWORD, user.password_hash)
-                assert challenge.used_at is not None
-                assert all(row.revoked_at is not None for row in refresh_rows)
-            else:
-                assert change_outcome == "database-retry-required"
-                assert refresh_outcome == "rotated"
-                assert verify_password(OLD_PASSWORD, user.password_hash)
-                assert challenge.used_at is None
+            assert change_outcome == "changed"
+            assert refresh_outcome in {"rotated", "rejected"}
+            assert verify_password(CHANGE_PASSWORD, user.password_hash)
+            assert challenge.used_at is not None
+            assert all(row.revoked_at is not None for row in refresh_rows)
     finally:
         cleanup_user(user_id)
     assert database_snapshot() == baseline

@@ -1,12 +1,17 @@
 from datetime import datetime
 
-from sqlalchemy import distinct, func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.models.refresh_token import RefreshToken
 
 
 class RefreshTokenRepository:
+    def user_id_by_hash(self, session: Session, token_hash: str) -> str | None:
+        """Identity hint only; the service must lock the user and re-read the token."""
+        return session.scalar(select(RefreshToken.user_id).where(
+            RefreshToken.token_hash == token_hash))
+
     def create_refresh_session(
         self,
         session: Session,
@@ -55,13 +60,15 @@ class RefreshTokenRepository:
         user_id: str,
         now: datetime,
     ) -> int:
-        statement = select(func.count(distinct(RefreshToken.family_id))).where(
+        # A locking read avoids the earlier authentication snapshot after waiting
+        # for the caller's account lock. Active rotations have one live row/family.
+        statement = select(RefreshToken.family_id).where(
             RefreshToken.user_id == user_id,
             RefreshToken.revoked_at.is_(None),
             RefreshToken.expires_at > now,
             RefreshToken.family_expires_at > now,
-        )
-        return int(session.scalar(statement) or 0)
+        ).with_for_update()
+        return len(set(session.scalars(statement)))
 
     def get_oldest_active_family(
         self,

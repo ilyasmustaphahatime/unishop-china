@@ -130,7 +130,7 @@ class RefreshSessionService:
         invalid_session = False
 
         with self._transaction(session):
-            current = self.repository.get_for_update_by_hash(session, presented_hash)
+            current, user = self._lock_session_owner_then_token(session, presented_hash)
             if current is None:
                 invalid_session = True
             else:
@@ -161,7 +161,6 @@ class RefreshSessionService:
                     )
                     invalid_session = True
                 else:
-                    user = self.user_repository.get_by_id_for_update(session, current.user_id)
                     if user is None or user.account_status is not AccountStatus.ACTIVE:
                         self.repository.revoke_family(
                             session,
@@ -207,7 +206,7 @@ class RefreshSessionService:
         validate_csrf_tokens(cookie_token=csrf_cookie, header_token=csrf_header)
         token_hash = hash_refresh_token(raw_refresh_token)
         with self._transaction(session):
-            current = self.repository.get_for_update_by_hash(session, token_hash)
+            current, _ = self._lock_session_owner_then_token(session, token_hash)
             if current is None:
                 return
             validate_csrf_tokens(
@@ -226,12 +225,26 @@ class RefreshSessionService:
 
     def logout_all(self, session: Session, *, user_id: str) -> None:
         with self._transaction(session):
+            self.user_repository.get_by_id_for_update(session, user_id)
             self.repository.revoke_all_for_user(
                 session,
                 user_id=user_id,
                 reason="logout_all",
                 now=as_utc(self.now_provider()),
             )
+
+    def _lock_session_owner_then_token(self, session: Session, token_hash: str):
+        # All session/credential writers serialize on User before RefreshToken.
+        # The first nonlocking lookup is NOT an authorization decision. Re-read
+        # token state under its lock after the account lock has been acquired.
+        user_id = self.repository.user_id_by_hash(session, token_hash)
+        if user_id is None:
+            return None, None
+        user = self.user_repository.get_by_id_for_update(session, user_id)
+        current = self.repository.get_for_update_by_hash(session, token_hash)
+        if current is None or current.user_id != user_id:
+            return None, user
+        return current, user
 
     def _create_token_record(
         self,
